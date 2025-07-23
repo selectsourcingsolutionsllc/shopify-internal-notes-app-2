@@ -1,0 +1,14 @@
+api_version = "2024-01"
+
+[[extensions]]
+type = "ui_extension"
+name = "Order Fulfillment Notes"
+handle = "order-fulfillment-notes"
+
+[[extensions.targeting]]
+target = "admin.order-fulfillment.block.render"
+module = "./src/OrderFulfillmentBlock.tsx"
+
+[[extensions.targeting]]
+target = "admin.order-details.block.render"
+module = "./src/OrderDetailsBlock.tsx"

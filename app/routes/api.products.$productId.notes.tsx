@@ -1,0 +1,90 @@
+import { json } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
+import { createAuditLog } from "../utils/audit.server";
+
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const { session } = await authenticate.admin(request);
+  const { productId } = params;
+  
+  const notes = await prisma.productNote.findMany({
+    where: {
+      productId: productId!,
+      shopDomain: session.shop,
+    },
+    include: {
+      photos: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+  
+  return json({ notes });
+}
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  const { session } = await authenticate.admin(request);
+  const { productId } = params;
+  const method = request.method;
+  
+  if (method === "POST") {
+    const { content } = await request.json();
+    
+    const note = await prisma.productNote.create({
+      data: {
+        productId: productId!,
+        shopDomain: session.shop,
+        content,
+        createdBy: session.email || session.id,
+        updatedBy: session.email || session.id,
+      },
+    });
+    
+    await createAuditLog({
+      shopDomain: session.shop,
+      userId: session.id,
+      userEmail: session.email,
+      action: "CREATE",
+      entityType: "PRODUCT_NOTE",
+      entityId: note.id,
+      newValue: note,
+      productNoteId: note.id,
+    });
+    
+    return json({ note });
+  }
+  
+  if (method === "PUT") {
+    const { content, noteId } = await request.json();
+    
+    const oldNote = await prisma.productNote.findUnique({
+      where: { id: noteId },
+    });
+    
+    const note = await prisma.productNote.update({
+      where: { id: noteId },
+      data: {
+        content,
+        updatedBy: session.email || session.id,
+      },
+    });
+    
+    await createAuditLog({
+      shopDomain: session.shop,
+      userId: session.id,
+      userEmail: session.email,
+      action: "UPDATE",
+      entityType: "PRODUCT_NOTE",
+      entityId: note.id,
+      oldValue: oldNote,
+      newValue: note,
+      productNoteId: note.id,
+    });
+    
+    return json({ note });
+  }
+  
+  return new Response("Method not allowed", { status: 405 });
+}

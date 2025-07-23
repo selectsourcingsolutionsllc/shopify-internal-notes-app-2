@@ -1,0 +1,38 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "YOUR_CLIENT_ID"
+name = "Internal Notes App"
+handle = "internal-notes-app"
+app_url = "https://your-app-url.com"
+embedded = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_products,write_products,read_orders,write_orders"
+
+[auth]
+redirect_urls = [
+  "https://your-app-url.com/auth/callback",
+  "https://your-app-url.com/auth/shopify/callback",
+  "https://your-app-url.com/api/auth/callback",
+  "http://localhost:3000/auth/callback",
+  "http://localhost:3000/auth/shopify/callback",
+  "http://localhost:3000/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2024-01"
+
+[app_proxy]
+url = "https://your-app-url.com/proxy"
+subpath = "apps/internal-notes"
+prefix = "apps/internal-notes"
+
+[pos]
+embedded = false
+
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#build
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "YOUR_DEV_STORE.myshopify.com"
+include_config_on_deploy = true
