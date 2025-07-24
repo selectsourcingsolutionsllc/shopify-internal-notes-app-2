@@ -1,13 +1,12 @@
+import { useState, useEffect } from 'react';
 import {
   reactExtension,
   BlockStack,
-  Card,
+  Box,
   Text,
   Badge,
   InlineStack,
   useApi,
-  useState,
-  useEffect,
 } from '@shopify/ui-extensions-react/admin';
 
 const TARGET = 'admin.order-details.block.render';
@@ -15,11 +14,11 @@ const TARGET = 'admin.order-details.block.render';
 export default reactExtension(TARGET, () => <OrderDetailsBlock />);
 
 function OrderDetailsBlock() {
-  const { extension, data } = useApi(TARGET);
-  const [acknowledgments, setAcknowledgments] = useState([]);
+  const { extension, data } = useApi<{ order?: { id: string } }>(TARGET);
+  const [acknowledgments, setAcknowledgments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  const orderId = data.order?.id;
+  const orderId = data?.order?.id;
   
   useEffect(() => {
     if (orderId) {
@@ -30,7 +29,7 @@ function OrderDetailsBlock() {
   const fetchAcknowledgments = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/apps/internal-notes/api/orders/${orderId}/acknowledgments`, {
+      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/orders/${orderId}/acknowledgments`, {
         headers: {
           'Content-Type': 'application/json',
           'X-Shopify-Access-Token': extension.sessionToken,
@@ -53,21 +52,21 @@ function OrderDetailsBlock() {
   }
   
   return (
-    <Card padding>
+    <Box padding="base">
       <BlockStack gap="base">
-        <Text variant="headingMd" as="h2">
+        <Text>
           Product Note Acknowledgments
         </Text>
         
-        <BlockStack gap="tight">
+        <BlockStack>
           {acknowledgments.map((ack) => (
-            <Card key={ack.id} padding="tight" subdued>
-              <InlineStack align="spaceBetween">
-                <BlockStack gap="extraTight">
-                  <Text variant="bodyMd">
+            <Box key={ack.id} padding>
+              <InlineStack>
+                <BlockStack>
+                  <Text>
                     Product: {ack.productTitle || ack.productId}
                   </Text>
-                  <Text appearance="subdued" variant="bodySm">
+                  <Text>
                     Acknowledged by {ack.acknowledgedBy} • {new Date(ack.acknowledgedAt).toLocaleString()}
                   </Text>
                 </BlockStack>
@@ -75,8 +74,8 @@ function OrderDetailsBlock() {
               </InlineStack>
               
               {ack.proofPhotoUrl && (
-                <InlineStack gap="tight" blockAlign="center">
-                  <Text variant="bodySm">Proof:</Text>
+                <InlineStack>
+                  <Text>Proof:</Text>
                   <img
                     src={ack.proofPhotoUrl}
                     alt="Proof"
@@ -90,10 +89,10 @@ function OrderDetailsBlock() {
                   />
                 </InlineStack>
               )}
-            </Card>
+            </Box>
           ))}
         </BlockStack>
       </BlockStack>
-    </Card>
+    </Box>
   );
 }

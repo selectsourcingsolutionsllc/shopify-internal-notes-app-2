@@ -3,8 +3,24 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { createAuditLog } from "../utils/audit.server";
+import { createCorsResponse, addCorsHeaders } from "../utils/cors.server";
+
+// Handle CORS preflight requests
+export async function options() {
+  return createCorsResponse();
+}
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
+  // Handle CORS for direct requests
+  if (request.headers.get("Origin")) {
+    try {
+      const { session } = await authenticate.admin(request);
+    } catch (error) {
+      // If auth fails, still return CORS headers
+      return createCorsResponse();
+    }
+  }
+  
   const { session } = await authenticate.admin(request);
   const { productId } = params;
   
@@ -21,7 +37,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     },
   });
   
-  return json({ notes });
+  const response = json({ notes });
+  return addCorsHeaders(response);
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {

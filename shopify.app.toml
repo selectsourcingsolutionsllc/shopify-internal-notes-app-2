@@ -1,38 +1,40 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "YOUR_CLIENT_ID"
-name = "Internal Notes App"
-handle = "internal-notes-app"
-app_url = "https://your-app-url.com"
+client_id = "759aead17dfbcb721121009dacc43ce2"
+name = "Internal notes for listings"
+handle = "internal-notes-for-listings"
+application_url = "https://your-app.up.railway.app/"
 embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+include_config_on_deploy = true
+
+[webhooks]
+api_version = "2025-07"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks"
+
+[access.admin]
+direct_api_mode = "online"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,write_products,read_orders,write_orders"
+scopes = "read_orders,read_products,write_orders,write_products"
 
 [auth]
-redirect_urls = [
-  "https://your-app-url.com/auth/callback",
-  "https://your-app-url.com/auth/shopify/callback",
-  "https://your-app-url.com/api/auth/callback",
-  "http://localhost:3000/auth/callback",
-  "http://localhost:3000/auth/shopify/callback",
-  "http://localhost:3000/api/auth/callback"
-]
-
-[webhooks]
-api_version = "2024-01"
+redirect_urls = [ "https://your-app.up.railway.app/api/auth" ]
 
 [app_proxy]
-url = "https://your-app-url.com/proxy"
-subpath = "apps/internal-notes"
-prefix = "apps/internal-notes"
+url = "https://your-app.up.railway.app/"
+subpath = "internal-notes"
+prefix = "apps"
 
 [pos]
 embedded = false
-
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#build
-[build]
-automatically_update_urls_on_dev = true
-dev_store_url = "YOUR_DEV_STORE.myshopify.com"
-include_config_on_deploy = true

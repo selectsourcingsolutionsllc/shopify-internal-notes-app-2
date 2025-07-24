@@ -5,10 +5,10 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 export default defineConfig({
   server: {
     port: Number(process.env.PORT || 3000),
-    hmr: {
+    hmr: process.env.NODE_ENV === 'development' ? {
       protocol: 'ws',
       host: 'localhost',
-    },
+    } : false,
     fs: {
       allow: ['app', 'node_modules'],
     },

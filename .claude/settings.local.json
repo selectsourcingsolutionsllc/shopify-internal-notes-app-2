@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm init:*)",
+      "Bash(rm:*)",
+      "Bash(git checkout:*)",
+      "Bash(powershell:*)",
+      "Bash(.ngrok.exe version)",
+      "Bash(ls:*)",
+      "Bash(./ngrok.exe version)",
+      "Bash(npm run dev:*)",
+      "Bash(start /b powershell -Command \"npm run dev\")",
+      "Bash(timeout:*)",
+      "Bash(./ngrok.exe http 3000)",
+      "Bash(./ngrok.exe api tunnels)",
+      "Bash(./ngrok.exe api tunnels:*)",
+      "Bash(taskkill:*)",
+      "Bash(del ngrok.exe ngrok.zip .env)",
+      "Bash(find:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  }
+}

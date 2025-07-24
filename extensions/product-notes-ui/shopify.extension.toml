@@ -1,4 +1,4 @@
-api_version = "2024-01"
+api_version = "2025-07"
 
 [[extensions]]
 type = "ui_extension"
@@ -8,7 +8,3 @@ handle = "product-notes"
 [[extensions.targeting]]
 target = "admin.product-details.block.render"
 module = "./src/ProductNotesBlock.tsx"
-
-[[extensions.targeting]]
-target = "admin.product-details.action.render"
-module = "./src/ProductNotesAction.tsx"
