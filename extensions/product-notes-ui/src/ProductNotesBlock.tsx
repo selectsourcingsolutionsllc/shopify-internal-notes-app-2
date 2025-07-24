@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   reactExtension,
   BlockStack,
@@ -5,13 +6,11 @@ import {
   TextField,
   Text,
   InlineStack,
-  Card,
+  Box,
   Icon,
   Badge,
-  Modal,
+  Banner,
   useApi,
-  useState,
-  useEffect,
 } from '@shopify/ui-extensions-react/admin';
 
 const TARGET = 'admin.product-details.block.render';
@@ -19,13 +18,13 @@ const TARGET = 'admin.product-details.block.render';
 export default reactExtension(TARGET, () => <ProductNotesBlock />);
 
 function ProductNotesBlock() {
-  const { extension, i18n, data } = useApi(TARGET);
-  const [notes, setNotes] = useState([]);
+  const { extension, data } = useApi(TARGET);
+  const [notes, setNotes] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [editingNote, setEditingNote] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingNote, setEditingNote] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   
   const productId = data.selected?.[0]?.id;
   
@@ -38,7 +37,7 @@ function ProductNotesBlock() {
   const fetchNotes = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/apps/internal-notes/api/products/${productId}/notes`, {
+      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/products/${productId}/notes`, {
         headers: {
           'Content-Type': 'application/json',
           'X-Shopify-Access-Token': extension.sessionToken,
@@ -49,7 +48,7 @@ function ProductNotesBlock() {
       
       const data = await response.json();
       setNotes(data.notes);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -60,7 +59,7 @@ function ProductNotesBlock() {
     if (!newNote.trim()) return;
     
     try {
-      const response = await fetch(`/apps/internal-notes/api/products/${productId}/notes`, {
+      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/products/${productId}/notes`, {
         method: editingNote ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,17 +76,17 @@ function ProductNotesBlock() {
       await fetchNotes();
       setNewNote('');
       setEditingNote(null);
-      setShowModal(false);
-    } catch (err) {
+      setShowForm(false);
+    } catch (err: any) {
       setError(err.message);
     }
   };
   
-  const handleDeleteNote = async (noteId) => {
+  const handleDeleteNote = async (noteId: string) => {
     if (!confirm('Are you sure you want to delete this note?')) return;
     
     try {
-      const response = await fetch(`/apps/internal-notes/api/products/${productId}/notes/${noteId}`, {
+      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/products/${productId}/notes/${noteId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -98,23 +97,23 @@ function ProductNotesBlock() {
       if (!response.ok) throw new Error('Failed to delete note');
       
       await fetchNotes();
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     }
   };
   
-  const handleEditNote = (note) => {
+  const handleEditNote = (note: any) => {
     setEditingNote(note);
     setNewNote(note.content);
-    setShowModal(true);
+    setShowForm(true);
   };
   
-  const handleUploadPhoto = async (noteId, file) => {
+  const handleUploadPhoto = async (noteId: string, file: File) => {
     const formData = new FormData();
     formData.append('photo', file);
     
     try {
-      const response = await fetch(`/apps/internal-notes/api/products/${productId}/notes/${noteId}/photos`, {
+      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/products/${productId}/notes/${noteId}/photos`, {
         method: 'POST',
         headers: {
           'X-Shopify-Access-Token': extension.sessionToken,
@@ -125,74 +124,73 @@ function ProductNotesBlock() {
       if (!response.ok) throw new Error('Failed to upload photo');
       
       await fetchNotes();
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     }
   };
   
   if (loading) {
     return (
-      <Card padding>
+      <Box padding="base">
         <Text>Loading notes...</Text>
-      </Card>
+      </Box>
     );
   }
   
   if (error) {
     return (
-      <Card padding>
-        <Text appearance="critical">Error: {error}</Text>
-      </Card>
+      <Box padding="base">
+        <Banner tone="critical">
+          <Text>Error: {error}</Text>
+        </Banner>
+      </Box>
     );
   }
   
   return (
-    <BlockStack gap="loose">
-      <Card padding>
-        <BlockStack gap="base">
-          <InlineStack align="spaceBetween">
-            <Text variant="headingMd" as="h2">
+    <BlockStack>
+      <Box padding="base">
+        <BlockStack>
+          <InlineStack>
+            <Text>
               Internal Product Notes
             </Text>
             <Button
               variant="primary"
-              size="slim"
               onPress={() => {
                 setEditingNote(null);
                 setNewNote('');
-                setShowModal(true);
+                setShowForm(true);
               }}
             >
               Add Note
             </Button>
           </InlineStack>
           
-          <Text appearance="subdued">
+          <Text>
             These notes are only visible to staff and never shown to customers.
           </Text>
           
           {notes.length === 0 ? (
-            <Card padding="loose" subdued>
-              <Text appearance="subdued">No notes yet. Add one to get started.</Text>
-            </Card>
+            <Box padding="base">
+              <Text>No notes yet. Add one to get started.</Text>
+            </Box>
           ) : (
-            <BlockStack gap="base">
+            <BlockStack>
               {notes.map((note) => (
-                <Card key={note.id} padding>
-                  <BlockStack gap="tight">
-                    <InlineStack align="spaceBetween">
-                      <Text variant="bodyMd">{note.content}</Text>
-                      <InlineStack gap="tight">
+                <Box key={note.id} padding="base">
+                  <BlockStack>
+                    <InlineStack>
+                      <Text>{note.content}</Text>
+                      <InlineStack>
                         <Button
-                          variant="plain"
-                          size="slim"
+                          variant="tertiary"
                           onPress={() => handleEditNote(note)}
                         >
                           Edit
                         </Button>
                         <Button
-                          variant="plain"
-                          size="slim"
+                          variant="tertiary"
                           tone="critical"
                           onPress={() => handleDeleteNote(note.id)}
                         >
@@ -201,8 +199,8 @@ function ProductNotesBlock() {
                       </InlineStack>
                     </InlineStack>
                     
-                    <InlineStack gap="tight" align="start">
-                      <Text appearance="subdued" variant="bodySm">
+                    <InlineStack>
+                      <Text>
                         {note.updatedBy} • {new Date(note.updatedAt).toLocaleString()}
                       </Text>
                       {note.photos.length > 0 && (
@@ -213,8 +211,8 @@ function ProductNotesBlock() {
                     </InlineStack>
                     
                     {note.photos.length > 0 && (
-                      <InlineStack gap="tight">
-                        {note.photos.map((photo) => (
+                      <InlineStack>
+                        {note.photos.map((photo: any) => (
                           <img
                             key={photo.id}
                             src={photo.url}
@@ -231,65 +229,52 @@ function ProductNotesBlock() {
                     )}
                     
                     <Button
-                      variant="plain"
-                      size="slim"
+                      variant="tertiary"
                       onPress={() => {
                         const input = document.createElement('input');
                         input.type = 'file';
                         input.accept = 'image/*';
-                        input.onchange = (e) => {
-                          const file = e.target.files[0];
+                        input.onchange = (e: any) => {
+                          const file = e.target?.files?.[0];
                           if (file) handleUploadPhoto(note.id, file);
                         };
                         input.click();
                       }}
                     >
-                      <Icon source="ImageMajor" />
+                      <Text>📷</Text>
                       Add Photo
                     </Button>
                   </BlockStack>
-                </Card>
+                </Box>
               ))}
             </BlockStack>
           )}
         </BlockStack>
-      </Card>
+      </Box>
       
-      {showModal && (
-        <Modal
-          title={editingNote ? 'Edit Note' : 'Add Note'}
-          open={showModal}
-          onClose={() => {
-            setShowModal(false);
-            setEditingNote(null);
-            setNewNote('');
-          }}
-          primaryAction={{
-            content: 'Save',
-            onAction: handleSaveNote,
-          }}
-          secondaryActions={[
-            {
-              content: 'Cancel',
-              onAction: () => {
-                setShowModal(false);
-                setEditingNote(null);
-                setNewNote('');
-              },
-            },
-          ]}
-        >
-          <Modal.Section>
+      {showForm && (
+        <Box padding="base">
+          <BlockStack>
+            <Text>{editingNote ? 'Edit Note' : 'Add Note'}</Text>
             <TextField
               label="Note content"
               value={newNote}
               onChange={setNewNote}
-              multiline={4}
-              autoGrow
-              helpText="This note will only be visible to staff members"
             />
-          </Modal.Section>
-        </Modal>
+            <InlineStack>
+              <Button variant="primary" onPress={handleSaveNote}>
+                Save
+              </Button>
+              <Button onPress={() => {
+                setShowForm(false);
+                setEditingNote(null);
+                setNewNote('');
+              }}>
+                Cancel
+              </Button>
+            </InlineStack>
+          </BlockStack>
+        </Box>
       )}
     </BlockStack>
   );

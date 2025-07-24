@@ -3,6 +3,18 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
+// Handle CORS preflight requests
+export async function options() {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Shopify-Access-Token",
+    },
+  });
+}
+
 export async function action({ request, params }: ActionFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);
   const { orderId } = params;
@@ -58,8 +70,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
       productTitle: productTitles[note.productId] || null,
     }));
     
-    return json({ notes: notesWithTitles, acknowledgments });
+    return json({ notes: notesWithTitles, acknowledgments }, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Shopify-Access-Token",
+      },
+    });
   }
   
-  return new Response("Method not allowed", { status: 405 });
+  return new Response("Method not allowed", { 
+    status: 405,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Shopify-Access-Token",
+    },
+  });
 }

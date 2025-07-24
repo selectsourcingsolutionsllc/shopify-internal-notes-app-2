@@ -1,33 +1,30 @@
+import { useState, useEffect } from 'react';
 import {
   reactExtension,
   BlockStack,
   Button,
-  Card,
   Checkbox,
   Text,
   InlineStack,
   Badge,
   Banner,
-  Modal,
-  Icon,
+  Box,
   useApi,
-  useState,
-  useEffect,
 } from '@shopify/ui-extensions-react/admin';
 
-const TARGET = 'admin.order-fulfillment.block.render';
+const TARGET = 'admin.order-details.action.render';
 
 export default reactExtension(TARGET, () => <OrderFulfillmentBlock />);
 
 function OrderFulfillmentBlock() {
-  const { extension, i18n, data } = useApi(TARGET);
-  const [productNotes, setProductNotes] = useState([]);
-  const [acknowledgments, setAcknowledgments] = useState({});
-  const [settings, setSettings] = useState(null);
+  const { extension, data } = useApi(TARGET);
+  const [productNotes, setProductNotes] = useState<any[]>([]);
+  const [acknowledgments, setAcknowledgments] = useState<Record<string, any>>({});
+  const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const [currentNoteId, setCurrentNoteId] = useState(null);
+  const [currentNoteId, setCurrentNoteId] = useState<string | null>(null);
   const [canFulfill, setCanFulfill] = useState(true);
   
   const orderId = data.order?.id;
@@ -55,7 +52,7 @@ function OrderFulfillmentBlock() {
       setLoading(true);
       
       // Get product IDs from line items
-      const productIds = lineItems.map(item => item.product?.id).filter(Boolean);
+      const productIds = lineItems.map((item: any) => item.product?.id).filter(Boolean);
       
       if (productIds.length === 0) {
         setProductNotes([]);
@@ -63,7 +60,7 @@ function OrderFulfillmentBlock() {
         return;
       }
       
-      const response = await fetch(`/apps/internal-notes/api/orders/${orderId}/notes`, {
+      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/orders/${orderId}/notes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,14 +76,14 @@ function OrderFulfillmentBlock() {
       
       // Initialize acknowledgments state
       const acks = {};
-      data.notes.forEach(note => {
-        acks[note.id] = data.acknowledgments.find(ack => 
+      data.notes.forEach((note: any) => {
+        acks[note.id] = data.acknowledgments.find((ack: any) => 
           ack.noteId === note.id && ack.orderId === orderId
         ) || { acknowledged: false };
       });
       setAcknowledgments(acks);
       
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -95,7 +92,7 @@ function OrderFulfillmentBlock() {
   
   const fetchSettings = async () => {
     try {
-      const response = await fetch('/apps/internal-notes/api/settings', {
+      const response = await fetch('https://tract-hospitals-golden-crop.trycloudflare.com/api/settings', {
         headers: {
           'Content-Type': 'application/json',
           'X-Shopify-Access-Token': extension.sessionToken,
@@ -106,12 +103,12 @@ function OrderFulfillmentBlock() {
       
       const data = await response.json();
       setSettings(data.settings);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch settings:', err);
     }
   };
   
-  const handleAcknowledge = async (noteId, photoRequired = false) => {
+  const handleAcknowledge = async (noteId: string, photoRequired = false) => {
     if (photoRequired || settings?.requirePhotoProof) {
       setCurrentNoteId(noteId);
       setShowPhotoModal(true);
@@ -120,7 +117,7 @@ function OrderFulfillmentBlock() {
     }
   };
   
-  const submitAcknowledgment = async (noteId, photoData = null) => {
+  const submitAcknowledgment = async (noteId: string, photoData: File | null = null) => {
     try {
       const formData = new FormData();
       formData.append('noteId', noteId);
@@ -130,7 +127,7 @@ function OrderFulfillmentBlock() {
         formData.append('photo', photoData);
       }
       
-      const response = await fetch('/apps/internal-notes/api/acknowledgments', {
+      const response = await fetch('https://tract-hospitals-golden-crop.trycloudflare.com/api/acknowledgments', {
         method: 'POST',
         headers: {
           'X-Shopify-Access-Token': extension.sessionToken,
@@ -153,12 +150,12 @@ function OrderFulfillmentBlock() {
       setShowPhotoModal(false);
       setCurrentNoteId(null);
       
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     }
   };
   
-  const handlePhotoUpload = async (event) => {
+  const handlePhotoUpload = async (event: any) => {
     const file = event.target.files[0];
     if (file && currentNoteId) {
       await submitAcknowledgment(currentNoteId, file);
@@ -167,9 +164,9 @@ function OrderFulfillmentBlock() {
   
   if (loading) {
     return (
-      <Card padding>
+      <Box padding="base">
         <Text>Loading product notes...</Text>
-      </Card>
+      </Box>
     );
   }
   
@@ -178,7 +175,7 @@ function OrderFulfillmentBlock() {
   }
   
   return (
-    <BlockStack gap="loose">
+    <BlockStack>
       {settings?.blockFulfillment && !canFulfill && (
         <Banner
           title="Acknowledgment Required"
@@ -190,13 +187,13 @@ function OrderFulfillmentBlock() {
         </Banner>
       )}
       
-      <Card padding>
-        <BlockStack gap="base">
-          <Text variant="headingMd" as="h2">
+      <Box padding="base">
+        <BlockStack>
+          <Text>
             Product Notes for This Order
           </Text>
           
-          <Text appearance="subdued">
+          <Text>
             Review and acknowledge these important notes before fulfilling the order.
           </Text>
           
@@ -205,15 +202,15 @@ function OrderFulfillmentBlock() {
             const isAcknowledged = ack?.acknowledged;
             
             return (
-              <Card key={note.id} padding subdued={isAcknowledged}>
-                <BlockStack gap="tight">
-                  <InlineStack align="spaceBetween">
-                    <Text variant="bodyMd" fontWeight="semibold">
+              <Box key={note.id} padding="base">
+                <BlockStack>
+                  <InlineStack>
+                    <Text>
                       Product: {note.productTitle || note.productId}
                     </Text>
                     {isAcknowledged && (
                       <Badge tone="success">
-                        <Icon source="CheckmarkMajor" />
+                        <Text>✓</Text>
                         Acknowledged
                       </Badge>
                     )}
@@ -222,7 +219,7 @@ function OrderFulfillmentBlock() {
                   <Text>{note.content}</Text>
                   
                   {note.photos.length > 0 && (
-                    <InlineStack gap="tight">
+                    <InlineStack>
                       {note.photos.map((photo) => (
                         <img
                           key={photo.id}
@@ -241,7 +238,7 @@ function OrderFulfillmentBlock() {
                   )}
                   
                   {!isAcknowledged && settings?.requireAcknowledgment && (
-                    <InlineStack gap="tight">
+                    <InlineStack>
                       <Checkbox
                         label="I have read and understood this note"
                         checked={false}
@@ -255,14 +252,14 @@ function OrderFulfillmentBlock() {
                   )}
                   
                   {isAcknowledged && (
-                    <Text appearance="subdued" variant="bodySm">
+                    <Text>
                       Acknowledged by {ack.acknowledgedBy} at {new Date(ack.acknowledgedAt).toLocaleString()}
                     </Text>
                   )}
                   
                   {isAcknowledged && ack.proofPhotoUrl && (
-                    <InlineStack gap="tight">
-                      <Text variant="bodySm">Proof photo:</Text>
+                    <InlineStack>
+                      <Text>Proof photo:</Text>
                       <img
                         src={ack.proofPhotoUrl}
                         alt="Acknowledgment proof"
@@ -277,7 +274,7 @@ function OrderFulfillmentBlock() {
                     </InlineStack>
                   )}
                 </BlockStack>
-              </Card>
+              </Box>
             );
           })}
           
@@ -289,7 +286,7 @@ function OrderFulfillmentBlock() {
             </Banner>
           )}
         </BlockStack>
-      </Card>
+      </Box>
       
       {showPhotoModal && (
         <Modal
