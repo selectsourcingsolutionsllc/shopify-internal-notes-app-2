@@ -3,14 +3,7 @@
   "build": {
     "builder": "NIXPACKS",
     "buildCommand": "npm install @prisma/client && npx prisma generate && npx remix build",
-    "nixpacksPlan": {
-      "phases": {
-        "setup": {
-          "nixPkgs": ["nodejs_20"]
-        }
-      },
-      "providers": []
-    }
+    "nixpacksConfigPath": "nixpacks.toml"
   },
   "deploy": {
     "startCommand": "npm run start",
