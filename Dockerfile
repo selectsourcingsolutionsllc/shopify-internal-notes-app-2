@@ -17,7 +17,8 @@ COPY . .
 RUN npx prisma generate
 
 # Build the application
-RUN npx remix build
+ENV PATH="/app/node_modules/.bin:$PATH"
+RUN remix build
 
 # Expose port
 EXPOSE 3000
