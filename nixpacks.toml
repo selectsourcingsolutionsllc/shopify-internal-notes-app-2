@@ -2,14 +2,11 @@
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["npm ci --include=dev"]
+onlyIncludeFiles = ["package.json", "package-lock.json"]
+cmds = ["npm ci --include=dev --cache=/tmp/.npm"]
 
 [phases.build]
 cmds = ["npx prisma generate", "npx remix build"]
-dependsOn = ["install"]
-cacheDirectories = ["/root/.npm"]
-
-providers = []
 
 [start]
 cmd = "npm run start"
