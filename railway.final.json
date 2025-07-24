@@ -2,13 +2,14 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm ci --cache=/tmp/.npm && npx prisma generate && npx remix build",
+    "buildCommand": "npx prisma generate && npx remix build",
     "nixpacksPlan": {
       "phases": {
         "setup": {
           "nixPkgs": ["nodejs_20"]
         }
-      }
+      },
+      "providers": []
     }
   },
   "deploy": {
