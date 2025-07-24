@@ -9,8 +9,7 @@ cmds = ["npx prisma generate", "npx remix build"]
 dependsOn = ["install"]
 cacheDirectories = ["/root/.npm"]
 
-[providers]
-node = false
+providers = []
 
 [start]
 cmd = "npm run start"
