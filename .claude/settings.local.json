@@ -18,7 +18,8 @@
       "Bash(taskkill:*)",
       "Bash(del ngrok.exe ngrok.zip .env)",
       "Bash(find:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

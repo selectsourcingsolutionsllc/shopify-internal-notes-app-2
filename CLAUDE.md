@@ -28,3 +28,12 @@ DO NOT change code until confirming the basic infrastructure is working.
 - "Is your app running with `npm run dev`?"
 - "Do you see a tunnel URL in the terminal?"
 - "What errors do you see in the terminal?"
+
+# CRITICAL: ASK BEFORE IMPLEMENTING
+
+**ALWAYS ASK THE USER TO CONFIRM** before using any API keys, secrets, or sensitive information. Never assume credentials are correct.
+
+## Current Shopify Credentials
+- API Key: REDACTED_SHOPIFY_API_KEY
+- Client Secret: REDACTED_SHOPIFY_API_SECRET
+- Always confirm with user before using these credentials
