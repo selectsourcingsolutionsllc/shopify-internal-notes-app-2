@@ -6,6 +6,11 @@ cmds = ["npm ci --include=dev"]
 
 [phases.build]
 cmds = ["npx prisma generate", "npx remix build"]
+dependsOn = ["install"]
+cacheDirectories = ["/root/.npm"]
+
+[providers]
+node = false
 
 [start]
 cmd = "npm run start"
