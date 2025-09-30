@@ -21,9 +21,9 @@ export default defineConfig({
   ],
   build: {
     assetsInlineLimit: 0,
-    target: 'esnext',
+    target: 'es2022',
   },
   esbuild: {
-    target: 'esnext',
+    target: 'es2022',
   },
 });
