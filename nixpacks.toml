@@ -8,7 +8,7 @@ nixPkgs = ["nodejs_22"]
 cmds = ["npm ci --include=dev --cache=/tmp/.npm"]
 
 [phases.build]
-cmds = ["npx prisma generate", "npx prisma migrate deploy", "npx remix build"]
+cmds = ["rm -rf build", "npx prisma generate", "npx prisma migrate deploy", "npx remix build"]
 
 [start]
 cmd = "npm run start"
