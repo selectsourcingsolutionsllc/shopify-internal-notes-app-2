@@ -5,7 +5,6 @@ NIXPACKS_NO_CACHE = "1"
 nixPkgs = ["nodejs_22"]
 
 [phases.install]
-onlyIncludeFiles = ["package.json", "package-lock.json"]
 cmds = ["npm ci --include=dev --cache=/tmp/.npm"]
 
 [phases.build]
