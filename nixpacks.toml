@@ -2,7 +2,7 @@
 NIXPACKS_NO_CACHE = "1"
 
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_22"]
 
 [phases.install]
 onlyIncludeFiles = ["package.json", "package-lock.json"]
