@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+}
+
+model ProductNote {
+  id          String   @id @default(cuid())
+  productId   String
+  shopDomain  String
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String
+  updatedBy   String
+  photos      ProductNotePhoto[]
+  auditLogs   AuditLog[]
+  
+  @@index([productId, shopDomain])
+}
+
+model ProductNotePhoto {
+  id            String      @id @default(cuid())
+  noteId        String
+  url           String
+  filename      String
+  uploadedAt    DateTime    @default(now())
+  uploadedBy    String
+  note          ProductNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  
+  @@index([noteId])
+}
+
+model OrderAcknowledgment {
+  id              String   @id @default(cuid())
+  orderId         String
+  productId       String
+  shopDomain      String
+  acknowledgedBy  String
+  acknowledgedAt  DateTime @default(now())
+  proofPhotoUrl   String?
+  proofPhotoName  String?
+  noteId          String?
+  auditLogs       AuditLog[]
+  
+  @@unique([orderId, productId])
+  @@index([orderId, shopDomain])
+}
+
+model AuditLog {
+  id                    String               @id @default(cuid())
+  shopDomain            String
+  userId                String
+  userEmail             String?
+  action                String               // CREATE, UPDATE, DELETE, ACKNOWLEDGE
+  entityType            String               // PRODUCT_NOTE, ACKNOWLEDGMENT
+  entityId              String
+  oldValue              String?              // SQLite doesn't support Json type
+  newValue              String?              // SQLite doesn't support Json type
+  timestamp             DateTime             @default(now())
+  productNoteId         String?
+  productNote           ProductNote?         @relation(fields: [productNoteId], references: [id])
+  acknowledgmentId      String?
+  orderAcknowledgment   OrderAcknowledgment? @relation(fields: [acknowledgmentId], references: [id])
+  
+  @@index([shopDomain, timestamp])
+  @@index([entityType, entityId])
+}
+
+model AppSetting {
+  id                     String   @id @default(cuid())
+  shopDomain             String   @unique
+  requireAcknowledgment  Boolean  @default(true)
+  requirePhotoProof      Boolean  @default(false)
+  blockFulfillment       Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model BillingSubscription {
+  id                String   @id @default(cuid())
+  shopDomain        String   @unique
+  subscriptionId    String   @unique
+  status            String   // ACTIVE, CANCELLED, EXPIRED, PENDING
+  trialEndsAt       DateTime?
+  currentPeriodEnd  DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}

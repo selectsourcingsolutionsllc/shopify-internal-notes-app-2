@@ -25,5 +25,8 @@ export default defineConfig({
   },
   esbuild: {
     target: 'es2022',
+    supported: {
+      'import-assertions': true,
+    },
   },
 });
