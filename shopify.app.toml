@@ -3,7 +3,7 @@
 client_id = "759aead17dfbcb721121009dacc43ce2"
 name = "Internal notes for listings"
 handle = "internal-notes-for-listings"
-application_url = "https://your-app.up.railway.app/"
+application_url = "https://shopify-internal-notes-app.railway.internal/"
 embedded = true
 
 [build]
@@ -29,10 +29,10 @@ direct_api_mode = "online"
 scopes = "read_orders,read_products,write_orders,write_products"
 
 [auth]
-redirect_urls = [ "https://your-app.up.railway.app/api/auth" ]
+redirect_urls = [ "https://shopify-internal-notes-app.railway.internal/api/auth" ]
 
 [app_proxy]
-url = "https://your-app.up.railway.app/"
+url = "https://shopify-internal-notes-app.railway.internal/"
 subpath = "internal-notes"
 prefix = "apps"
 
