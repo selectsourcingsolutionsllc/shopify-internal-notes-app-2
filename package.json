@@ -1,7 +1,7 @@
 {
   "name": "shopify-internal-notes-app",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Shopify embedded admin app for internal product notes and order fulfillment tracking",
   "scripts": {
     "build": "remix build",
