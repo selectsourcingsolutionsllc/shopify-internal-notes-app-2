@@ -13,7 +13,7 @@
     "deploy": "shopify app deploy",
     "config:push": "shopify app config push",
     "env": "shopify app env",
-    "start": "node server.js",
+    "start": "prisma migrate deploy && node server.js",
     "docker-start": "npm run setup && npm run start",
     "setup": "prisma generate && prisma migrate deploy",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
