@@ -4,6 +4,11 @@ const path = require("path");
 
 const app = express();
 
+// Health check endpoint (BEFORE static files and Remix handler)
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // Serve static files from public/build (where Remix 2.7.1 puts client assets)
 app.use("/build", express.static(path.join(__dirname, "public/build"), {
   maxAge: "1y",
