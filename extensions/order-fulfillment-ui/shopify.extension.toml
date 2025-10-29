@@ -1,6 +1,9 @@
 api_version = "2025-07"
 
 [[extensions]]
+
+uid = "34f2e8d1-f8e9-8f31-13c7-1f9886dc0e53127f2877"
+
 type = "ui_extension"
 name = "Order Fulfillment Notes"
 handle = "order-fulfillment-notes"
