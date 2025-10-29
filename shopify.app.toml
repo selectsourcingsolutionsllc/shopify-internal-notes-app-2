@@ -28,7 +28,10 @@ direct_api_mode = "online"
 scopes = "read_orders,read_products,write_orders,write_products"
 
 [auth]
-redirect_urls = [ "https://shopify-internal-notes-app-production.up.railway.app/api/auth/callback" ]
+redirect_urls = [
+  "https://shopify-internal-notes-app-production.up.railway.app/auth/callback",
+  "https://shopify-internal-notes-app-production.up.railway.app/auth/shopify/callback"
+]
 
 [app_proxy]
 url = "https://shopify-internal-notes-app-production.up.railway.app/"
