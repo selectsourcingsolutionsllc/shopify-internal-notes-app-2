@@ -1,10 +1,19 @@
 const { createRequestHandler } = require("@remix-run/express");
 const express = require("express");
+const path = require("path");
 
 const app = express();
 
-// Serve static files from the build/client directory
-app.use(express.static("build/client"));
+// Serve static files from public/build (where Remix 2.7.1 puts client assets)
+app.use("/build", express.static(path.join(__dirname, "public/build"), {
+  maxAge: "1y",
+  immutable: true,
+}));
+
+// Serve other public files
+app.use(express.static(path.join(__dirname, "public"), {
+  maxAge: "1h",
+}));
 
 // Handle all routes with Remix
 app.all("*", createRequestHandler({

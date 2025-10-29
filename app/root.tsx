@@ -19,10 +19,15 @@ export const links: LinksFunction = () => [
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
-  
+
+  // Import Polaris translations dynamically
+  const polarisTranslations = await import("@shopify/polaris/locales/en.json").then(
+    (module) => module.default
+  );
+
   return json({
     apiKey: process.env.SHOPIFY_API_KEY || "",
-    polarisTranslations: require("@shopify/polaris/locales/en.json"),
+    polarisTranslations,
   });
 }
 
