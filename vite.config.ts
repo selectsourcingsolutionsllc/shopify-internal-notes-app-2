@@ -16,6 +16,12 @@ export default defineConfig({
   plugins: [
     remix({
       ignoredRouteFiles: ['**/.*'],
+      serverModuleFormat: 'esm',
+      future: {
+        v3_fetcherPersist: true,
+        v3_relativeSplatPath: true,
+        v3_throwAbortReason: true,
+      },
     }),
     tsconfigPaths(),
   ],
@@ -28,5 +34,8 @@ export default defineConfig({
     supported: {
       'import-assertions': true,
     },
+  },
+  ssr: {
+    noExternal: ['@shopify/polaris', '@shopify/shopify-app-remix'],
   },
 });
