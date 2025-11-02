@@ -16,7 +16,7 @@ export default defineConfig({
   plugins: [
     remix({
       ignoredRouteFiles: ['**/.*'],
-      serverModuleFormat: 'esm',
+      serverModuleFormat: 'cjs',
       future: {
         v3_fetcherPersist: true,
         v3_relativeSplatPath: true,
