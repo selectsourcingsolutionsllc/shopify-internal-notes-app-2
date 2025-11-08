@@ -9,6 +9,7 @@ cmds = ["npm ci --include=dev --cache=/tmp/.npm"]
 
 [phases.build]
 cmds = [
+  "echo \"Starting fresh build at $(date +%s)\"",
   "rm -rf build public/build .cache",
   "npx prisma generate",
   "npm run build",
