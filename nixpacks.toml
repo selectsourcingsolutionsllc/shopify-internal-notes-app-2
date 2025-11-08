@@ -5,14 +5,15 @@ NIXPACKS_NO_CACHE = "1"
 nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = ["npm ci --cache=/tmp/.npm"]
+cmds = ["npm ci --include=dev --cache=/tmp/.npm"]
 
 [phases.build]
 cmds = [
-  "echo \"Starting fresh build at $(date +%s)\"",
+  "echo \"[$(date +%s)] Starting fresh build\"",
   "rm -rf build public/build .cache",
   "npx prisma generate",
-  "npm run build",
+  "npm run build || (echo 'Build failed!' && exit 1)",
+  "test -f build/index.js || (echo 'Build output missing!' && exit 1)",
   "echo \"Build completed at $(date)\" > build/BUILD_TIMESTAMP.txt",
   "cat build/BUILD_TIMESTAMP.txt"
 ]
