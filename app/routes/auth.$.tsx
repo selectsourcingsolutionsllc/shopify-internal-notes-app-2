@@ -4,3 +4,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 export async function loader({ request }: LoaderFunctionArgs) {
   return login(request);
 }
+
+export default function Auth() {
+  return <div>hello world</div>;
+}
