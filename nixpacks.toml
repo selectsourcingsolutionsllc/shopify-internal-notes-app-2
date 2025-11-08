@@ -9,7 +9,7 @@ cmds = ["npm ci --include=dev --cache=/tmp/.npm"]
 
 [phases.build]
 cmds = [
-  "rm -rf build public/build .cache node_modules/.cache",
+  "rm -rf build public/build .cache",
   "npx prisma generate",
   "npm run build",
   "echo \"Build completed at $(date)\" > build/BUILD_TIMESTAMP.txt",
