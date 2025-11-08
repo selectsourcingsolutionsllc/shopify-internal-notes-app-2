@@ -12,3 +12,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   return null;
 }
+
+export default function Auth() {
+  return <div>hello world</div>;
+}
