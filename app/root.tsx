@@ -1,39 +1,24 @@
 import {
   Links,
-  LiveReload,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
-  useLoaderData,
 } from "@remix-run/react";
-import { json } from "@remix-run/node";
-import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
+import type { LinksFunction } from "@remix-run/node";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css";
-import { AppProvider } from "@shopify/polaris";
-import { authenticate } from "./shopify.server";
 
+// Load Polaris styles globally
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: polarisStyles },
+  { rel: "preconnect", href: "https://cdn.shopify.com" },
 ];
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  await authenticate.admin(request);
-
-  // Import Polaris translations dynamically
-  const polarisTranslations = await import("@shopify/polaris/locales/en.json").then(
-    (module) => module.default
-  );
-
-  return json({
-    apiKey: process.env.SHOPIFY_API_KEY || "",
-    polarisTranslations,
-  });
-}
+// NOTE: Do NOT add authenticate.admin() here!
+// Authentication should only happen in /app routes, not in root.
+// The root must allow unauthenticated access for OAuth callback to work.
 
 export default function App() {
-  const { apiKey, polarisTranslations } = useLoaderData<typeof loader>();
-
   return (
     <html>
       <head>
@@ -43,28 +28,9 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <AppProvider
-          apiKey={apiKey}
-          i18n={polarisTranslations}
-        >
-          <Outlet />
-        </AppProvider>
+        <Outlet />
         <ScrollRestoration />
         <Scripts />
-        <LiveReload />
-        {process.env.NODE_ENV === "production" && process.env.CLARITY_ID && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function(c,l,a,r,i,t,y){
-                    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                })(window, document, "clarity", "script", "${process.env.CLARITY_ID}");
-              `,
-            }}
-          />
-        )}
       </body>
     </html>
   );
