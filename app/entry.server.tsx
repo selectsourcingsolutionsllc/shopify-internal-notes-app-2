@@ -1,7 +1,8 @@
 import { PassThrough } from "stream";
 import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
-import { Response } from "@remix-run/node";
+// NOTE: Do NOT import Response from @remix-run/node - use native global Response
+// Importing causes "Response is not a constructor" error in CommonJS mode
 import type { EntryContext } from "@remix-run/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
