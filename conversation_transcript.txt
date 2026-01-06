@@ -1140,7 +1140,128 @@ const stats = {
 **App URL:** https://shopify-internal-notes-app-production.up.railway.app
 
 =====================================
+
+NEW SESSION: January 5, 2026 (Later)
+FIXING UI EXTENSION NETWORK ERRORS
+====================================================
+
+**Starting Point:**
+- App deployed on Railway and working
+- User added a block to a product listing page
+- Block showed: "Error: NetworkError when attempting to fetch resource."
+
+**Initial Diagnosis:**
+User wanted to edit the order fulfillment block. Discovered the extension was showing NetworkError.
+
+**ISSUE #1: Old Cloudflare Tunnel URL**
+
+**The Problem:**
+Extension files were still using the old local development URL:
+```
+https://tract-hospitals-golden-crop.trycloudflare.com
+```
+
+But the app is now deployed on Railway at:
+```
+https://shopify-internal-notes-app-production.up.railway.app
+```
+
+The Cloudflare tunnel no longer exists, so all fetch requests failed.
+
+**The Fix:**
+Updated all 3 extension files to use the Railway URL:
+1. `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
+2. `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx`
+3. `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
+
+Deployed extensions with `npx shopify app deploy --force`
+
+**Result:** Still getting NetworkError
+
+=====================================
+
+**ISSUE #2: Missing Network Access Permission**
+
+**The Problem:**
+Shopify UI extensions need explicit permission to make external API calls.
+The extension config files were missing the `network_access` configuration.
+
+**The Fix:**
+Added to `extensions/product-notes-ui/shopify.extension.toml`:
+```toml
+[extensions.network_access]
+allowed_domains = ["shopify-internal-notes-app-production.up.railway.app"]
+```
+
+Added to `extensions/order-fulfillment-ui/shopify.extension.toml`:
+```toml
+[extensions.network_access]
+allowed_domains = ["shopify-internal-notes-app-production.up.railway.app"]
+```
+
+=====================================
+
+**ISSUE #3: Incorrect Session Token Usage**
+
+**The Problem:**
+Extension code was using `extension.sessionToken` directly as a string:
+```javascript
+headers: {
+  'X-Shopify-Access-Token': extension.sessionToken,  // WRONG
+}
+```
+
+But in Shopify's admin UI extensions API, `extension.sessionToken` is an object
+with a `get()` method that returns a Promise. You need to await it.
+
+**The Fix:**
+Updated all fetch calls in all 3 extension files to properly get the token:
+```javascript
+const token = await extension.sessionToken.get();
+const response = await fetch(url, {
+  headers: {
+    'Authorization': `Bearer ${token}`,  // CORRECT
+  },
+});
+```
+
+**Files Updated:**
+1. `ProductNotesBlock.tsx` - Updated 4 fetch calls (fetchNotes, handleSaveNote, handleDeleteNote, handleUploadPhoto)
+2. `OrderDetailsBlock.tsx` - Updated 1 fetch call (fetchAcknowledgments)
+3. `OrderFulfillmentBlock.tsx` - Updated 3 fetch calls (fetchOrderNotes, fetchSettings, submitAcknowledgment)
+
+=====================================
+
+**FINAL DEPLOYMENT:**
+
+Ran `npx shopify app deploy --force` to push all changes:
+- Extensions built successfully
+- New app version released: shopify-internal-notes-app-15
+
+**Files Changed This Session:**
+1. `extensions/product-notes-ui/shopify.extension.toml` - Added network_access
+2. `extensions/order-fulfillment-ui/shopify.extension.toml` - Added network_access
+3. `extensions/product-notes-ui/src/ProductNotesBlock.tsx` - Fixed URL + session token
+4. `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx` - Fixed URL + session token
+5. `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx` - Fixed URL + session token
+
+**Key Lessons Learned:**
+1. When deploying to production, ALL hardcoded URLs must be updated (extensions use different URLs than the main app)
+2. Shopify UI extensions require explicit `network_access` permission to call external APIs
+3. `extension.sessionToken` is NOT a string - you must call `await extension.sessionToken.get()` to get the actual token
+4. Use `Authorization: Bearer ${token}` header format for session tokens
+5. `shopify app deploy` deploys extensions directly to Shopify (they don't need Railway)
+
+**Current Status:**
+✅ Railway app: Running and healthy
+✅ Extension URLs: Updated to Railway production URL
+✅ Network access: Configured for Railway domain
+✅ Session tokens: Properly retrieved with .get()
+✅ Extensions: Deployed to Shopify (version 15)
+⏳ Awaiting user test of product notes block
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 5, 2026
-STATUS: 🟢 APP FULLY DEPLOYED AND WORKING!
+STATUS: 🟢 APP DEPLOYED, EXTENSIONS UPDATED - AWAITING USER TEST
 =====================================

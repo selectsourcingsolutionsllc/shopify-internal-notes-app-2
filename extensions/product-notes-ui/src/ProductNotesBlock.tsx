@@ -18,15 +18,19 @@ const TARGET = 'admin.product-details.block.render';
 export default reactExtension(TARGET, () => <ProductNotesBlock />);
 
 function ProductNotesBlock() {
-  const { extension, data } = useApi(TARGET);
+  const api = useApi(TARGET);
   const [notes, setNotes] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingNote, setEditingNote] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const productId = data.selected?.[0]?.id;
+
+  const productId = api.data.selected?.[0]?.id;
+  // Get shop domain from the extension API
+  const shop = (api as any).shop?.myshopifyDomain || (api as any).data?.shop?.myshopifyDomain;
+
+  const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
   
   useEffect(() => {
     if (productId) {
@@ -37,18 +41,27 @@ function ProductNotesBlock() {
   const fetchNotes = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/products/${productId}/notes`, {
+      setError(null);
+
+      // Use public API endpoint with shop parameter
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes?shop=${encodeURIComponent(shop || '')}`;
+      console.log('[Extension] Fetching notes from:', url);
+
+      const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': extension.sessionToken,
         },
       });
-      
-      if (!response.ok) throw new Error('Failed to fetch notes');
-      
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
       const data = await response.json();
-      setNotes(data.notes);
+      setNotes(data.notes || []);
     } catch (err: any) {
+      console.error('[Extension] Fetch error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -57,22 +70,22 @@ function ProductNotesBlock() {
   
   const handleSaveNote = async () => {
     if (!newNote.trim()) return;
-    
+
     try {
-      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/products/${productId}/notes`, {
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes?shop=${encodeURIComponent(shop || '')}`;
+      const response = await fetch(url, {
         method: editingNote ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': extension.sessionToken,
         },
         body: JSON.stringify({
           content: newNote,
           noteId: editingNote?.id,
         }),
       });
-      
+
       if (!response.ok) throw new Error('Failed to save note');
-      
+
       await fetchNotes();
       setNewNote('');
       setEditingNote(null);
@@ -84,18 +97,18 @@ function ProductNotesBlock() {
   
   const handleDeleteNote = async (noteId: string) => {
     if (!confirm('Are you sure you want to delete this note?')) return;
-    
+
     try {
-      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/products/${productId}/notes/${noteId}`, {
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}?shop=${encodeURIComponent(shop || '')}`;
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': extension.sessionToken,
         },
       });
-      
+
       if (!response.ok) throw new Error('Failed to delete note');
-      
+
       await fetchNotes();
     } catch (err: any) {
       setError(err.message);
@@ -111,18 +124,16 @@ function ProductNotesBlock() {
   const handleUploadPhoto = async (noteId: string, file: File) => {
     const formData = new FormData();
     formData.append('photo', file);
-    
+
     try {
-      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/products/${productId}/notes/${noteId}/photos`, {
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}/photos?shop=${encodeURIComponent(shop || '')}`;
+      const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'X-Shopify-Access-Token': extension.sessionToken,
-        },
         body: formData,
       });
-      
+
       if (!response.ok) throw new Error('Failed to upload photo');
-      
+
       await fetchNotes();
     } catch (err: any) {
       setError(err.message);

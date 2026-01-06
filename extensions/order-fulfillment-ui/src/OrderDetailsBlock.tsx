@@ -14,10 +14,10 @@ const TARGET = 'admin.order-details.block.render';
 export default reactExtension(TARGET, () => <OrderDetailsBlock />);
 
 function OrderDetailsBlock() {
-  const { extension, data } = useApi<{ order?: { id: string } }>(TARGET);
+  const { data } = useApi<{ order?: { id: string } }>(TARGET);
   const [acknowledgments, setAcknowledgments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const orderId = data?.order?.id;
   
   useEffect(() => {
@@ -29,10 +29,9 @@ function OrderDetailsBlock() {
   const fetchAcknowledgments = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/orders/${orderId}/acknowledgments`, {
+      const response = await fetch(`https://shopify-internal-notes-app-production.up.railway.app/api/orders/${orderId}/acknowledgments`, {
         headers: {
           'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': extension.sessionToken,
         },
       });
       

@@ -11,3 +11,6 @@ handle = "product-notes"
 [[extensions.targeting]]
 target = "admin.product-details.block.render"
 module = "./src/ProductNotesBlock.tsx"
+
+[extensions.network_access]
+allowed_domains = ["shopify-internal-notes-app-production.up.railway.app"]
