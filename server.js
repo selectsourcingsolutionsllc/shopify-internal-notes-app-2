@@ -36,9 +36,21 @@ app.use(express.static(path.join(__dirname, "public"), {
 }));
 
 // Handle all routes with Remix
-app.all("*", createRequestHandler({
+const remixHandler = createRequestHandler({
   build: require("./build/index.js")
-}));
+});
+
+// Wrap Remix handler with logging
+app.all("*", async (req, res, next) => {
+  console.log(`[REMIX] Incoming request: ${req.method} ${req.url}`);
+  try {
+    await remixHandler(req, res, next);
+    console.log(`[REMIX] Response sent for: ${req.url}`);
+  } catch (error) {
+    console.error(`[REMIX] Error handling ${req.url}:`, error);
+    next(error);
+  }
+});
 
 const port = process.env.PORT || 3000;
 app.listen(port, "0.0.0.0", () => {
