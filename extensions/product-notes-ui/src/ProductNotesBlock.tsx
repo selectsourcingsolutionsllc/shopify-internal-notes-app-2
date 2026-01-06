@@ -207,95 +207,62 @@ function ProductNotesBlock() {
   }
 
   return (
-    <BlockStack>
-      <Box padding="base">
-        <BlockStack>
-          <InlineStack>
-            <Text>Internal Product Notes</Text>
-            <Button
-              variant="primary"
-              onPress={() => {
-                setEditingNote(null);
-                setNewNote('');
-                setShowForm(true);
-              }}
-            >
-              Add Note
-            </Button>
-          </InlineStack>
+    <BlockStack gap="tight">
+      {/* Header */}
+      <InlineStack gap="base" blockAlignment="center">
+        <Text fontWeight="bold">Internal Notes</Text>
+        <Button
+          variant="primary"
+          onPress={() => {
+            setEditingNote(null);
+            setNewNote('');
+            setShowForm(true);
+          }}
+        >
+          Add
+        </Button>
+      </InlineStack>
 
-          <Text emphasis="subdued">
-            These notes are only visible to staff and never shown to customers.
-          </Text>
-
-          {notes.length === 0 ? (
-            <Box padding="base">
-              <Text>No notes yet. Add one to get started.</Text>
-            </Box>
-          ) : (
-            <BlockStack>
-              {notes.map((note) => (
-                <Box key={note.id} padding="base">
-                  <BlockStack>
-                    <InlineStack>
-                      <Text>{note.content}</Text>
-                      <InlineStack>
-                        <Button
-                          variant="tertiary"
-                          onPress={() => handleEditNote(note)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="tertiary"
-                          tone="critical"
-                          onPress={() => handleDeleteNote(note.id)}
-                        >
-                          Delete
-                        </Button>
-                      </InlineStack>
-                    </InlineStack>
-
-                    <Text emphasis="subdued">
-                      {note.updatedBy} • {new Date(note.updatedAt).toLocaleString()}
-                    </Text>
-
-                    {note.photos?.length > 0 && (
-                      <Badge tone="info">
-                        {note.photos.length} photo{note.photos.length !== 1 ? 's' : ''}
-                      </Badge>
-                    )}
-                  </BlockStack>
-                </Box>
-              ))}
-            </BlockStack>
-          )}
-        </BlockStack>
-      </Box>
-
-      {showForm && (
-        <Box padding="base">
-          <BlockStack>
-            <Text>{editingNote ? 'Edit Note' : 'Add Note'}</Text>
-            <TextField
-              label="Note content"
-              value={newNote}
-              onChange={setNewNote}
-            />
-            <InlineStack>
-              <Button variant="primary" onPress={handleSaveNote}>
-                Save
+      {/* Notes list - compact */}
+      {notes.length === 0 ? (
+        <Text emphasis="subdued">No notes yet.</Text>
+      ) : (
+        <BlockStack gap="extraTight">
+          {notes.map((note) => (
+            <InlineStack key={note.id} gap="tight" blockAlignment="center">
+              <Box minInlineSize="fill">
+                <Text>{note.content}</Text>
+              </Box>
+              <Button variant="tertiary" onPress={() => handleEditNote(note)}>
+                Edit
               </Button>
-              <Button onPress={() => {
-                setShowForm(false);
-                setEditingNote(null);
-                setNewNote('');
-              }}>
-                Cancel
+              <Button variant="tertiary" tone="critical" onPress={() => handleDeleteNote(note.id)}>
+                ✕
               </Button>
             </InlineStack>
-          </BlockStack>
-        </Box>
+          ))}
+        </BlockStack>
+      )}
+
+      {/* Add/Edit form */}
+      {showForm && (
+        <BlockStack gap="tight">
+          <TextField
+            label={editingNote ? 'Edit note' : 'New note'}
+            value={newNote}
+            onChange={setNewNote}
+          />
+          <InlineStack gap="tight">
+            <Button variant="primary" onPress={handleSaveNote}>Save</Button>
+            <Button onPress={() => {
+              setShowForm(false);
+              setEditingNote(null);
+              setNewNote('');
+            }}>
+              Cancel
+            </Button>
+          </InlineStack>
+        </BlockStack>
       )}
     </BlockStack>
   );

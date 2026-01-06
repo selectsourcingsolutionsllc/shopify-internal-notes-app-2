@@ -17,7 +17,8 @@ const TARGET = 'admin.order-details.action.render';
 export default reactExtension(TARGET, () => <OrderFulfillmentBlock />);
 
 function OrderFulfillmentBlock() {
-  const { data } = useApi(TARGET);
+  const api = useApi(TARGET);
+  const { data } = api;
   const [productNotes, setProductNotes] = useState<any[]>([]);
   const [acknowledgments, setAcknowledgments] = useState<Record<string, any>>({});
   const [settings, setSettings] = useState<any>(null);
@@ -29,7 +30,18 @@ function OrderFulfillmentBlock() {
 
   const orderId = data.order?.id;
   const lineItems = data.order?.lineItems || [];
-  
+  const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
+
+  // Try to get shop domain
+  const getShopDomain = (): string => {
+    const possibleShop =
+      (api as any).shop?.myshopifyDomain ||
+      (api as any).data?.shop?.myshopifyDomain ||
+      (api as any).extension?.shop ||
+      '';
+    return possibleShop;
+  };
+
   useEffect(() => {
     if (orderId) {
       fetchOrderNotes();
@@ -50,59 +62,71 @@ function OrderFulfillmentBlock() {
   const fetchOrderNotes = async () => {
     try {
       setLoading(true);
-      
+
       // Get product IDs from line items
       const productIds = lineItems.map((item: any) => item.product?.id).filter(Boolean);
-      
+
       if (productIds.length === 0) {
         setProductNotes([]);
         setLoading(false);
         return;
       }
-      
-      const response = await fetch(`https://shopify-internal-notes-app-production.up.railway.app/api/orders/${orderId}/notes`, {
+
+      const shop = getShopDomain();
+      const url = `${BASE_URL}/api/public/orders/${encodeURIComponent(orderId)}/notes${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+
+      console.log('[Extension] Fetching order notes:', url);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ productIds }),
       });
-      
-      if (!response.ok) throw new Error('Failed to fetch notes');
-      
-      const data = await response.json();
-      setProductNotes(data.notes);
-      
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch notes');
+      }
+
+      const responseData = await response.json();
+      setProductNotes(responseData.notes || []);
+
       // Initialize acknowledgments state
-      const acks = {};
-      data.notes.forEach((note: any) => {
-        acks[note.id] = data.acknowledgments.find((ack: any) => 
+      const acks: Record<string, any> = {};
+      (responseData.notes || []).forEach((note: any) => {
+        acks[note.id] = (responseData.acknowledgments || []).find((ack: any) =>
           ack.noteId === note.id && ack.orderId === orderId
         ) || { acknowledged: false };
       });
       setAcknowledgments(acks);
-      
+
     } catch (err: any) {
+      console.error('[Extension] Error fetching notes:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
-  
+
   const fetchSettings = async () => {
     try {
-      const response = await fetch('https://shopify-internal-notes-app-production.up.railway.app/api/settings', {
+      const shop = getShopDomain();
+      const url = `${BASE_URL}/api/public/settings${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+
+      const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (!response.ok) throw new Error('Failed to fetch settings');
-      
-      const data = await response.json();
-      setSettings(data.settings);
+
+      const responseData = await response.json();
+      setSettings(responseData.settings);
     } catch (err: any) {
-      console.error('Failed to fetch settings:', err);
+      console.error('[Extension] Failed to fetch settings:', err);
     }
   };
   
@@ -125,7 +149,10 @@ function OrderFulfillmentBlock() {
         formData.append('photo', photoData);
       }
 
-      const response = await fetch('https://shopify-internal-notes-app-production.up.railway.app/api/acknowledgments', {
+      const shop = getShopDomain();
+      const url = `${BASE_URL}/api/public/acknowledgments${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+
+      const response = await fetch(url, {
         method: 'POST',
         body: formData,
       });
