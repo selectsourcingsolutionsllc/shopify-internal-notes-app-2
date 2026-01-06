@@ -17,7 +17,7 @@ const TARGET = 'admin.order-details.action.render';
 export default reactExtension(TARGET, () => <OrderFulfillmentBlock />);
 
 function OrderFulfillmentBlock() {
-  const { extension, data } = useApi(TARGET);
+  const { data } = useApi(TARGET);
   const [productNotes, setProductNotes] = useState<any[]>([]);
   const [acknowledgments, setAcknowledgments] = useState<Record<string, any>>({});
   const [settings, setSettings] = useState<any>(null);
@@ -26,7 +26,7 @@ function OrderFulfillmentBlock() {
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [currentNoteId, setCurrentNoteId] = useState<string | null>(null);
   const [canFulfill, setCanFulfill] = useState(true);
-  
+
   const orderId = data.order?.id;
   const lineItems = data.order?.lineItems || [];
   
@@ -60,11 +60,10 @@ function OrderFulfillmentBlock() {
         return;
       }
       
-      const response = await fetch(`https://tract-hospitals-golden-crop.trycloudflare.com/api/orders/${orderId}/notes`, {
+      const response = await fetch(`https://shopify-internal-notes-app-production.up.railway.app/api/orders/${orderId}/notes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': extension.sessionToken,
         },
         body: JSON.stringify({ productIds }),
       });
@@ -92,10 +91,9 @@ function OrderFulfillmentBlock() {
   
   const fetchSettings = async () => {
     try {
-      const response = await fetch('https://tract-hospitals-golden-crop.trycloudflare.com/api/settings', {
+      const response = await fetch('https://shopify-internal-notes-app-production.up.railway.app/api/settings', {
         headers: {
           'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': extension.sessionToken,
         },
       });
       
@@ -122,16 +120,13 @@ function OrderFulfillmentBlock() {
       const formData = new FormData();
       formData.append('noteId', noteId);
       formData.append('orderId', orderId);
-      
+
       if (photoData) {
         formData.append('photo', photoData);
       }
-      
-      const response = await fetch('https://tract-hospitals-golden-crop.trycloudflare.com/api/acknowledgments', {
+
+      const response = await fetch('https://shopify-internal-notes-app-production.up.railway.app/api/acknowledgments', {
         method: 'POST',
-        headers: {
-          'X-Shopify-Access-Token': extension.sessionToken,
-        },
         body: formData,
       });
       

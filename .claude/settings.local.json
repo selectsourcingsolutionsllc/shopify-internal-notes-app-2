@@ -38,7 +38,10 @@
       "WebFetch(domain:stackoverflow.com)",
       "Bash(dir:*)",
       "Bash(npx remix --version)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npx shopify app deploy)",
+      "Bash(npx shopify app deploy:*)",
+      "WebFetch(domain:shopify-internal-notes-app-production.up.railway.app)"
     ],
     "deny": []
   }

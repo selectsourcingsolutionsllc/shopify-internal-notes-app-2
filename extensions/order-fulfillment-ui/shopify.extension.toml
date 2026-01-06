@@ -11,3 +11,6 @@ handle = "order-fulfillment-notes"
 [[extensions.targeting]]
 target = "admin.order-details.block.render"
 module = "./src/OrderDetailsBlock.tsx"
+
+[extensions.network_access]
+allowed_domains = ["shopify-internal-notes-app-production.up.railway.app"]
