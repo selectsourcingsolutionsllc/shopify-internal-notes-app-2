@@ -937,7 +937,84 @@ SHOPIFY APP INSTALLATION AND UI RENDERING DEBUGGING
 5. Changes to shopify.app.toml require running `shopify app deploy` to take effect
 
 =====================================
+
+NEW SESSION: November 26, 2025
+CONTINUING "{}" RENDERING ISSUE DEBUGGING
+====================================================
+
+**Starting Point:**
+- Railway deployment is active and healthy
+- App shows `{}` instead of React UI when opened in Shopify admin
+- Server logs show authentication succeeding but no render errors
+
+**Debugging Steps Taken:**
+
+1. **Checked Railway deploy logs** - Found two errors:
+   - "Detected call to shopify.authenticate.admin() from configured login path"
+   - "TypeError: import_node2.Response is not a constructor"
+
+2. **Found auth.$.tsx was simplified incorrectly**
+   - Commit 291253a "simplified" the auth route by removing path checking
+   - This broke the auth flow - was calling login() for ALL auth paths
+   - **Fix:** Restored path checking logic from commit 43a478e (without React component)
+
+3. **Fixed Response constructor error**
+   - entry.server.tsx was importing `Response` from @remix-run/node
+   - In CommonJS mode, this doesn't work as a constructor
+   - **Fix:** Removed the import, using native global Response instead (Node.js 18+ has it built-in)
+
+4. **Fixed root.tsx blocking OAuth**
+   - root.tsx was calling `authenticate.admin(request)` on EVERY route
+   - This blocked OAuth callback because you need to BE authenticated to complete authentication
+   - **Fix:** Removed authentication from root.tsx - only /app routes should require auth
+   - Also moved Polaris AppProvider setup to app.tsx
+
+5. **Fixed AppProvider setup**
+   - app.tsx only had ShopifyAppProvider
+   - **Fix:** Added both PolarisAppProvider AND ShopifyAppProvider for UI components to work
+
+6. **Still seeing `{}` after all fixes**
+   - Deploy logs show clean startup, no errors
+   - Authentication requests succeeding: `[shopify-app/INFO] Authenticating admin request`
+   - Only error is harmless `/favicon.ico` 404
+
+7. **Enabled new embedded auth strategy**
+   - User wanted to try `unstable_newEmbeddedAuthStrategy: true`
+   - This uses token exchange instead of redirect-based OAuth
+   - Simpler flow: no redirects, Shopify injects session token automatically
+   - **Added to shopify.server.ts:** `future: { unstable_newEmbeddedAuthStrategy: true }`
+
+8. **User uninstalled and reinstalled app** - Still seeing `{}`
+
+**Files Changed This Session:**
+- `app/routes/auth.$.tsx` - Restored path checking, removed React component
+- `app/entry.server.tsx` - Removed Response import (use native global)
+- `app/root.tsx` - Removed authenticate.admin(), simplified to basic HTML shell
+- `app/routes/app.tsx` - Added PolarisAppProvider wrapper
+- `app/shopify.server.ts` - Added future.unstable_newEmbeddedAuthStrategy: true
+
+**Current State:**
+- Railway deployment: ✅ Active and healthy
+- Server starting: ✅ No errors
+- Authentication: ✅ Requests authenticating successfully
+- UI Rendering: ❌ Still showing `{}`
+
+**What We Need Next Session:**
+1. **Check browser Developer Tools (F12)**:
+   - Console tab: Any red JavaScript errors?
+   - Network tab: What's the actual response HTML/content?
+2. **Check the actual HTML response** - Is it returning HTML or JSON?
+3. **Visit /health endpoint directly** to confirm server responds
+4. **Get more detailed Railway logs** when accessing the app
+
+**Possible Remaining Causes:**
+- Client-side JavaScript not loading/hydrating
+- Static files not being served correctly
+- Some loader returning `{}` instead of rendering
+- Polaris/Shopify AppProvider initialization failing silently
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
-LAST UPDATE: October 29, 2025
-STATUS: 🟡 DEPLOYMENT ACTIVE - UI RENDERING ISSUE BEING DEBUGGED
+LAST UPDATE: November 26, 2025
+STATUS: 🟡 DEPLOYMENT ACTIVE - "{}" RENDERING ISSUE PERSISTS
 ====================================

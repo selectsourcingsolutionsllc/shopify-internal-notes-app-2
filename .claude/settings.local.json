@@ -34,7 +34,11 @@
       "Bash(del nul)",
       "Bash(git commit -m \"$(cat <<''EOF''\nFix Railway port binding - use Express server instead of remix-serve\n\n- Created server.js with Express server that binds to 0.0.0.0\n- Added express and @remix-run/express dependencies\n- Updated start script to use custom server\n- This fixes EADDRNOTAVAIL error on Railway\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git commit:*)",
-      "Bash(.railway-cache-bust)"
+      "Bash(.railway-cache-bust)",
+      "WebFetch(domain:stackoverflow.com)",
+      "Bash(dir:*)",
+      "Bash(npx remix --version)",
+      "WebSearch"
     ],
     "deny": []
   }
