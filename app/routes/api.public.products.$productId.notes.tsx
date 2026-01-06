@@ -4,6 +4,7 @@ import prisma from "../db.server";
 
 // Public endpoint for UI extensions - uses session token for auth
 // Session token contains shop domain in the 'dest' claim
+// NOTE: CORS headers are handled by Express middleware in server.js
 
 // Helper to extract shop domain from session token
 function getShopFromToken(request: Request): string | null {
@@ -33,13 +34,6 @@ function getShopFromToken(request: Request): string | null {
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  // Add CORS headers
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
-
   // Try to get shop from token first, fall back to query param
   const url = new URL(request.url);
   const shop = getShopFromToken(request) || url.searchParams.get("shop");
@@ -48,11 +42,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   console.log("[PUBLIC API] GET notes for product:", productId, "shop:", shop);
 
   if (!shop) {
-    return json({ error: "Missing shop - provide token or shop param" }, { status: 400, headers });
+    return json({ error: "Missing shop - provide token or shop param" }, { status: 400 });
   }
 
   if (!productId) {
-    return json({ error: "Missing productId" }, { status: 400, headers });
+    return json({ error: "Missing productId" }, { status: 400 });
   }
 
   try {
@@ -70,25 +64,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     });
 
     console.log("[PUBLIC API] Found", notes.length, "notes");
-    return json({ notes }, { headers });
+    return json({ notes });
   } catch (error) {
     console.error("[PUBLIC API] Error:", error);
-    return json({ error: "Database error" }, { status: 500, headers });
+    return json({ error: "Database error" }, { status: 500 });
   }
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
-
-  // Handle OPTIONS preflight
-  if (request.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers });
-  }
-
   // Try to get shop from token first, fall back to query param
   const url = new URL(request.url);
   const shop = getShopFromToken(request) || url.searchParams.get("shop");
@@ -97,7 +80,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   console.log("[PUBLIC API] Action:", request.method, "product:", productId, "shop:", shop);
 
   if (!shop || !productId) {
-    return json({ error: "Missing required parameters" }, { status: 400, headers });
+    return json({ error: "Missing required parameters" }, { status: 400 });
   }
 
   try {
@@ -114,7 +97,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         },
       });
 
-      return json({ note }, { headers });
+      return json({ note });
     }
 
     if (request.method === "PUT") {
@@ -128,12 +111,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
         },
       });
 
-      return json({ note }, { headers });
+      return json({ note });
     }
 
-    return json({ error: "Method not allowed" }, { status: 405, headers });
+    return json({ error: "Method not allowed" }, { status: 405 });
   } catch (error) {
     console.error("[PUBLIC API] Error:", error);
-    return json({ error: "Database error" }, { status: 500, headers });
+    return json({ error: "Database error" }, { status: 500 });
   }
 }
