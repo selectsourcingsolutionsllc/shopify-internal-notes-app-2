@@ -7,7 +7,6 @@ import {
   Text,
   InlineStack,
   Box,
-  Icon,
   Badge,
   Banner,
   useApi,
@@ -25,23 +24,58 @@ function ProductNotesBlock() {
   const [editingNote, setEditingNote] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   const productId = api.data.selected?.[0]?.id;
-
   const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
 
-  // Helper to get session token
-  const getSessionToken = async () => {
-    try {
-      const token = await (api as any).sessionToken.get();
-      return token;
-    } catch (e) {
-      console.error('[Extension] Failed to get session token:', e);
-      return null;
+  // Try multiple ways to get shop domain
+  const getShopDomain = (): string => {
+    // Try different API properties
+    const possibleShop =
+      (api as any).shop?.myshopifyDomain ||
+      (api as any).data?.shop?.myshopifyDomain ||
+      (api as any).extension?.shop ||
+      (api as any).host?.shop ||
+      '';
+
+    // Log what we found for debugging
+    console.log('[Extension] API object keys:', Object.keys(api));
+    console.log('[Extension] Shop domain found:', possibleShop);
+
+    return possibleShop;
+  };
+
+  // Helper to get session token (try multiple approaches)
+  const getSessionToken = async (): Promise<string | null> => {
+    // Try different ways to get the token
+    const attempts = [
+      () => (api as any).sessionToken?.get?.(),
+      () => (api as any).extension?.sessionToken?.get?.(),
+      () => (api as any).getSessionToken?.(),
+    ];
+
+    for (const attempt of attempts) {
+      try {
+        const token = await attempt();
+        if (token) {
+          console.log('[Extension] Got session token');
+          return token;
+        }
+      } catch (e) {
+        // Try next method
+      }
     }
+
+    console.log('[Extension] Could not get session token, continuing without auth');
+    return null;
   };
 
   useEffect(() => {
+    // Log API structure for debugging
+    console.log('[Extension] Full API:', JSON.stringify(Object.keys(api)));
+    setDebugInfo(`Product: ${productId}, Shop: ${getShopDomain()}`);
+
     if (productId) {
       fetchNotes();
     }
@@ -53,15 +87,20 @@ function ProductNotesBlock() {
       setError(null);
 
       const token = await getSessionToken();
-      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes`;
-      console.log('[Extension] Fetching notes from:', url, 'with token:', token ? 'present' : 'missing');
+      const shop = getShopDomain();
 
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-      });
+      // Include shop as query param as fallback
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+      console.log('[Extension] Fetching:', url);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -77,19 +116,25 @@ function ProductNotesBlock() {
       setLoading(false);
     }
   };
-  
+
   const handleSaveNote = async () => {
     if (!newNote.trim()) return;
 
     try {
       const token = await getSessionToken();
-      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes`;
+      const shop = getShopDomain();
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(url, {
         method: editingNote ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
+        headers,
         body: JSON.stringify({
           content: newNote,
           noteId: editingNote?.id,
@@ -108,17 +153,21 @@ function ProductNotesBlock() {
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!confirm('Are you sure you want to delete this note?')) return;
-
     try {
       const token = await getSessionToken();
-      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}`;
+      const shop = getShopDomain();
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(url, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
+        headers,
       });
 
       if (!response.ok) throw new Error('Failed to delete note');
@@ -135,29 +184,6 @@ function ProductNotesBlock() {
     setShowForm(true);
   };
 
-  const handleUploadPhoto = async (noteId: string, file: File) => {
-    const formData = new FormData();
-    formData.append('photo', file);
-
-    try {
-      const token = await getSessionToken();
-      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}/photos`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Failed to upload photo');
-
-      await fetchNotes();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-  
   if (loading) {
     return (
       <Box padding="base">
@@ -165,25 +191,27 @@ function ProductNotesBlock() {
       </Box>
     );
   }
-  
+
   if (error) {
     return (
       <Box padding="base">
-        <Banner tone="critical">
-          <Text>Error: {error}</Text>
-        </Banner>
+        <BlockStack>
+          <Banner tone="critical">
+            <Text>Error: {error}</Text>
+          </Banner>
+          <Text emphasis="subdued">{debugInfo}</Text>
+          <Button onPress={fetchNotes}>Retry</Button>
+        </BlockStack>
       </Box>
     );
   }
-  
+
   return (
     <BlockStack>
       <Box padding="base">
         <BlockStack>
           <InlineStack>
-            <Text>
-              Internal Product Notes
-            </Text>
+            <Text>Internal Product Notes</Text>
             <Button
               variant="primary"
               onPress={() => {
@@ -195,11 +223,11 @@ function ProductNotesBlock() {
               Add Note
             </Button>
           </InlineStack>
-          
-          <Text>
+
+          <Text emphasis="subdued">
             These notes are only visible to staff and never shown to customers.
           </Text>
-          
+
           {notes.length === 0 ? (
             <Box padding="base">
               <Text>No notes yet. Add one to get started.</Text>
@@ -227,52 +255,16 @@ function ProductNotesBlock() {
                         </Button>
                       </InlineStack>
                     </InlineStack>
-                    
-                    <InlineStack>
-                      <Text>
-                        {note.updatedBy} • {new Date(note.updatedAt).toLocaleString()}
-                      </Text>
-                      {note.photos.length > 0 && (
-                        <Badge tone="info">
-                          {note.photos.length} photo{note.photos.length !== 1 ? 's' : ''}
-                        </Badge>
-                      )}
-                    </InlineStack>
-                    
-                    {note.photos.length > 0 && (
-                      <InlineStack>
-                        {note.photos.map((photo: any) => (
-                          <img
-                            key={photo.id}
-                            src={photo.url}
-                            alt="Note attachment"
-                            style={{
-                              width: '80px',
-                              height: '80px',
-                              objectFit: 'cover',
-                              borderRadius: '4px',
-                            }}
-                          />
-                        ))}
-                      </InlineStack>
+
+                    <Text emphasis="subdued">
+                      {note.updatedBy} • {new Date(note.updatedAt).toLocaleString()}
+                    </Text>
+
+                    {note.photos?.length > 0 && (
+                      <Badge tone="info">
+                        {note.photos.length} photo{note.photos.length !== 1 ? 's' : ''}
+                      </Badge>
                     )}
-                    
-                    <Button
-                      variant="tertiary"
-                      onPress={() => {
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.accept = 'image/*';
-                        input.onchange = (e: any) => {
-                          const file = e.target?.files?.[0];
-                          if (file) handleUploadPhoto(note.id, file);
-                        };
-                        input.click();
-                      }}
-                    >
-                      <Text>📷</Text>
-                      Add Photo
-                    </Button>
                   </BlockStack>
                 </Box>
               ))}
@@ -280,7 +272,7 @@ function ProductNotesBlock() {
           )}
         </BlockStack>
       </Box>
-      
+
       {showForm && (
         <Box padding="base">
           <BlockStack>
