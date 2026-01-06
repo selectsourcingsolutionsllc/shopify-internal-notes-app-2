@@ -27,29 +27,39 @@ function ProductNotesBlock() {
   const [error, setError] = useState<string | null>(null);
 
   const productId = api.data.selected?.[0]?.id;
-  // Get shop domain from the extension API
-  const shop = (api as any).shop?.myshopifyDomain || (api as any).data?.shop?.myshopifyDomain;
 
   const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
-  
+
+  // Helper to get session token
+  const getSessionToken = async () => {
+    try {
+      const token = await (api as any).sessionToken.get();
+      return token;
+    } catch (e) {
+      console.error('[Extension] Failed to get session token:', e);
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (productId) {
       fetchNotes();
     }
   }, [productId]);
-  
+
   const fetchNotes = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use public API endpoint with shop parameter
-      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes?shop=${encodeURIComponent(shop || '')}`;
-      console.log('[Extension] Fetching notes from:', url);
+      const token = await getSessionToken();
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes`;
+      console.log('[Extension] Fetching notes from:', url, 'with token:', token ? 'present' : 'missing');
 
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 
@@ -72,11 +82,13 @@ function ProductNotesBlock() {
     if (!newNote.trim()) return;
 
     try {
-      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes?shop=${encodeURIComponent(shop || '')}`;
+      const token = await getSessionToken();
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes`;
       const response = await fetch(url, {
         method: editingNote ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify({
           content: newNote,
@@ -94,16 +106,18 @@ function ProductNotesBlock() {
       setError(err.message);
     }
   };
-  
+
   const handleDeleteNote = async (noteId: string) => {
     if (!confirm('Are you sure you want to delete this note?')) return;
 
     try {
-      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}?shop=${encodeURIComponent(shop || '')}`;
+      const token = await getSessionToken();
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}`;
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 
@@ -114,21 +128,25 @@ function ProductNotesBlock() {
       setError(err.message);
     }
   };
-  
+
   const handleEditNote = (note: any) => {
     setEditingNote(note);
     setNewNote(note.content);
     setShowForm(true);
   };
-  
+
   const handleUploadPhoto = async (noteId: string, file: File) => {
     const formData = new FormData();
     formData.append('photo', file);
 
     try {
-      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}/photos?shop=${encodeURIComponent(shop || '')}`;
+      const token = await getSessionToken();
+      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}/photos`;
       const response = await fetch(url, {
         method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
         body: formData,
       });
 
