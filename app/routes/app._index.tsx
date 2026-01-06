@@ -40,19 +40,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }),
   ]);
 
+  // Get all acknowledgments and filter in memory to avoid Prisma null query issues
+  const allAcknowledgments = await prisma.orderAcknowledgment.findMany({
+    where: { shopDomain: session.shop },
+    select: { acknowledgedAt: true },
+  });
+
   const stats = {
     totalNotes: await prisma.productNote.count({
       where: { shopDomain: session.shop },
     }),
-    totalAcknowledgments: await prisma.orderAcknowledgment.count({
-      where: { shopDomain: session.shop },
-    }),
-    pendingAcknowledgments: await prisma.orderAcknowledgment.count({
-      where: {
-        shopDomain: session.shop,
-        acknowledgedAt: { equals: null },
-      },
-    }),
+    totalAcknowledgments: allAcknowledgments.length,
+    pendingAcknowledgments: allAcknowledgments.filter(a => a.acknowledgedAt === null).length,
   };
 
   return json({ 
