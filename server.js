@@ -4,6 +4,20 @@ const path = require("path");
 
 const app = express();
 
+// Enable CORS for Shopify UI extensions
+app.use((req, res, next) => {
+  // Allow requests from Shopify admin
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Shopify-Access-Token");
+
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Health check endpoint (BEFORE static files and Remix handler)
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
