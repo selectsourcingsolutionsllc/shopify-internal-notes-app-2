@@ -9,6 +9,21 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Debug endpoint to test HTML rendering
+app.get("/debug", (req, res) => {
+  res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+      <head><title>Debug Test</title></head>
+      <body>
+        <h1>Debug Page Works!</h1>
+        <p>Express is serving HTML correctly.</p>
+        <p>Time: ${new Date().toISOString()}</p>
+      </body>
+    </html>
+  `);
+});
+
 // Serve static files from public/build (where Remix 2.7.1 puts client assets)
 app.use("/build", express.static(path.join(__dirname, "public/build"), {
   maxAge: "1y",
