@@ -48,9 +48,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
       where: { shopDomain: session.shop },
     }),
     pendingAcknowledgments: await prisma.orderAcknowledgment.count({
-      where: { 
+      where: {
         shopDomain: session.shop,
-        acknowledgedAt: null,
+        acknowledgedAt: { equals: null },
       },
     }),
   };
