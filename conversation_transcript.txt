@@ -1355,7 +1355,101 @@ PHOTO UPLOAD FEATURE IMPLEMENTATION
 ✅ Local development: Uploads to public/uploads/
 
 =====================================
+
+SESSION: January 7, 2026 (Continued)
+FIXING PHOTO UPLOAD AND DISPLAY ISSUES
+====================================================
+
+**Starting Point:**
+- Photo upload feature was built but photos weren't showing in order fulfillment page
+- User could upload photos via "Manage Photos" page
+
+**Issues Fixed:**
+
+### Issue 1: "Manage Photos" Link - 404 Error
+- Link was going to `/app/notes/{noteId}/photos` but route didn't exist on Railway
+- **Fix:** Renamed route from `app.notes.$noteId.photos.tsx` to `app.photo-manager.$noteId.tsx`
+- New URL: `/app/photo-manager/{noteId}` - avoids conflict with `app.notes.tsx`
+
+### Issue 2: Link Opening Outside Shopify Context
+- Clicking "Manage Photos" showed JSON/raw data instead of the app
+- **Cause:** Link went directly to Railway URL, bypassing Shopify auth
+- **Fix:** Changed link to use Shopify admin URL format:
+  `https://{shop}/admin/apps/internal-notes-for-listings/app/photo-manager/{noteId}`
+
+### Issue 3: Photos Not Showing in Order Fulfillment Extension
+- Console showed: `OpaqueResponseBlocking` - image blocked by CORS
+- **Cause:** Extension was using `<img>` tags instead of Shopify's `Image` component
+- **Fix 1:** Imported and used `Image` component from `@shopify/ui-extensions-react/admin`
+- **Fix 2:** Added CORS headers to server.js for `/uploads` route
+- **Fix 3:** Added debug text showing "Photos: X" count
+
+### Issue 4: Railway Ephemeral Storage
+- **Critical Discovery:** Railway wipes filesystem on every deploy!
+- Uploaded photos disappeared after each deployment
+- **This is why photos weren't showing** - they didn't exist anymore
+
+**Storage Solutions Explored:**
+
+1. **AWS S3** - Already coded but needs AWS credentials
+2. **Cloudflare R2** - S3-compatible, free tier, but requires payment method
+3. **Shopify Files API** - Would use merchant's storage quota, might hurt app approval
+4. **Railway Volume** - Persistent storage attached to Railway service
+
+**User Questions & Decisions:**
+
+Q: "Can we use Shopify's image hosting?"
+A: Technically yes, but Shopify prefers apps manage their own storage. Using merchant's file quota could hurt app approval chances.
+
+Q: "Do other apps use Shopify photo hosting? Does Shopify like or dislike this?"
+A: Shopify's Files API is meant for merchant content, not app data storage. Most apps use external storage (S3, R2, etc.). Using it could raise red flags during app review.
+
+Q: "What are pros/cons of Railway Volume?"
+A:
+- Pros: No external accounts, no credit card, simple setup, no CORS issues
+- Cons: Tied to Railway, no global CDN, single region
+
+**Final Decision:** Use Railway Volume for photo storage
+
+**Code Changes Made:**
+
+1. **storage.server.ts** - Updated to save files to `/data/uploads` (Railway Volume mount point)
+2. **server.js** - Updated to serve files from `UPLOAD_DIR` environment variable
+3. **shopify.app.toml** - Removed `write_files` and `read_files` scopes (not needed with Railway Volume)
+4. **app.photo-manager.$noteId.tsx** - Route renamed and updated
+5. **ProductNotesBlock.tsx** - Updated link to use Shopify admin URL format
+6. **OrderFulfillmentBlock.tsx** - Added `Image` component, debug photo count display
+
+**Environment Variables Needed:**
+- `UPLOAD_DIR=/data/uploads` (for Railway Volume)
+
+**Railway Volume Setup Required:**
+1. Click on app service in Railway
+2. Add Volume with mount path `/data`
+3. Add environment variable `UPLOAD_DIR=/data/uploads`
+4. Redeploy
+
+**Commits This Session:**
+- Fixed photo route naming conflicts
+- Added CORS headers for uploaded images
+- Switched to Shopify CDN (later reverted)
+- Added file scopes (later reverted)
+- Final: Railway Volume storage implementation
+
+**Current Status:**
+✅ Code updated for Railway Volume storage
+✅ CORS headers configured for image serving
+✅ Extension uses proper Image component
+⏳ **PENDING:** User needs to create Railway Volume in dashboard
+
+**Next Steps:**
+1. User creates Railway Volume in Railway dashboard
+2. Add `UPLOAD_DIR=/data/uploads` environment variable
+3. Redeploy
+4. Test photo upload and display
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 7, 2026
-STATUS: 🟢 APP DEPLOYED WITH PHOTO FEATURE - AWAITING S3 CONFIG FOR PRODUCTION UPLOADS
+STATUS: 🟡 AWAITING RAILWAY VOLUME SETUP FOR PERSISTENT PHOTO STORAGE
 =====================================
