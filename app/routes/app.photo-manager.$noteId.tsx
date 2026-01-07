@@ -17,7 +17,7 @@ import {
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { uploadFile, deleteFile } from "../utils/storage.server";
+import { uploadFileToShopify, deleteFile } from "../utils/storage.server";
 import { createAuditLog } from "../utils/audit.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -37,7 +37,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const { noteId } = params;
 
   const note = await prisma.productNote.findUnique({
@@ -59,7 +59,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     try {
-      const { url, filename } = await uploadFile(photo, session.shop, "product-notes");
+      // Upload to Shopify's CDN
+      const { url, filename } = await uploadFileToShopify(photo, admin, "product-notes");
 
       const photoRecord = await prisma.productNotePhoto.create({
         data: {
