@@ -41,7 +41,14 @@
       "WebSearch",
       "Bash(npx shopify app deploy)",
       "Bash(npx shopify app deploy:*)",
-      "WebFetch(domain:shopify-internal-notes-app-production.up.railway.app)"
+      "WebFetch(domain:shopify-internal-notes-app-production.up.railway.app)",
+      "Bash(curl:*)",
+      "WebFetch(domain:shopify.dev)",
+      "WebFetch(domain:community.shopify.dev)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:community.shopify.com)",
+      "WebFetch(domain:kahunam.com)",
+      "WebFetch(domain:litextension.com)"
     ],
     "deny": []
   }

@@ -12,7 +12,8 @@ import {
   useApi,
 } from '@shopify/ui-extensions-react/admin';
 
-const TARGET = 'admin.order-details.action.render';
+// Use block.render so it shows automatically on the order page
+const TARGET = 'admin.order-details.block.render';
 
 export default reactExtension(TARGET, () => <OrderFulfillmentBlock />);
 
@@ -27,25 +28,37 @@ function OrderFulfillmentBlock() {
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [currentNoteId, setCurrentNoteId] = useState<string | null>(null);
   const [canFulfill, setCanFulfill] = useState(true);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
-  const orderId = data.order?.id;
-  const lineItems = data.order?.lineItems || [];
+  const orderId = data.selected?.[0]?.id;
   const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
 
-  // Try to get shop domain
+  // Try to get shop domain from multiple sources
   const getShopDomain = (): string => {
     const possibleShop =
       (api as any).shop?.myshopifyDomain ||
       (api as any).data?.shop?.myshopifyDomain ||
       (api as any).extension?.shop ||
+      (api as any).host?.shop ||
       '';
+    console.log('[Order Extension] Shop domain found:', possibleShop);
     return possibleShop;
   };
 
   useEffect(() => {
+    // Log API structure for debugging
+    console.log('[Order Extension] Full API keys:', Object.keys(api));
+    console.log('[Order Extension] Data:', JSON.stringify(data));
+    console.log('[Order Extension] Order ID:', orderId);
+
+    const shop = getShopDomain();
+    setDebugInfo(`Order: ${orderId || 'none'}, Shop: ${shop || 'none'}`);
+
     if (orderId) {
       fetchOrderNotes();
       fetchSettings();
+    } else {
+      setLoading(false);
     }
   }, [orderId]);
   
@@ -62,11 +75,48 @@ function OrderFulfillmentBlock() {
   const fetchOrderNotes = async () => {
     try {
       setLoading(true);
+      console.log('[Order Extension] Starting fetchOrderNotes for order:', orderId);
 
-      // Get product IDs from line items
-      const productIds = lineItems.map((item: any) => item.product?.id).filter(Boolean);
+      // Use GraphQL query to get order line items
+      let productIds: string[] = [];
+
+      try {
+        const query = (api as any).query;
+        if (query) {
+          const result = await query(`
+            query GetOrder($id: ID!) {
+              order(id: $id) {
+                id
+                name
+                lineItems(first: 50) {
+                  edges {
+                    node {
+                      product {
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `, { variables: { id: orderId } });
+
+          console.log('[Order Extension] GraphQL result:', JSON.stringify(result));
+
+          if (result?.data?.order?.lineItems?.edges) {
+            productIds = result.data.order.lineItems.edges
+              .map((edge: any) => edge.node?.product?.id)
+              .filter(Boolean);
+          }
+        }
+      } catch (queryErr) {
+        console.log('[Order Extension] GraphQL query failed:', queryErr);
+      }
+
+      console.log('[Order Extension] Product IDs found:', productIds);
 
       if (productIds.length === 0) {
+        console.log('[Order Extension] No product IDs found');
         setProductNotes([]);
         setLoading(false);
         return;
@@ -75,7 +125,8 @@ function OrderFulfillmentBlock() {
       const shop = getShopDomain();
       const url = `${BASE_URL}/api/public/orders/${encodeURIComponent(orderId)}/notes${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
 
-      console.log('[Extension] Fetching order notes:', url);
+      console.log('[Order Extension] Fetching order notes:', url);
+      console.log('[Order Extension] With productIds:', productIds);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -85,12 +136,16 @@ function OrderFulfillmentBlock() {
         body: JSON.stringify({ productIds }),
       });
 
+      console.log('[Order Extension] Response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to fetch notes');
       }
 
       const responseData = await response.json();
+      console.log('[Order Extension] Response data:', JSON.stringify(responseData));
+
       setProductNotes(responseData.notes || []);
 
       // Initialize acknowledgments state
@@ -103,7 +158,7 @@ function OrderFulfillmentBlock() {
       setAcknowledgments(acks);
 
     } catch (err: any) {
-      console.error('[Extension] Error fetching notes:', err);
+      console.error('[Order Extension] Error fetching notes:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -187,13 +242,40 @@ function OrderFulfillmentBlock() {
   if (loading) {
     return (
       <Box padding="base">
-        <Text>Loading product notes...</Text>
+        <BlockStack>
+          <Text fontWeight="bold">Internal Notes</Text>
+          <Text>Loading product notes...</Text>
+          <Text emphasis="subdued">{debugInfo}</Text>
+        </BlockStack>
       </Box>
     );
   }
-  
+
+  if (error) {
+    return (
+      <Box padding="base">
+        <BlockStack>
+          <Text fontWeight="bold">Internal Notes</Text>
+          <Banner tone="critical">
+            <Text>Error: {error}</Text>
+          </Banner>
+          <Text emphasis="subdued">{debugInfo}</Text>
+          <Button onPress={fetchOrderNotes}>Retry</Button>
+        </BlockStack>
+      </Box>
+    );
+  }
+
   if (productNotes.length === 0) {
-    return null; // Don't show anything if no notes
+    return (
+      <Box padding="base">
+        <BlockStack>
+          <Text fontWeight="bold">Internal Notes</Text>
+          <Text emphasis="subdued">No notes for products in this order.</Text>
+          <Text emphasis="subdued">{debugInfo}</Text>
+        </BlockStack>
+      </Box>
+    );
   }
   
   return (
