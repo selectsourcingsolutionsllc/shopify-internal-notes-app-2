@@ -1261,7 +1261,101 @@ Ran `npx shopify app deploy --force` to push all changes:
 ⏳ Awaiting user test of product notes block
 
 =====================================
+
+UPDATES: January 5-7, 2026
+PHOTO UPLOAD FEATURE IMPLEMENTATION
+====================================================
+
+**Goal:** Add ability to upload and manage photos for product notes.
+
+**What Was Built:**
+
+1. **Database Model - ProductNotePhoto Table**
+   - Added to prisma/schema.prisma
+   - Fields: id, noteId, url, filename, uploadedAt, uploadedBy
+   - Relation: One-to-many with ProductNote (cascade delete)
+   - Index on noteId for performance
+
+2. **Storage Utility (app/utils/storage.server.ts)**
+   - Handles file uploads with two modes:
+   - **Production:** Uploads to AWS S3 bucket (if AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET_NAME are set)
+   - **Development:** Saves to local filesystem at public/uploads/{shop}/{category}/{filename}
+   - Uses UUID for unique filenames
+   - Returns URL and filename for database storage
+
+3. **Photo Management Page (app/routes/app.notes.$noteId.photos.tsx)**
+   - Full Polaris UI with:
+     - Drag-and-drop upload using DropZone component
+     - Preview of files before upload
+     - Grid view of existing photos (150x150 thumbnails)
+     - Delete button for each photo
+   - Authentication: Requires admin session
+   - Audit logging for all upload/delete actions
+   - Back navigation to /app/notes
+
+4. **Public API for Extensions (api.public.products.$productId.notes.$noteId.photos.tsx)**
+   - GET: Fetch all photos for a note
+   - POST: Upload new photo (multipart/form-data)
+   - DELETE: Remove photo by ID
+   - CORS headers enabled for extension access
+   - Requires shop query parameter
+   - Audit logging for all actions
+
+5. **Extension UI Updated (ProductNotesBlock.tsx)**
+   - Shows photo count badge for each note (green if has photos, blue if none)
+   - "Manage Photos" link opens app in new tab
+   - Simplified UI - removed direct upload from extension
+   - Uses Link component to navigate to photo management page
+
+**User Flow:**
+1. User views product in Shopify admin
+2. Extension shows "Internal Notes" block
+3. User creates/edits notes in the extension
+4. Each note shows photo count badge (e.g., "2 photos")
+5. User clicks "Manage Photos" → opens app/notes/{noteId}/photos in new tab
+6. User uploads photos via drag-and-drop in the full app UI
+7. User returns to extension → photo count is updated
+
+**Files Created/Modified:**
+- `prisma/schema.prisma` - Added ProductNotePhoto model
+- `app/utils/storage.server.ts` - NEW: File upload utility (S3 + local)
+- `app/routes/app.notes.$noteId.photos.tsx` - NEW: Photo management page
+- `app/routes/api.public.products.$productId.notes.$noteId.photos.tsx` - NEW: Public photo API
+- `extensions/product-notes-ui/src/ProductNotesBlock.tsx` - Updated with photo count + link
+
+**Other Fixes in This Period:**
+1. Fixed order fulfillment extension to use public API endpoints
+2. Fixed CORS duplicate headers issue
+3. Fixed extension auth to use session tokens instead of shop param
+4. Added public API endpoints for extensions (no auth required, uses shop param)
+5. Added CORS support for Shopify UI extensions
+
+**Commits:**
+- 66a4472 Add photo management page for notes
+- 3dd53ef Add photo upload feature for product notes
+- 2b308bb Fix order fulfillment extension to use public API endpoints
+- 0255376 Fix CORS duplicate headers and improve extension auth handling
+- 67b322d Fix extension auth - use session tokens instead of shop param
+- ec11835 Add public API endpoints for extensions (no auth required)
+- d7e7586 Add CORS support for Shopify UI extensions
+
+**Environment Variables Needed for Production Photo Upload:**
+- AWS_ACCESS_KEY_ID - AWS access key
+- AWS_SECRET_ACCESS_KEY - AWS secret key
+- AWS_REGION - AWS region (default: us-east-1)
+- S3_BUCKET_NAME - S3 bucket name for uploads
+
+**Current Status:**
+✅ Railway app: Running and healthy
+✅ Database: All tables including ProductNotePhoto
+✅ Photo management page: Working in app
+✅ Extension: Shows photo count and manage link
+✅ Public API: CORS-enabled endpoints for extensions
+⚠️ Production uploads: Requires AWS S3 configuration
+✅ Local development: Uploads to public/uploads/
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
-LAST UPDATE: January 5, 2026
-STATUS: 🟢 APP DEPLOYED, EXTENSIONS UPDATED - AWAITING USER TEST
+LAST UPDATE: January 7, 2026
+STATUS: 🟢 APP DEPLOYED WITH PHOTO FEATURE - AWAITING S3 CONFIG FOR PRODUCTION UPLOADS
 =====================================
