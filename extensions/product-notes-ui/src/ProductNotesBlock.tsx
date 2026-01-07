@@ -269,7 +269,7 @@ function ProductNotesBlock() {
                   <Badge tone={note.photos?.length > 0 ? "success" : "info"}>
                     {note.photos?.length || 0} photo{note.photos?.length !== 1 ? 's' : ''}
                   </Badge>
-                  <Link href={`https://${shopDomain}/admin/apps/internal-notes-for-listings/notes/${note.id}/photos`} target="_blank">
+                  <Link href={`https://${shopDomain}/admin/apps/internal-notes-for-listings/app/notes/${note.id}/photos`} target="_blank">
                     Manage Photos
                   </Link>
                 </InlineStack>
