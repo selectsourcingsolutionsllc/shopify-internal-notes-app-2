@@ -322,7 +322,10 @@ function OrderFulfillmentBlock() {
                   </InlineStack>
                   
                   <Text>{note.content}</Text>
-                  
+
+                  {/* Debug: Show photo count */}
+                  <Text emphasis="subdued">Photos: {note.photos?.length || 0}</Text>
+
                   {note.photos && note.photos.length > 0 && (
                     <InlineStack blockAlignment="center" gap="tight">
                       <Image

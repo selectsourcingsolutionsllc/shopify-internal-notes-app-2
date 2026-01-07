@@ -44,6 +44,16 @@ app.use("/build", express.static(path.join(__dirname, "public/build"), {
   immutable: true,
 }));
 
+// Serve uploaded files with CORS headers for Shopify extensions
+app.use("/uploads", (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.header("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+}, express.static(path.join(__dirname, "public/uploads"), {
+  maxAge: "1h",
+}));
+
 // Serve other public files
 app.use(express.static(path.join(__dirname, "public"), {
   maxAge: "1h",
