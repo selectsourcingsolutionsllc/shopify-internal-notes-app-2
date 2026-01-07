@@ -10,7 +10,7 @@ import {
   Badge,
   Banner,
   useApi,
-  Image,
+  Link,
 } from '@shopify/ui-extensions-react/admin';
 
 const TARGET = 'admin.product-details.block.render';
@@ -25,9 +25,6 @@ function ProductNotesBlock() {
   const [editingNote, setEditingNote] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>('');
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
   const [shopDomain, setShopDomain] = useState<string>('');
 
   const productId = api.data.selected?.[0]?.id;
@@ -93,7 +90,6 @@ function ProductNotesBlock() {
   useEffect(() => {
     const init = async () => {
       const shop = await fetchShopDomain();
-      setDebugInfo(`Product: ${productId}, Shop: ${shop}`);
       if (productId && shop) {
         fetchNotes();
       }
@@ -161,86 +157,10 @@ function ProductNotesBlock() {
 
       if (!response.ok) throw new Error('Failed to save note');
 
-      const result = await response.json();
-      const savedNoteId = editingNote?.id || result.note?.id;
-
-      // Upload any pending photos
-      if (pendingPhotos.length > 0 && savedNoteId) {
-        await uploadPhotosToNote(savedNoteId);
-      }
-
       await fetchNotes();
       setNewNote('');
       setEditingNote(null);
       setShowForm(false);
-      setPendingPhotos([]);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const uploadPhotosToNote = async (noteId: string) => {
-    const shop = shopDomain || await fetchShopDomain();
-
-    for (const photo of pendingPhotos) {
-      try {
-        const formData = new FormData();
-        formData.append('photo', photo);
-
-        const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}/photos?shop=${encodeURIComponent(shop)}`;
-
-        await fetch(url, {
-          method: 'POST',
-          body: formData,
-        });
-      } catch (err) {
-        console.error('[Extension] Photo upload error:', err);
-      }
-    }
-  };
-
-  const handlePhotoUpload = async (noteId: string, file: File) => {
-    try {
-      setUploadingPhoto(true);
-      const shop = shopDomain || await fetchShopDomain();
-
-      const formData = new FormData();
-      formData.append('photo', file);
-
-      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}/photos?shop=${encodeURIComponent(shop)}`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Failed to upload photo');
-
-      await fetchNotes();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setUploadingPhoto(false);
-    }
-  };
-
-  const handleDeletePhoto = async (noteId: string, photoId: string) => {
-    try {
-      const shop = shopDomain || await fetchShopDomain();
-
-      const formData = new FormData();
-      formData.append('photoId', photoId);
-
-      const url = `${BASE_URL}/api/public/products/${encodeURIComponent(productId)}/notes/${encodeURIComponent(noteId)}/photos?shop=${encodeURIComponent(shop)}`;
-
-      const response = await fetch(url, {
-        method: 'DELETE',
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Failed to delete photo');
-
-      await fetchNotes();
     } catch (err: any) {
       setError(err.message);
     }
@@ -275,28 +195,15 @@ function ProductNotesBlock() {
   const handleEditNote = (note: any) => {
     setEditingNote(note);
     setNewNote(note.content);
-    setPendingPhotos([]);
     setShowForm(true);
   };
 
-  const handleFileSelect = (e: any) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setPendingPhotos(prev => [...prev, ...Array.from(files) as File[]]);
-    }
-  };
-
-  const handleFileSelectForExistingNote = async (noteId: string, e: any) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      for (const file of files) {
-        await handlePhotoUpload(noteId, file as File);
-      }
-    }
-  };
-
-  const removePendingPhoto = (index: number) => {
-    setPendingPhotos(prev => prev.filter((_, i) => i !== index));
+  // Extract numeric product ID for the app link
+  const getNumericProductId = () => {
+    if (!productId) return '';
+    // productId is like "gid://shopify/Product/123456"
+    const match = productId.match(/\/(\d+)$/);
+    return match ? match[1] : productId;
   };
 
   if (loading) {
@@ -330,7 +237,6 @@ function ProductNotesBlock() {
           onPress={() => {
             setEditingNote(null);
             setNewNote('');
-            setPendingPhotos([]);
             setShowForm(true);
           }}
         >
@@ -358,38 +264,14 @@ function ProductNotesBlock() {
                   </Button>
                 </InlineStack>
 
-                {/* Display existing photos */}
-                {note.photos && note.photos.length > 0 && (
-                  <InlineStack gap="tight">
-                    {note.photos.map((photo: any) => (
-                      <Box key={photo.id} padding="extraTight">
-                        <BlockStack gap="extraTight">
-                          <Image
-                            source={photo.url.startsWith('/') ? `${BASE_URL}${photo.url}` : photo.url}
-                            alt="Note photo"
-                          />
-                          <Button
-                            variant="tertiary"
-                            tone="critical"
-                            onPress={() => handleDeletePhoto(note.id, photo.id)}
-                          >
-                            Remove
-                          </Button>
-                        </BlockStack>
-                      </Box>
-                    ))}
-                  </InlineStack>
-                )}
-
-                {/* Add photo to existing note */}
+                {/* Photo count and link to manage */}
                 <InlineStack gap="tight" blockAlignment="center">
-                  <Badge tone="info">{note.photos?.length || 0} photos</Badge>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileSelectForExistingNote(note.id, e)}
-                    style={{ fontSize: '12px' }}
-                  />
+                  <Badge tone={note.photos?.length > 0 ? "success" : "info"}>
+                    {note.photos?.length || 0} photo{note.photos?.length !== 1 ? 's' : ''}
+                  </Badge>
+                  <Link href={`${BASE_URL}/app/notes/${note.id}/photos?shop=${encodeURIComponent(shopDomain)}`} target="_blank">
+                    Manage Photos
+                  </Link>
                 </InlineStack>
               </BlockStack>
             </Box>
@@ -407,50 +289,24 @@ function ProductNotesBlock() {
               onChange={setNewNote}
             />
 
-            {/* Photo upload for new notes */}
-            <BlockStack gap="extraTight">
-              <Text fontWeight="bold">Attach Photos</Text>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileSelect}
-                style={{ fontSize: '12px' }}
-              />
-
-              {/* Show pending photos */}
-              {pendingPhotos.length > 0 && (
-                <BlockStack gap="extraTight">
-                  <Text emphasis="subdued">{pendingPhotos.length} photo(s) selected:</Text>
-                  {pendingPhotos.map((file, index) => (
-                    <InlineStack key={index} gap="tight" blockAlignment="center">
-                      <Text>{file.name}</Text>
-                      <Button
-                        variant="tertiary"
-                        tone="critical"
-                        onPress={() => removePendingPhoto(index)}
-                      >
-                        ✕
-                      </Button>
-                    </InlineStack>
-                  ))}
-                </BlockStack>
-              )}
-            </BlockStack>
-
             <InlineStack gap="tight">
               <Button variant="primary" onPress={handleSaveNote}>
-                {uploadingPhoto ? 'Uploading...' : 'Save'}
+                Save
               </Button>
               <Button onPress={() => {
                 setShowForm(false);
                 setEditingNote(null);
                 setNewNote('');
-                setPendingPhotos([]);
               }}>
                 Cancel
               </Button>
             </InlineStack>
+
+            {!editingNote && (
+              <Text emphasis="subdued">
+                After saving, click "Manage Photos" to add images.
+              </Text>
+            )}
           </BlockStack>
         </Box>
       )}
