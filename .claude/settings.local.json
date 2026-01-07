@@ -48,7 +48,8 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:community.shopify.com)",
       "WebFetch(domain:kahunam.com)",
-      "WebFetch(domain:litextension.com)"
+      "WebFetch(domain:litextension.com)",
+      "Bash(npx shopify app dev:*)"
     ],
     "deny": []
   }
