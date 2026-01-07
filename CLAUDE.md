@@ -8,6 +8,24 @@ The user is new to programming and needs basic explanations. Always assume they 
 - Break down concepts step-by-step
 - Don't assume prior programming knowledge
 
+# CRITICAL: NO QUICK FIXES - DO IT RIGHT!
+
+**ALWAYS build for SCALE, not for quick patches!**
+
+## Development Philosophy:
+- NO workarounds or hacky solutions
+- Fix problems at the ROOT CAUSE
+- Build things the RIGHT way, even if it's harder
+- Think about production scale with multiple customers
+- Debug properly instead of patching symptoms
+- Code should be maintainable and scalable
+
+## Before implementing ANY solution, ask:
+1. Is this the RIGHT way to solve this, or just a quick fix?
+2. Will this scale to 100+ customers?
+3. Am I fixing the root cause or just the symptom?
+4. Would a senior engineer approve of this approach?
+
 # IMPORTANT: Before making ANY code changes for errors
 
 ALWAYS check these first:
