@@ -44,15 +44,17 @@ app.use("/build", express.static(path.join(__dirname, "public/build"), {
   immutable: true,
 }));
 
-// Serve uploaded files with CORS headers for Shopify extensions
+// Serve uploaded files from Railway Volume with CORS headers
+const uploadDir = process.env.UPLOAD_DIR || "/data/uploads";
 app.use("/uploads", (req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.header("Cross-Origin-Resource-Policy", "cross-origin");
   next();
-}, express.static(path.join(__dirname, "public/uploads"), {
+}, express.static(uploadDir, {
   maxAge: "1h",
 }));
+console.log("[Server] Serving uploads from:", uploadDir);
 
 // Serve other public files
 app.use(express.static(path.join(__dirname, "public"), {
