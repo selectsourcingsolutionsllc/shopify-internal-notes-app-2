@@ -58,6 +58,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
 
       console.log("[PUBLIC API] Found", notes.length, "notes");
+      // Log photo counts for each note
+      notes.forEach((note: any) => {
+        console.log(`[PUBLIC API] Note ${note.id}: ${note.photos?.length || 0} photos`);
+      });
 
       // Fetch existing acknowledgments for this order
       const acknowledgments = await prisma.orderAcknowledgment.findMany({
