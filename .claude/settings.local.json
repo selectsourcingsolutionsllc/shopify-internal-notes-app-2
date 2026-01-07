@@ -49,7 +49,9 @@
       "WebFetch(domain:community.shopify.com)",
       "WebFetch(domain:kahunam.com)",
       "WebFetch(domain:litextension.com)",
-      "Bash(npx shopify app dev:*)"
+      "Bash(npx shopify app dev:*)",
+      "Bash(findstr:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }
