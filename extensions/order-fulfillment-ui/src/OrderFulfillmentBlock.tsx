@@ -9,6 +9,7 @@ import {
   Badge,
   Banner,
   Box,
+  Image,
   useApi,
 } from '@shopify/ui-extensions-react/admin';
 
@@ -322,22 +323,17 @@ function OrderFulfillmentBlock() {
                   
                   <Text>{note.content}</Text>
                   
-                  {note.photos.length > 0 && (
-                    <InlineStack>
-                      {note.photos.map((photo) => (
-                        <img
-                          key={photo.id}
-                          src={photo.url}
-                          alt="Product note"
-                          style={{
-                            width: '100px',
-                            height: '100px',
-                            objectFit: 'cover',
-                            borderRadius: '4px',
-                            border: '1px solid #e1e3e5',
-                          }}
-                        />
-                      ))}
+                  {note.photos && note.photos.length > 0 && (
+                    <InlineStack blockAlignment="center" gap="tight">
+                      <Image
+                        source={note.photos[0].url.startsWith('/')
+                          ? `${BASE_URL}${note.photos[0].url}`
+                          : note.photos[0].url}
+                        alt="Product note photo"
+                      />
+                      {note.photos.length > 1 && (
+                        <Badge tone="info">+{note.photos.length - 1} more</Badge>
+                      )}
                     </InlineStack>
                   )}
                   
@@ -362,18 +358,13 @@ function OrderFulfillmentBlock() {
                   )}
                   
                   {isAcknowledged && ack.proofPhotoUrl && (
-                    <InlineStack>
+                    <InlineStack blockAlignment="center" gap="tight">
                       <Text>Proof photo:</Text>
-                      <img
-                        src={ack.proofPhotoUrl}
+                      <Image
+                        source={ack.proofPhotoUrl.startsWith('/')
+                          ? `${BASE_URL}${ack.proofPhotoUrl}`
+                          : ack.proofPhotoUrl}
                         alt="Acknowledgment proof"
-                        style={{
-                          width: '80px',
-                          height: '80px',
-                          objectFit: 'cover',
-                          borderRadius: '4px',
-                          border: '1px solid #e1e3e5',
-                        }}
                       />
                     </InlineStack>
                   )}
