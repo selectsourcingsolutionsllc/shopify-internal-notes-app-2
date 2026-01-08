@@ -41,6 +41,60 @@
 
 ---
 
+## 🛑 STUPID SHIT CHECKLIST - ASK THESE FIRST 🛑
+
+Before writing a SINGLE line of code or suggesting ANY fix, verify these basics:
+
+### The Obvious Stuff We Forgot To Check:
+
+| # | Question | How to Check |
+|---|----------|--------------|
+| 1 | **Is the dev server even running?** | Look for `npm run dev` in terminal. No server = nothing works. |
+| 2 | **Did you SAVE the file?** | Ctrl+S. Unsaved changes = old code runs. |
+| 3 | **Did you deploy to Shopify?** | `npx shopify app deploy --force` - Railway and Shopify are SEPARATE! |
+| 4 | **Did you push to git?** | `git status` - Railway deploys from git, not your local files. |
+| 5 | **Is Railway actually deploying?** | Check Railway dashboard - green = deployed, building = wait. |
+| 6 | **Did you hard refresh the browser?** | Ctrl+Shift+R or incognito. Browser cache lies to you. |
+| 7 | **Are you on the right store?** | Dev store vs production. Check the URL. |
+| 8 | **Is the app installed on the store?** | Apps > Your App. Not installed = nothing shows. |
+| 9 | **Are environment variables set?** | Railway dashboard > Variables. Missing vars = silent failures. |
+| 10 | **Are you on the right git branch?** | `git branch` - editing code on wrong branch = wasted time. |
+| 11 | **Is Railway watching the right branch?** | Railway settings > check which branch triggers deploys. |
+| 12 | **Did the build actually succeed?** | Railway logs - build errors = old code still running. |
+| 13 | **Are you checking the right logs?** | Browser console vs Railway logs vs terminal - errors hide in different places. |
+| 14 | **Is the database migrated?** | `npx prisma migrate deploy` - schema changes need migration. |
+| 15 | **Did you restart after .env changes?** | Environment variables need server restart to take effect. |
+
+### Quick Sanity Checks:
+
+```bash
+# Is git up to date?
+git status
+
+# What branch am I on?
+git branch
+
+# Is the server running?
+# (Look at your terminal - should see "Server running on port...")
+
+# Did I push my changes?
+git log origin/master..HEAD  # Shows unpushed commits
+
+# What does Shopify think the extension is?
+cat extensions/*/shopify.extension.toml | grep module
+```
+
+### The Golden Rule:
+
+**If you're about to change code to "fix" something, first verify:**
+1. The code you're changing is actually being executed
+2. The server running that code has your latest changes
+3. You're looking at the right environment/store/logs
+
+**90% of "bugs" are actually deployment/environment issues, not code issues.**
+
+---
+
 ## Table of Contents
 1. [Critical Discovery: Extension File Mismatch](#1-critical-discovery-extension-file-mismatch)
 2. [The {} Rendering Issue (ESM/CommonJS)](#2-the--rendering-issue-esmcommonjs)
