@@ -4,6 +4,43 @@
 
 ---
 
+## ⚠️ STOP! READ THIS FIRST BEFORE DOING ANYTHING ⚠️
+
+### Check for Duplicate/Similar Files BEFORE Troubleshooting!
+
+**We wasted HOURS editing the wrong file because two similarly-named files existed:**
+- `OrderFulfillmentBlock.tsx` ← We kept editing this one
+- `OrderDetailsBlock.tsx` ← Shopify was actually using THIS one
+
+**BEFORE you start debugging or making ANY changes:**
+
+1. **Search for similar filenames:**
+   ```bash
+   # Find files with similar names
+   find . -name "*Block*" -o -name "*Notes*" -o -name "*Order*"
+
+   # Or use glob patterns
+   ls -la extensions/*/src/*.tsx
+   ```
+
+2. **Check configuration files to see which file is ACTUALLY used:**
+   ```bash
+   # For Shopify extensions - check the module field!
+   cat extensions/*/shopify.extension.toml | grep -A2 "module"
+
+   # For Remix routes - check what's registered
+   ls -la app/routes/
+   ```
+
+3. **If you find multiple similar files, ASK:**
+   - Which one is actually being used?
+   - Why do both exist?
+   - Should one be deleted?
+
+**Don't be a dumbass like us. Check for duplicates FIRST.**
+
+---
+
 ## Table of Contents
 1. [Critical Discovery: Extension File Mismatch](#1-critical-discovery-extension-file-mismatch)
 2. [The {} Rendering Issue (ESM/CommonJS)](#2-the--rendering-issue-esmcommonjs)
