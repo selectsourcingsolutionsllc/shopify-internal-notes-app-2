@@ -10,7 +10,7 @@ import {
   Banner,
   Box,
   Image,
-  Pressable,
+  Link,
   useApi,
 } from '@shopify/ui-extensions-react/admin';
 
@@ -30,7 +30,6 @@ function OrderDetailsBlock() {
   const [canFulfill, setCanFulfill] = useState(true);
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
-  const [expandedPhoto, setExpandedPhoto] = useState(false);
 
   // Try different ways to get the order ID
   const orderId = (data as any)?.selected?.[0]?.id || (data as any)?.order?.id;
@@ -362,20 +361,18 @@ function OrderDetailsBlock() {
 
         <Banner tone="warning" title="Check box to acknowledge">
           <InlineStack gap="base" blockAlignment="start">
-            {/* Photo on left - click to expand */}
+            {/* Photo thumbnail on left - click to open full size in new tab */}
             {currentNote.photos && currentNote.photos.length > 0 && (
               <BlockStack gap="extraTight">
-                <Pressable onPress={() => setExpandedPhoto(!expandedPhoto)}>
-                  <Box maxInlineSize={expandedPhoto ? 300 : 50}>
+                <Link href={currentNote.photos[0].url} external>
+                  <Box maxInlineSize={50} maxBlockSize={50}>
                     <Image
                       source={currentNote.photos[0].url}
                       alt="Note photo"
                     />
                   </Box>
-                </Pressable>
-                <Text emphasis="subdued" size="small">
-                  {expandedPhoto ? 'Click to shrink' : 'Click to expand'}
-                </Text>
+                </Link>
+                <Text emphasis="subdued" size="small">Click to view</Text>
                 {currentNote.photos.length > 1 && (
                   <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
                 )}
@@ -414,14 +411,14 @@ function OrderDetailsBlock() {
             <Button
               variant="tertiary"
               disabled={currentNoteIndex === 0}
-              onPress={() => { setCurrentNoteIndex(currentNoteIndex - 1); setExpandedPhoto(false); }}
+              onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
             >
               Previous
             </Button>
             <Button
               variant="tertiary"
               disabled={currentNoteIndex === productNotes.length - 1}
-              onPress={() => { setCurrentNoteIndex(currentNoteIndex + 1); setExpandedPhoto(false); }}
+              onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
             >
               Next
             </Button>
