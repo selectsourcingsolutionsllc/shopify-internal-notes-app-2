@@ -33,11 +33,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Not found", { status: 404 });
   }
 
-  // Extract numeric product ID from GID (e.g., "gid://shopify/Product/123456" -> "123456")
-  const productIdMatch = note.productId.match(/\/(\d+)$/);
-  const numericProductId = productIdMatch ? productIdMatch[1] : null;
-
-  return json({ note, shop: session.shop, numericProductId });
+  return json({ note, shop: session.shop });
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -138,12 +134,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function NotePhotosPage() {
-  const { note, shop, numericProductId } = useLoaderData<typeof loader>();
+  const { note, shop } = useLoaderData<typeof loader>();
 
-  // Build the back URL to the product page in Shopify admin
-  const backUrl = numericProductId
-    ? `https://${shop}/admin/products/${numericProductId}`
-    : "/app";
+  // Go back to wherever the user came from
+  const handleBack = () => {
+    window.history.back();
+  };
   const submit = useSubmit();
   const navigation = useNavigation();
   const [files, setFiles] = useState<File[]>([]);
@@ -207,7 +203,7 @@ export default function NotePhotosPage() {
 
   return (
     <Page
-      backAction={{ content: "Back to Product", url: backUrl }}
+      backAction={{ content: "Back", onAction: handleBack }}
       title="Manage Note Photos"
       subtitle={`Note: "${note.content.substring(0, 50)}${note.content.length > 50 ? '...' : ''}"`}
     >
