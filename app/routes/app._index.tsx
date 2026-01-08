@@ -77,10 +77,6 @@ export default function AppIndex() {
   return (
     <Page
       title="Internal Notes Dashboard"
-      primaryAction={{
-        content: "View All Notes",
-        url: "/app/notes",
-      }}
       secondaryActions={[
         {
           content: "Settings",
