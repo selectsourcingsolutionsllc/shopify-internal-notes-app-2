@@ -25,14 +25,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return new Response("Not found", { status: 404 });
     }
     
-    // Upload the photo
-    const { url, filename } = await uploadFile(photo, session.shop, "product-notes");
-    
+    // Upload the photo and create thumbnail
+    const { url, thumbnailUrl, filename } = await uploadFile(photo, session.shop, "product-notes");
+
     // Save photo record
     const photoRecord = await prisma.productNotePhoto.create({
       data: {
         noteId: noteId!,
         url,
+        thumbnailUrl,
         filename,
         uploadedBy: session.email || session.id,
       },

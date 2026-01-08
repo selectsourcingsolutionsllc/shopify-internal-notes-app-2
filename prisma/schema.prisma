@@ -44,11 +44,12 @@ model ProductNotePhoto {
   id            String      @id @default(cuid())
   noteId        String
   url           String
+  thumbnailUrl  String?
   filename      String
   uploadedAt    DateTime    @default(now())
   uploadedBy    String
   note          ProductNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  
+
   @@index([noteId])
 }
 

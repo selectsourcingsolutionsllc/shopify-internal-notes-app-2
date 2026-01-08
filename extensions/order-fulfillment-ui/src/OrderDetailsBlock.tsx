@@ -365,14 +365,12 @@ function OrderDetailsBlock() {
             {currentNote.photos && currentNote.photos.length > 0 && (
               <BlockStack gap="extraTight">
                 <Link href={currentNote.photos[0].url} external>
-                  <Box maxInlineSize={25} maxBlockSize={25}>
-                    <Image
-                      source={currentNote.photos[0].url}
-                      alt="Note photo"
-                    />
-                  </Box>
+                  <Image
+                    source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
+                    alt="Note photo"
+                  />
                 </Link>
-                <Text emphasis="subdued" size="small">Click to view</Text>
+                <Text emphasis="subdued" size="small">Click to view full</Text>
                 {currentNote.photos.length > 1 && (
                   <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
                 )}

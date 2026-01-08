@@ -51,7 +51,11 @@
       "WebFetch(domain:litextension.com)",
       "Bash(npx shopify app dev:*)",
       "Bash(findstr:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git show:*)",
+      "Bash(git mv:*)",
+      "Bash(ren:*)",
+      "Bash(Select-String \"predev\")"
     ],
     "deny": []
   }

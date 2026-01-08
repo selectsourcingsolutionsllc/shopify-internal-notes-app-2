@@ -66,14 +66,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
         return json({ error: "No photo provided" }, { status: 400, headers: corsHeaders });
       }
 
-      // Upload the photo
-      const { url: photoUrl, filename } = await uploadFile(photo, shop, "product-notes");
+      // Upload the photo and create thumbnail
+      const { url: photoUrl, thumbnailUrl, filename } = await uploadFile(photo, shop, "product-notes");
 
       // Save photo record
       const photoRecord = await prisma.productNotePhoto.create({
         data: {
           noteId: noteId!,
           url: photoUrl,
+          thumbnailUrl,
           filename,
           uploadedBy: "extension-user",
         },
@@ -115,8 +116,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
         return json({ error: "Photo not found" }, { status: 404, headers: corsHeaders });
       }
 
-      // Delete from storage
-      await deleteFile(photo.url);
+      // Delete from storage (both original and thumbnail)
+      await deleteFile(photo.url, photo.thumbnailUrl || undefined);
 
       // Delete from database
       await prisma.productNotePhoto.delete({
