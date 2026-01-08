@@ -18,7 +18,7 @@ import { format } from "date-fns";
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
   
-  const [productNotes, auditLogs, subscription, settings] = await Promise.all([
+  const [productNotes, subscription, settings] = await Promise.all([
     prisma.productNote.findMany({
       where: { shopDomain: session.shop },
       orderBy: { updatedAt: "desc" },
@@ -26,11 +26,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       include: {
         photos: true,
       },
-    }),
-    prisma.auditLog.findMany({
-      where: { shopDomain: session.shop },
-      orderBy: { timestamp: "desc" },
-      take: 5,
     }),
     prisma.billingSubscription.findUnique({
       where: { shopDomain: session.shop },
@@ -54,9 +49,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     pendingAcknowledgments: allAcknowledgments.filter(a => a.acknowledgedAt === null).length,
   };
 
-  return json({ 
-    productNotes, 
-    auditLogs, 
+  return json({
+    productNotes,
     subscription,
     settings,
     stats,
@@ -65,7 +59,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function AppIndex() {
-  const { productNotes, auditLogs, subscription, settings, stats, shop } = useLoaderData<typeof loader>();
+  const { productNotes, subscription, settings, stats, shop } = useLoaderData<typeof loader>();
 
   const hasActiveSubscription = subscription?.status === "ACTIVE";
   const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
@@ -80,13 +74,6 @@ export default function AppIndex() {
     </Link>,
   ]);
 
-  const auditLogRows = auditLogs.map((log) => [
-    log.action,
-    log.entityType,
-    log.userEmail || log.userId,
-    format(new Date(log.timestamp), "MMM dd, yyyy HH:mm"),
-  ]);
-
   return (
     <Page
       title="Internal Notes Dashboard"
@@ -98,10 +85,6 @@ export default function AppIndex() {
         {
           content: "Settings",
           url: "/app/settings",
-        },
-        {
-          content: "Export Audit Log",
-          url: "/app/audit/export",
         },
       ]}
     >
@@ -174,26 +157,6 @@ export default function AppIndex() {
                 >
                   <p>Product notes will appear here once added through the product detail pages.</p>
                 </EmptyState>
-              )}
-            </div>
-          </Card>
-        </Layout.Section>
-
-        <Layout.Section>
-          <Card>
-            <div style={{ padding: "20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                <h2>Recent Activity</h2>
-                <Button url="/app/audit" size="slim">View Full Log</Button>
-              </div>
-              {auditLogs.length > 0 ? (
-                <DataTable
-                  columnContentTypes={["text", "text", "text", "text"]}
-                  headings={["Action", "Type", "User", "Timestamp"]}
-                  rows={auditLogRows}
-                />
-              ) : (
-                <p style={{ color: "#6d7175" }}>No recent activity</p>
               )}
             </div>
           </Card>

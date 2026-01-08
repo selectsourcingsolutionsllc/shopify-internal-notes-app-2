@@ -399,7 +399,7 @@ function ProductNotesBlock() {
                     Delete
                   </Button>
                   <Link href={`https://${shopDomain}/admin/apps/internal-notes-for-listings/app/photo-manager/${notes[currentNoteIndex].id}`} target="_blank">
-                    Manage Photos
+                    {notes[currentNoteIndex].photos && notes[currentNoteIndex].photos.length > 0 ? 'Edit Image' : 'Attach Image'}
                   </Link>
                 </InlineStack>
               )}
