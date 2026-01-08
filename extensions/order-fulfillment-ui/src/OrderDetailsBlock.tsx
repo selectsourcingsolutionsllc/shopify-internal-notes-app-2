@@ -360,48 +360,41 @@ function OrderDetailsBlock() {
         </InlineStack>
 
         <Banner tone="warning" title="Check box to acknowledge">
-          <InlineStack gap="base" blockAlignment="start">
-            {/* Photo thumbnail on left - click to open full size in new tab */}
+          <BlockStack gap="tight">
+            {/* Checkbox with note content - always visible */}
+            <Checkbox
+              label={currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}
+              checked={isAcknowledged}
+              disabled={isAcknowledged}
+              onChange={(checked) => {
+                if (checked) {
+                  handleAcknowledge(currentNote.id);
+                }
+              }}
+            />
+
+            {isAcknowledged && ack.acknowledgedAt && (
+              <InlineStack gap="tight">
+                <Badge tone="success">Acknowledged</Badge>
+                <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
+              </InlineStack>
+            )}
+
+            {/* Photo thumbnail below */}
             {currentNote.photos && currentNote.photos.length > 0 && (
-              <BlockStack gap="extraTight">
+              <InlineStack gap="tight" blockAlignment="center">
                 <Link href={currentNote.photos[0].url} external>
                   <Image
                     source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
                     alt="Note photo"
                   />
                 </Link>
-                <Text emphasis="subdued" size="small">Click to view full</Text>
                 {currentNote.photos.length > 1 && (
                   <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
                 )}
-              </BlockStack>
+              </InlineStack>
             )}
-
-            {/* Note content on right */}
-            <BlockStack gap="tight">
-              {isAcknowledged && (
-                <Badge tone="success">Acknowledged</Badge>
-              )}
-
-              {!isAcknowledged && settings?.requireAcknowledgment && (
-                <Checkbox
-                  label={currentNote.content.length > 100 ? currentNote.content.substring(0, 100) + '...' : currentNote.content}
-                  checked={false}
-                  onChange={(checked) => {
-                    if (checked) {
-                      handleAcknowledge(currentNote.id);
-                    }
-                  }}
-                />
-              )}
-
-              {isAcknowledged && ack.acknowledgedAt && (
-                <Text emphasis="subdued">
-                  Acknowledged at {new Date(ack.acknowledgedAt).toLocaleString()}
-                </Text>
-              )}
-            </BlockStack>
-          </InlineStack>
+          </BlockStack>
         </Banner>
 
         {productNotes.length > 1 && (

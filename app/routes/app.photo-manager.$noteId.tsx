@@ -213,22 +213,30 @@ export default function NotePhotosPage() {
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                Upload Photos
+                Upload Photo
               </Text>
 
-              <DropZone onDrop={handleDropZoneDrop} accept="image/*">
-                {uploadedFiles}
-                {fileUpload}
-              </DropZone>
+              {note.photos.length >= 1 ? (
+                <Banner tone="info">
+                  <Text as="p">Only 1 photo allowed per note. Delete the current photo to add a new one.</Text>
+                </Banner>
+              ) : (
+                <>
+                  <DropZone onDrop={handleDropZoneDrop} accept="image/*">
+                    {uploadedFiles}
+                    {fileUpload}
+                  </DropZone>
 
-              {files.length > 0 && (
-                <Button
-                  variant="primary"
-                  onClick={handleUpload}
-                  loading={isLoading}
-                >
-                  Upload {files.length} photo{files.length !== 1 ? 's' : ''}
-                </Button>
+                  {files.length > 0 && (
+                    <Button
+                      variant="primary"
+                      onClick={handleUpload}
+                      loading={isLoading}
+                    >
+                      Upload Photo
+                    </Button>
+                  )}
+                </>
               )}
             </BlockStack>
           </Card>
@@ -238,12 +246,12 @@ export default function NotePhotosPage() {
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                Current Photos ({note.photos.length})
+                Current Photo
               </Text>
 
               {note.photos.length === 0 ? (
                 <Text as="p" tone="subdued">
-                  No photos attached to this note yet.
+                  No photo attached to this note yet.
                 </Text>
               ) : (
                 <InlineStack gap="400" wrap>

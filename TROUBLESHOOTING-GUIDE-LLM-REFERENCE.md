@@ -108,6 +108,7 @@ cat extensions/*/shopify.extension.toml | grep module
 10. [Database and Prisma Issues](#10-database-and-prisma-issues)
 11. [Common Debugging Steps](#11-common-debugging-steps)
 12. [Image Sizing in Admin Extensions - THE THUMBNAIL SOLUTION](#12-image-sizing-in-admin-extensions---the-thumbnail-solution)
+13. [Text Coloring in Admin Extensions - USE BADGE FOR GREEN TEXT](#13-text-coloring-in-admin-extensions---use-badge-for-green-text)
 
 ---
 
@@ -1091,6 +1092,63 @@ Click opens url (full size) in new tab
 
 ---
 
+## 13. Text Coloring in Admin Extensions - USE BADGE FOR GREEN TEXT
+
+### THE TEXT COLOR THAT WOULDN'T CHANGE
+
+**Problem**: Wanted to make the word "Acknowledged" appear in green after user checks a checkbox. Tried using `Text` component with `tone="success"` but it didn't work.
+
+**What We Tried (FAILED)**:
+```typescript
+// Attempt 1: Text with tone prop
+<Text tone="success">Acknowledged</Text>
+<Text emphasis="subdued">at {timestamp}</Text>
+
+// Result: No green color, AND the words ran together as "acknowledgedat"
+```
+
+**Why It Failed**:
+1. The `Text` component in Shopify admin UI extensions does NOT support the `tone` prop for coloring
+2. Using `InlineStack` with `gap="extraTight"` didn't add enough space between elements
+3. Text components don't have built-in color options like "success" green
+
+### THE SOLUTION: USE BADGE COMPONENT
+
+The `Badge` component DOES support `tone="success"` and displays as green. Use Badge for colored status text.
+
+**Working Code**:
+```typescript
+{isAcknowledged && ack.acknowledgedAt && (
+  <InlineStack gap="tight">
+    <Badge tone="success">Acknowledged</Badge>
+    <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
+  </InlineStack>
+)}
+```
+
+**Why Badge Works**:
+1. Badge supports `tone` prop with values like "success" (green), "critical" (red), "warning" (yellow), "info" (blue)
+2. Badge has proper padding/margins so text doesn't run together
+3. Badge is designed for status indicators - exactly what we needed
+
+### Key Lessons
+
+| Component | Supports Color? | Use For |
+|-----------|----------------|---------|
+| `Text` | NO (only `emphasis="subdued"` for gray) | Regular text content |
+| `Badge` | YES (`tone="success/critical/warning/info"`) | Status indicators, labels |
+| `Banner` | YES (`tone="success/critical/warning/info"`) | Larger notifications, alerts |
+
+### When to Use What
+
+- **Need green/red/yellow text?** → Use `Badge` with `tone` prop
+- **Need a colored alert box?** → Use `Banner` with `tone` prop
+- **Need plain text?** → Use `Text` (only gray subdued option available)
+
+**Remember**: If you need colored text in a Shopify admin extension, reach for `Badge` or `Banner`, NOT `Text`!
+
+---
+
 ## Summary: The Most Common Mistakes
 
 1. **Editing the wrong extension file** - Always check `shopify.extension.toml` first!
@@ -1104,6 +1162,7 @@ Click opens url (full size) in new tab
 9. **Railway cache issues** - Use `.railway-cache-bust` file to force clean rebuilds
 10. **Not checking logs** - Railway logs show exactly what's happening!
 11. **Trying to resize images in admin extensions** - Use server-side thumbnails instead!
+12. **Using Text for colored text** - Text doesn't support colors! Use Badge with `tone` prop instead!
 
 ---
 
@@ -1122,6 +1181,7 @@ Here's the order we encountered and solved issues:
 9. **Route Conflicts** - Renamed `app.notes.$noteId.photos` → `app.photo-manager.$noteId`
 10. **Extension File Mismatch** - Were editing wrong file! Check `shopify.extension.toml`
 11. **Image Sizing in Admin Extensions** - Box/maxInlineSize doesn't work! Use server-side thumbnails with sharp
+12. **Text Coloring in Admin Extensions** - Text `tone` prop doesn't work! Use Badge component instead
 
 ---
 

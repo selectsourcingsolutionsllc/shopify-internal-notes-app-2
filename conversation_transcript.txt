@@ -1679,7 +1679,147 @@ This deployed the extension code (with thumbnailUrl logic) to Shopify permanentl
 - Explains the difference between local preview vs deployment
 
 =====================================
+
+SESSION: January 8, 2026 (Continued)
+UI REFINEMENTS AND CHARACTER LIMIT FEATURE
+====================================================
+
+**Goal:** Make various UI improvements to the order fulfillment extension and product notes extension.
+
+**Changes Made:**
+
+### 1. Layout Adjustments (OrderDetailsBlock.tsx)
+
+**Move checkbox content to the left:**
+- Added `inlineAlignment="start"` to InlineStack
+- This aligned content to the left side
+
+**Move thumbnail below checkbox:**
+- Changed from `InlineStack` (side-by-side) to `BlockStack` (stacked vertically)
+- Now shows: checkbox/text on top, photo thumbnail below
+
+### 2. Character Limit Feature (ProductNotesBlock.tsx)
+
+**Added 211 character limit with live countdown:**
+```typescript
+<TextField
+  label={editingNote ? 'Edit note' : 'New note'}
+  value={newNote}
+  onChange={setNewNote}
+  onInput={setNewNote}  // Added for real-time updates!
+/>
+{newNote.length > 211 ? (
+  <Banner tone="critical">
+    <Text>{newNote.length - 211} characters over limit</Text>
+  </Banner>
+) : (
+  <Text emphasis="subdued">
+    {211 - newNote.length} characters remaining
+  </Text>
+)}
+```
+
+**Key Discovery - TextField onChange is slow:**
+- User reported character count only updated when clicking outside field
+- `onChange` in Shopify TextField fires on BLUR, not on every keystroke
+- **Fix:** Added `onInput={setNewNote}` which fires on every keystroke
+
+**Save button disabled when over limit:**
+```typescript
+<Button
+  variant="primary"
+  onPress={handleSaveNote}
+  disabled={newNote.length > 211 || !newNote.trim()}
+>
+  Save
+</Button>
+```
+
+### 3. Checkbox Content Disappearing Fix (OrderDetailsBlock.tsx)
+
+**Problem:** When user checked the acknowledgment checkbox, the note content disappeared.
+
+**Why:** The checkbox (with note content as label) was only rendered when `!isAcknowledged`. After checking, it vanished.
+
+**Fix:** Keep checkbox always visible, just change its state:
+```typescript
+<Checkbox
+  label={currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}
+  checked={isAcknowledged}
+  disabled={isAcknowledged}
+  onChange={(checked) => {
+    if (checked) {
+      handleAcknowledge(currentNote.id);
+    }
+  }}
+/>
+```
+
+Now the checkbox stays visible but becomes checked and disabled after acknowledgment.
+
+### 4. Green "Acknowledged" Text (OrderDetailsBlock.tsx)
+
+**Problem:** Wanted "Acknowledged" to appear in green after checking the box.
+
+**What We Tried (FAILED):**
+```typescript
+// Text with tone prop - NO COLOR, words ran together
+<Text tone="success">Acknowledged</Text>
+<Text emphasis="subdued">at {timestamp}</Text>
+// Result: "acknowledgedat" with no green color
+```
+
+**Why It Failed:**
+- `Text` component does NOT support `tone` prop for colors
+- `InlineStack gap="extraTight"` didn't add enough space
+
+**Solution - Use Badge instead:**
+```typescript
+{isAcknowledged && ack.acknowledgedAt && (
+  <InlineStack gap="tight">
+    <Badge tone="success">Acknowledged</Badge>
+    <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
+  </InlineStack>
+)}
+```
+
+**Key Lesson:** In Shopify admin extensions:
+- `Text` - NO color support (only `emphasis="subdued"` for gray)
+- `Badge` - YES color support (`tone="success/critical/warning/info"`)
+- `Banner` - YES color support (for larger alerts)
+
+### 5. Updated Troubleshooting Guide
+
+Added **Section 13: Text Coloring in Admin Extensions** with:
+- The problem and failed attempts
+- The Badge solution
+- Comparison table of which components support colors
+- Updated table of contents, summary list, and chronological timeline
+
+**Files Changed This Session:**
+1. `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx`
+   - Layout changes (BlockStack instead of InlineStack)
+   - Checkbox stays visible after acknowledgment
+   - Green Badge for "Acknowledged" status
+2. `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
+   - Character countdown (211 limit)
+   - Red warning when over limit
+   - Save button disabled when over limit
+   - Added `onInput` for real-time character count
+3. `TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md`
+   - Added Section 13 about text coloring
+4. `CLAUDE.md`
+   - Added formatting preference: commands on separate lines for easy copy-paste
+
+**Current Status:**
+✅ Layout improvements complete
+✅ Character limit with live countdown working
+✅ Checkbox content persists after acknowledgment
+✅ Green "Acknowledged" badge working
+✅ Troubleshooting guide updated
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 8, 2026
-STATUS: 🟢 FULLY WORKING - THUMBNAILS DEPLOYED - APP PREVIEW ISSUE DOCUMENTED
+STATUS: 🟢 FULLY WORKING - UI REFINEMENTS COMPLETE
 =====================================
