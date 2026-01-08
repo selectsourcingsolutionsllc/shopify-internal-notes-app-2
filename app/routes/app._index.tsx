@@ -133,6 +133,8 @@ export default function AppIndex() {
           </Card>
         </Layout.Section>
 
+        {/* HIDDEN: Recent Product Notes section - set to true to show */}
+        {false && (
         <Layout.Section>
           <Card>
             <div style={{ padding: "20px" }}>
@@ -161,6 +163,7 @@ export default function AppIndex() {
             </div>
           </Card>
         </Layout.Section>
+        )}
 
         <Layout.Section>
           <Card>
