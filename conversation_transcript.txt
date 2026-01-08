@@ -1819,7 +1819,211 @@ Added **Section 13: Text Coloring in Admin Extensions** with:
 ✅ Troubleshooting guide updated
 
 =====================================
+
+SESSION: January 8, 2026 (Continued)
+ADDITIONAL UI REFINEMENTS AND CLEANUP
+====================================================
+
+**Changes Made:**
+
+### 1. Inline Editing for Product Notes (ProductNotesBlock.tsx)
+
+**Problem:** When editing a note, the form appeared below the note display, making the box too tall.
+
+**Evolution of Solutions:**
+1. First tried: Replace view (hide notes, show form) - worked but user didn't like entire note disappearing
+2. Second tried: Condensed preview while form open - still too tall
+3. Final solution: Inline editing - note text becomes editable TextField in place
+
+**Implementation:**
+```typescript
+{/* Note content - editable when editing this note */}
+{editingNote?.id === notes[currentNoteIndex].id ? (
+  <BlockStack gap="tight">
+    <TextField
+      label="Edit note"
+      value={newNote}
+      onChange={setNewNote}
+      onInput={setNewNote}
+    />
+    {/* Character count and save/cancel buttons */}
+  </BlockStack>
+) : (
+  <Text>
+    {notes[currentNoteIndex].content}
+  </Text>
+)}
+```
+
+### 2. Add Button Replaces Note View (ProductNotesBlock.tsx)
+
+**Problem:** When clicking "Add", the form appeared below the existing note, making the box too tall.
+
+**Solution:** Add form now REPLACES the current note display:
+```typescript
+{/* Add new note form (replaces note view) */}
+{notes.length > 0 && showForm && !editingNote && (
+  <BlockStack gap="extraTight">
+    {/* New note form */}
+  </BlockStack>
+)}
+
+{/* Notes display with inline editing (hidden when adding) */}
+{notes.length > 0 && !(showForm && !editingNote) && (
+  {/* Note display with pagination */}
+)}
+```
+
+### 3. Removed "Click to view full" Text
+
+**User Request:** Remove the "Click to view full" text under the photo thumbnails.
+
+**Files Changed:**
+- `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx`
+- `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
+
+### 4. One Photo Per Note Limit
+
+**User Request:** Limit photos to 1 per note.
+
+**Changes Made:**
+
+**Photo Manager Page (app.photo-manager.$noteId.tsx):**
+```typescript
+{note.photos.length >= 1 ? (
+  <Banner tone="info">
+    <Text as="p">Only 1 photo allowed per note. Delete the current photo to add a new one.</Text>
+  </Banner>
+) : (
+  <>
+    <DropZone onDrop={handleDropZoneDrop} accept="image/*">
+      {uploadedFiles}
+      {fileUpload}
+    </DropZone>
+    {/* Upload button */}
+  </>
+)}
+```
+
+The DropZone is hidden when a photo exists. User must delete current photo to add new one.
+
+### 5. Dynamic "Attach Image"/"Edit Image" Link (ProductNotesBlock.tsx)
+
+**User Request:** Change "Manage Photos" to show "Attach Image" when no photos exist, "Edit Image" when a photo is attached.
+
+**Implementation:**
+```typescript
+<Link href={`https://${shopDomain}/admin/apps/internal-notes-for-listings/app/photo-manager/${notes[currentNoteIndex].id}`} target="_blank">
+  {notes[currentNoteIndex].photos && notes[currentNoteIndex].photos.length > 0 ? 'Edit Image' : 'Attach Image'}
+</Link>
+```
+
+### 6. Hidden Audit Logs from Users
+
+**User Request:** Hide audit logs - users shouldn't have access to them.
+
+**Changes Made:**
+
+**Dashboard (app._index.tsx):**
+- Removed link to audit logs from the settings area (if it existed)
+
+**Audit Routes (app.audit.tsx & app.audit.export.tsx):**
+Both now redirect to the dashboard:
+```typescript
+// Audit log is hidden from users - redirect to dashboard
+export async function loader({ request }: LoaderFunctionArgs) {
+  return redirect("/app");
+}
+```
+
+### 7. Hidden "Recent Product Notes" Section
+
+**User Request:** Hide the "Recent Product Notes" section from dashboard but DON'T delete the code - keep it so it can be brought back later.
+
+**Implementation (app._index.tsx):**
+```typescript
+{/* HIDDEN: Recent Product Notes section - set to true to show */}
+{false && (
+<Layout.Section>
+  <Card>
+    {/* Recent Product Notes content */}
+  </Card>
+</Layout.Section>
+)}
+```
+
+To bring it back: change `{false && (` to `{true && (` or remove the wrapper entirely.
+
+### 8. Removed "View All Notes" Button from Dashboard
+
+**User Request:** Remove the button from the top of the Internal Notes Dashboard page.
+
+**Change (app._index.tsx):**
+Removed the `primaryAction` prop from the Page component:
+```typescript
+// BEFORE
+<Page
+  title="Internal Notes Dashboard"
+  primaryAction={{
+    content: "View All Notes",
+    url: "/app/notes",
+  }}
+  secondaryActions={[...]}
+>
+
+// AFTER
+<Page
+  title="Internal Notes Dashboard"
+  secondaryActions={[...]}
+>
+```
+
+### 9. User Preferences Saved to CLAUDE.md
+
+**Formatting Preferences:**
+- Put commands on their own line, never with descriptions next to them (for easy copy-paste)
+
+**Deployment Preferences:**
+- Always push to git automatically after making changes - don't tell the user to do it
+
+**Files Changed This Session:**
+1. `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
+   - Inline editing implementation
+   - Add form replaces note view
+   - Removed "Click to view full"
+   - Dynamic "Attach Image"/"Edit Image" link
+2. `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx`
+   - Removed "Click to view full"
+3. `app/routes/app.photo-manager.$noteId.tsx`
+   - Hide DropZone when 1 photo exists
+   - Show info banner about 1 photo limit
+4. `app/routes/app._index.tsx`
+   - Hidden "Recent Product Notes" with {false && (...)}
+   - Removed "View All Notes" primaryAction button
+5. `app/routes/app.audit.tsx`
+   - Redirect to /app (hide from users)
+6. `app/routes/app.audit.export.tsx`
+   - Redirect to /app (hide from users)
+7. `CLAUDE.md`
+   - Added formatting preferences
+   - Added auto-push deployment preference
+
+**Commits:**
+- Hide Recent Product Notes section from dashboard
+- Remove View All Notes button from dashboard
+
+**Current Status:**
+✅ Inline editing working
+✅ Add button replaces note view
+✅ "Click to view full" removed
+✅ 1 photo limit enforced
+✅ Dynamic Attach/Edit Image link
+✅ Audit logs hidden
+✅ Recent Product Notes hidden (code preserved)
+✅ View All Notes button removed
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 8, 2026
-STATUS: 🟢 FULLY WORKING - UI REFINEMENTS COMPLETE
+STATUS: 🟢 FULLY WORKING - ALL UI REFINEMENTS COMPLETE
 =====================================
