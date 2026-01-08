@@ -13,6 +13,10 @@ The user is new to programming and needs basic explanations. Always assume they 
 - This allows easy copy-paste
 - Put explanations ABOVE or BELOW the command, not on the same line
 
+## Deployment Preferences:
+- Always push to git automatically after making changes - don't tell the user to do it
+- Always commit and push without asking
+
 # CRITICAL: NO QUICK FIXES - DO IT RIGHT!
 
 **ALWAYS build for SCALE, not for quick patches!**
