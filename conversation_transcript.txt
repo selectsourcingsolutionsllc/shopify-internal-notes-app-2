@@ -2023,6 +2023,49 @@ Removed the `primaryAction` prop from the Page component:
 ✅ View All Notes button removed
 
 =====================================
+
+SESSION: January 8, 2026 (Continued)
+PHOTO MANAGER BACK BUTTON REMOVAL
+====================================================
+
+**Issue:** User clicked back button on photo manager page and it didn't work properly.
+
+**Attempts Made:**
+
+1. **First attempt - Direct URL to product page:**
+   - Built URL: `https://{shop}/admin/products/{productId}`
+   - **Result:** "Firefox can't open this page" - embedded apps can't navigate to external URLs directly
+
+2. **Second attempt - Browser history.back():**
+   - Used `window.history.back()` with `onAction` callback
+   - **Result:** Button was inactive - iframe blocks window.history
+
+3. **Third attempt - App Bridge navigate(-1):**
+   - Imported `useNavigate` from `@shopify/app-bridge-react`
+   - Used `navigate(-1)` to go back
+   - **User interrupted:** Realized simpler solution exists
+
+**Final Solution:**
+Since the photo manager opens in a NEW TAB (via `target="_blank"` on the "Edit Image" link), there's no need for a back button at all. Users simply close the tab when done.
+
+**Change Made (app.photo-manager.$noteId.tsx):**
+- Removed `backAction` prop from Page component entirely
+- Removed unused `useNavigate` import and `handleBack` function
+
+**Key Lesson:**
+When a page opens in a new tab, don't add navigation controls - let users close the tab naturally.
+
+**Commits:**
+- Fix photo manager back button to return to product listing
+- Fix back button to use browser history
+- Remove back button from photo manager
+
+**Current Status:**
+✅ Photo manager opens in new tab
+✅ No back button needed - close tab when done
+✅ Clean, simple user experience
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 8, 2026
 STATUS: 🟢 FULLY WORKING - ALL UI REFINEMENTS COMPLETE
