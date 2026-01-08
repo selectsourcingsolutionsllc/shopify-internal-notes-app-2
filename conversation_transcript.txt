@@ -1542,7 +1542,102 @@ Plus: Quick Reference table, Summary of 10 most common mistakes, Chronological i
 ✅ All major issues documented for future reference
 
 =====================================
+
+SESSION: January 8, 2026
+IMAGE SIZING DISCOVERY & THUMBNAIL SOLUTION
+====================================================
+
+**Starting Point:**
+- User wanted to make the photo thumbnail 70% smaller
+- Photo was displaying at full size in the order fulfillment extension
+
+**The Problem:**
+Tried multiple approaches to resize the image in the Shopify admin extension - ALL FAILED:
+
+1. **Box wrapper with maxInlineSize/maxBlockSize** - No effect
+   ```typescript
+   <Box maxInlineSize={25} maxBlockSize={25}>
+     <Image source={photo.url} />
+   </Box>
+   ```
+
+2. **Smaller values (8x8)** - Still no effect
+
+3. **Direct props on Image (width, fit, aspectRatio)** - No effect
+
+**Why It Failed:**
+Shopify INTENTIONALLY restricts image sizing in admin UI extensions to maintain consistent design patterns. The Image component ignores all size constraints.
+
+**Source:** https://community.shopify.dev/t/can-you-adjust-the-image-size-within-the-app-block-of-admin-ui-extensions/19383
+
+**The Solution: Server-Side Thumbnails**
+
+Since you can't resize images in the extension, serve a pre-resized thumbnail:
+
+1. **Installed sharp** (image processing library):
+   ```bash
+   npm install sharp
+   ```
+
+2. **Added thumbnailUrl field to database**:
+   ```prisma
+   model ProductNotePhoto {
+     thumbnailUrl  String?
+   }
+   ```
+
+3. **Updated storage.server.ts** to create 50x50 thumbnails on upload:
+   ```typescript
+   import sharp from "sharp";
+
+   const thumbnailBuffer = await sharp(buffer)
+     .resize(50, 50, { fit: "cover", position: "center" })
+     .toBuffer();
+   ```
+
+4. **Updated extension** to use thumbnailUrl:
+   ```typescript
+   <Image source={photo.thumbnailUrl || photo.url} />
+   ```
+
+**Important Discovery: Dev vs Production**
+
+- `npm run dev` uses the PRODUCTION Railway server for API calls
+- Code changes only exist locally until pushed to git
+- Thumbnail code needed to be deployed to Railway before it would work
+- Local testing with `npm run dev` still hits the Railway backend!
+
+**Files Changed:**
+- `prisma/schema.prisma` - Added thumbnailUrl field
+- `app/utils/storage.server.ts` - Added sharp import, thumbnail creation
+- `app/routes/app.photo-manager.$noteId.tsx` - Save thumbnailUrl
+- `app/routes/api.public.products.$productId.notes.$noteId.photos.tsx` - Save thumbnailUrl
+- `app/routes/api.products.$productId.notes.$noteId.photos.tsx` - Save thumbnailUrl
+- `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx` - Use thumbnailUrl
+
+**Database Migration:**
+```bash
+npx prisma migrate dev --name add_thumbnail_url
+```
+
+**Key Lessons Learned:**
+1. **Shopify admin extensions cannot resize images** - It's intentionally restricted
+2. **Use server-side thumbnails** - Create them on upload with sharp
+3. **npm run dev still uses Railway backend** - API calls go to production
+4. **Old photos won't have thumbnails** - Only new uploads get them
+5. **sharp is the go-to image library** - Fast and reliable for Node.js
+
+**Commits:**
+- 8400e07 Add thumbnail support for photos
+
+**Current Status:**
+✅ Thumbnail generation working on new uploads
+✅ Extension displays small thumbnails
+✅ Click thumbnail opens full-size in new tab
+✅ Troubleshooting guide updated with image sizing solution
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
-LAST UPDATE: January 7, 2026
-STATUS: 🟢 FULLY WORKING - PHOTOS DISPLAYING - TROUBLESHOOTING GUIDE COMPLETE
+LAST UPDATE: January 8, 2026
+STATUS: 🟢 FULLY WORKING - THUMBNAILS IMPLEMENTED - ALL ISSUES DOCUMENTED
 =====================================
