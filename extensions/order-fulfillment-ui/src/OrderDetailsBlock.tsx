@@ -9,6 +9,7 @@ import {
   Badge,
   Banner,
   Box,
+  Image,
   useApi,
 } from '@shopify/ui-extensions-react/admin';
 
@@ -379,6 +380,21 @@ function OrderDetailsBlock() {
               <Text emphasis="subdued">
                 Acknowledged at {new Date(ack.acknowledgedAt).toLocaleString()}
               </Text>
+            )}
+
+            {/* Photo display */}
+            {currentNote.photos && currentNote.photos.length > 0 && (
+              <InlineStack blockAlignment="center" gap="tight">
+                <Box maxInlineSize={100}>
+                  <Image
+                    source={currentNote.photos[0].url}
+                    alt="Note photo"
+                  />
+                </Box>
+                {currentNote.photos.length > 1 && (
+                  <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
+                )}
+              </InlineStack>
             )}
           </BlockStack>
         </Banner>

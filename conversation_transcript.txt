@@ -1457,7 +1457,92 @@ A:
 3. Verify photo displays in order fulfillment extension
 
 =====================================
+SESSION: January 7, 2026 - Photo Display Fix & Troubleshooting Guide
+=====================================
+
+**Issue Reported:**
+User uploaded a photo but couldn't see it on the order fulfillment page.
+
+**Debugging Steps:**
+1. Checked Railway logs - confirmed photo was saving correctly:
+   - `[Storage] File saved to: /data/uploads/shop/photos/...`
+   - `[PUBLIC API] Note xxx: 1 photos`
+
+2. API was returning photos correctly but extension wasn't displaying them.
+
+3. Added test banners to extension code - nothing showed up.
+
+4. **CRITICAL DISCOVERY**: We were editing the WRONG FILE!
+   - `shopify.extension.toml` had: `module = "./src/OrderDetailsBlock.tsx"`
+   - We were editing: `OrderFulfillmentBlock.tsx`
+   - Shopify was using a completely different file!
+
+**Solution:**
+1. Checked `extensions/order-fulfillment-ui/shopify.extension.toml`
+2. Found `module` pointed to `OrderDetailsBlock.tsx`
+3. Added Image import and photo display code to the CORRECT file
+4. Deployed with `npx shopify app deploy --force`
+5. Photos now display correctly with Box wrapper for sizing
+
+**Code Added to OrderDetailsBlock.tsx:**
+```typescript
+import { Image, Box } from '@shopify/ui-extensions-react/admin';
+
+{/* Photo display */}
+{currentNote.photos && currentNote.photos.length > 0 && (
+  <InlineStack blockAlignment="center" gap="tight">
+    <Box maxInlineSize={100}>
+      <Image
+        source={currentNote.photos[0].url}
+        alt="Note photo"
+      />
+    </Box>
+    {currentNote.photos.length > 1 && (
+      <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
+    )}
+  </InlineStack>
+)}
+```
+
+**Troubleshooting Guide Created:**
+User requested a comprehensive troubleshooting document for future LLM reference.
+
+Created: `TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md`
+
+**Document Contents (11 Major Sections):**
+1. Critical Discovery: Extension File Mismatch
+2. The {} Rendering Issue (ESM/CommonJS)
+3. Shopify Extension Issues
+4. Extension Authentication & CORS
+5. Photo Upload and Display Issues
+6. Photo Storage Journey (local → CDN → Railway Volume)
+7. Route Naming Conflicts
+8. Railway Deployment Failures (10 common errors)
+9. Railway Volume (Persistent Storage)
+10. Database and Prisma Issues
+11. Common Debugging Steps
+
+Plus: Quick Reference table, Summary of 10 most common mistakes, Chronological issue timeline
+
+**Key Lessons Documented:**
+1. Always check `shopify.extension.toml` for which file is actually used
+2. The {} issue was caused by wrong static file path + ESM/CJS conflicts
+3. Extensions need public API endpoints (no auth) with CORS
+4. Railway filesystem is ephemeral - must use Volume for persistent files
+5. Remix routes can shadow each other unexpectedly
+6. Railway and Shopify deployments are SEPARATE commands
+
+**Commits This Session:**
+- Add photo display to OrderDetailsBlock.tsx (correct file)
+- Create TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md
+
+**Current Status:**
+✅ Photos displaying correctly on order page
+✅ Comprehensive troubleshooting guide created
+✅ All major issues documented for future reference
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 7, 2026
-STATUS: 🟢 RAILWAY VOLUME CONFIGURED - TESTING PHOTO UPLOAD
+STATUS: 🟢 FULLY WORKING - PHOTOS DISPLAYING - TROUBLESHOOTING GUIDE COMPLETE
 =====================================
