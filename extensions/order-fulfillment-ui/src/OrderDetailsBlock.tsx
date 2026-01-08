@@ -365,7 +365,7 @@ function OrderDetailsBlock() {
             {currentNote.photos && currentNote.photos.length > 0 && (
               <BlockStack gap="extraTight">
                 <Link href={currentNote.photos[0].url} external>
-                  <Box maxInlineSize={50} maxBlockSize={50}>
+                  <Box maxInlineSize={25} maxBlockSize={25}>
                     <Image
                       source={currentNote.photos[0].url}
                       alt="Note photo"
