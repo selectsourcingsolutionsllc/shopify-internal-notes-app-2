@@ -135,11 +135,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 export default function NotePhotosPage() {
   const { note, shop } = useLoaderData<typeof loader>();
-
-  // Go back to wherever the user came from
-  const handleBack = () => {
-    window.history.back();
-  };
   const submit = useSubmit();
   const navigation = useNavigation();
   const [files, setFiles] = useState<File[]>([]);
@@ -203,7 +198,6 @@ export default function NotePhotosPage() {
 
   return (
     <Page
-      backAction={{ content: "Back", onAction: handleBack }}
       title="Manage Note Photos"
       subtitle={`Note: "${note.content.substring(0, 50)}${note.content.length > 50 ? '...' : ''}"`}
     >
