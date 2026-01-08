@@ -306,7 +306,42 @@ npx shopify app deploy --force
 # admin.order-details.block.render = shows on order details page
 ```
 
-### 3.2 Extension Shows but Data Not Loading
+### 3.2 "App Preview Has Ended" Error - Extension Reverts to Old Version
+
+**Symptoms**:
+- Terminal shows: `❌ Error - The app preview has ended on the specified store`
+- Extension suddenly stops showing your local changes
+- Features that were working (like thumbnails) suddenly revert to old behavior
+
+**What's Happening**:
+When you run `npm run dev`, Shopify creates a temporary tunnel between your local code and your dev store. When this tunnel drops (timeout, network issue, etc.):
+- Your dev store LOSES connection to your local extension code
+- It falls back to the LAST DEPLOYED version of the extension
+- Any local changes you made are no longer visible
+
+**Why This Is Confusing**:
+- You think your local code is running, but it's not
+- The store is showing old deployed code
+- You make changes locally but nothing happens
+
+**Solution**:
+
+1. **To restore local preview**: Restart `npm run dev`
+
+2. **To make changes permanent**: Deploy your extension to Shopify
+   ```bash
+   npx shopify app deploy --force
+   ```
+   This uploads your extension code to Shopify's servers so it works even without the dev preview.
+
+**Key Lesson**:
+- `npm run dev` = temporary local preview (can drop at any time)
+- `npx shopify app deploy` = permanent deployment to Shopify
+- Always deploy after testing to make changes stick!
+
+---
+
+### 3.3 Extension Shows but Data Not Loading
 
 **Symptoms**:
 - Extension appears but shows "Loading..." forever
@@ -340,7 +375,7 @@ const fetchShopDomain = async (): Promise<string> => {
 };
 ```
 
-### 3.3 Extension Components Not Rendering
+### 3.4 Extension Components Not Rendering
 
 **Symptoms**:
 - Some UI components don't appear
@@ -369,7 +404,7 @@ import {
 } from '@shopify/ui-extensions-react/admin';
 ```
 
-### 3.4 Deploying Extension Changes
+### 3.5 Deploying Extension Changes
 
 **Important**: Railway deployment and Shopify extension deployment are SEPARATE!
 

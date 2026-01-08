@@ -1637,7 +1637,49 @@ npx prisma migrate dev --name add_thumbnail_url
 ✅ Troubleshooting guide updated with image sizing solution
 
 =====================================
+
+SESSION: January 8, 2026 (Continued)
+"APP PREVIEW HAS ENDED" ERROR - EXTENSION REVERTED
+====================================================
+
+**What Happened:**
+- User was testing thumbnails with `npm run dev`
+- Terminal showed: `❌ Error - The app preview has ended on the specified store`
+- Thumbnails suddenly stopped working - images were big again
+- Restarting `npm run dev` didn't fix it
+- User got frustrated (rightfully so)
+
+**The Problem:**
+When `npm run dev` creates the app preview, it makes a TEMPORARY tunnel between your local code and the dev store. When this tunnel drops:
+- The dev store LOSES the connection to local extension code
+- It falls back to the LAST DEPLOYED version
+- Since the thumbnail code was only LOCAL (not deployed to Shopify), it reverted
+
+**The Confusion:**
+- Backend code (Railway) had thumbnail creation ✓
+- But EXTENSION code (using thumbnailUrl) was only local
+- Extension code needs separate deployment to Shopify
+- Railway deployment ≠ Shopify extension deployment!
+
+**The Fix:**
+```bash
+npx shopify app deploy --force
+```
+This deployed the extension code (with thumbnailUrl logic) to Shopify permanently.
+
+**Key Lesson:**
+- `npm run dev` = TEMPORARY local preview (can drop anytime)
+- `npx shopify app deploy` = PERMANENT extension deployment
+- Railway (`git push`) = Backend server deployment
+- These are THREE SEPARATE THINGS!
+
+**Updated Troubleshooting Guide:**
+- Added Section 3.2: "App Preview Has Ended" Error
+- Documents what happens when preview drops
+- Explains the difference between local preview vs deployment
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 8, 2026
-STATUS: 🟢 FULLY WORKING - THUMBNAILS IMPLEMENTED - ALL ISSUES DOCUMENTED
+STATUS: 🟢 FULLY WORKING - THUMBNAILS DEPLOYED - APP PREVIEW ISSUE DOCUMENTED
 =====================================
