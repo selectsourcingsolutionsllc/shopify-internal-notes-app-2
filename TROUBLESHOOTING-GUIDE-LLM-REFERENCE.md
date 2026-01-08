@@ -107,6 +107,7 @@ cat extensions/*/shopify.extension.toml | grep module
 9. [Railway Volume (Persistent Storage)](#9-railway-volume-persistent-storage)
 10. [Database and Prisma Issues](#10-database-and-prisma-issues)
 11. [Common Debugging Steps](#11-common-debugging-steps)
+12. [Image Sizing in Admin Extensions - THE THUMBNAIL SOLUTION](#12-image-sizing-in-admin-extensions---the-thumbnail-solution)
 
 ---
 
@@ -946,6 +947,115 @@ curl -X POST "https://your-app.up.railway.app/api/public/orders/ORDER_ID/notes?s
 
 ---
 
+## 12. Image Sizing in Admin Extensions - THE THUMBNAIL SOLUTION
+
+### THE IMAGE SIZE THAT WOULDN'T CHANGE
+
+**Problem**: Tried to resize images in the Shopify admin extension using Box component with `maxInlineSize` and `maxBlockSize`. The image size NEVER changed no matter what values were used.
+
+**What We Tried (ALL FAILED)**:
+```typescript
+// Attempt 1: Box wrapper with size constraints
+<Box maxInlineSize={25} maxBlockSize={25}>
+  <Image source={photo.url} alt="Photo" />
+</Box>
+
+// Attempt 2: Smaller values
+<Box maxInlineSize={8} maxBlockSize={8}>
+  <Image source={photo.url} alt="Photo" />
+</Box>
+
+// Attempt 3: Direct props on Image
+<Image source={photo.url} width={50} fit="contain" aspectRatio={1} />
+```
+
+**Why It Failed**: Shopify intentionally restricts image sizing in admin UI extensions to maintain consistent design patterns. The Image component ignores size constraints.
+
+**Source**: https://community.shopify.dev/t/can-you-adjust-the-image-size-within-the-app-block-of-admin-ui-extensions/19383
+
+### THE SOLUTION: SERVER-SIDE THUMBNAILS
+
+Since you can't resize images in the extension, you must **serve a pre-resized image** (thumbnail).
+
+**Implementation Steps**:
+
+1. **Install sharp** (image processing library):
+   ```bash
+   npm install sharp
+   ```
+
+2. **Add thumbnailUrl field to database**:
+   ```prisma
+   model ProductNotePhoto {
+     id            String  @id @default(cuid())
+     url           String
+     thumbnailUrl  String?  // Add this field!
+     filename      String
+     // ...
+   }
+   ```
+
+3. **Create thumbnails on upload** (storage.server.ts):
+   ```typescript
+   import sharp from "sharp";
+
+   const THUMBNAIL_SIZE = 50;
+
+   export async function uploadFile(file, shopDomain, category) {
+     const buffer = Buffer.from(await file.arrayBuffer());
+
+     // Save original
+     await writeFile(fullPath, buffer);
+
+     // Create thumbnail
+     const thumbnailBuffer = await sharp(buffer)
+       .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+         fit: "cover",
+         position: "center",
+       })
+       .toBuffer();
+     await writeFile(thumbnailPath, thumbnailBuffer);
+
+     return { url, thumbnailUrl, filename };
+   }
+   ```
+
+4. **Use thumbnailUrl in extension**:
+   ```typescript
+   <Image
+     source={photo.thumbnailUrl || photo.url}
+     alt="Note photo"
+   />
+   ```
+
+### Key Points
+
+1. **Box sizing doesn't work on Image** - Shopify prevents this intentionally
+2. **You MUST resize server-side** - Create thumbnails when uploading
+3. **sharp is fast and reliable** - Use it for image processing
+4. **Fallback to original** - Use `thumbnailUrl || url` in case thumbnail is missing
+5. **Old photos won't have thumbnails** - Only new uploads get them
+
+### The Full Flow
+
+```
+User uploads photo
+    ↓
+Server receives file
+    ↓
+sharp creates 50x50 thumbnail
+    ↓
+Both original and thumbnail saved to Railway Volume
+    ↓
+Both URLs saved to database
+    ↓
+Extension displays thumbnailUrl (small)
+    ↓
+Click opens url (full size) in new tab
+```
+
+---
+
 ## Summary: The Most Common Mistakes
 
 1. **Editing the wrong extension file** - Always check `shopify.extension.toml` first!
@@ -958,6 +1068,7 @@ curl -X POST "https://your-app.up.railway.app/api/public/orders/ORDER_ID/notes?s
 8. **Hardcoding ports** - Use `process.env.PORT` and bind to `0.0.0.0`!
 9. **Railway cache issues** - Use `.railway-cache-bust` file to force clean rebuilds
 10. **Not checking logs** - Railway logs show exactly what's happening!
+11. **Trying to resize images in admin extensions** - Use server-side thumbnails instead!
 
 ---
 
@@ -975,9 +1086,10 @@ Here's the order we encountered and solved issues:
 8. **Photo Storage Failures** - Tried local → CDN → Railway Volume
 9. **Route Conflicts** - Renamed `app.notes.$noteId.photos` → `app.photo-manager.$noteId`
 10. **Extension File Mismatch** - Were editing wrong file! Check `shopify.extension.toml`
+11. **Image Sizing in Admin Extensions** - Box/maxInlineSize doesn't work! Use server-side thumbnails with sharp
 
 ---
 
-*Last Updated: January 2025*
-*Based on 50+ commits of debugging sessions*
+*Last Updated: January 8, 2026*
+*Based on 60+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
