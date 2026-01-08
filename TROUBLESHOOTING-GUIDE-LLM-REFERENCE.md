@@ -109,6 +109,7 @@ cat extensions/*/shopify.extension.toml | grep module
 11. [Common Debugging Steps](#11-common-debugging-steps)
 12. [Image Sizing in Admin Extensions - THE THUMBNAIL SOLUTION](#12-image-sizing-in-admin-extensions---the-thumbnail-solution)
 13. [Text Coloring in Admin Extensions - USE BADGE FOR GREEN TEXT](#13-text-coloring-in-admin-extensions---use-badge-for-green-text)
+14. [Navigation in Embedded Apps - BACK BUTTON ISSUES](#14-navigation-in-embedded-apps---back-button-issues)
 
 ---
 
@@ -1149,6 +1150,85 @@ The `Badge` component DOES support `tone="success"` and displays as green. Use B
 
 ---
 
+## 14. Navigation in Embedded Apps - BACK BUTTON ISSUES
+
+### THE BACK BUTTON THAT WOULDN'T WORK
+
+**Problem**: Tried to add a back button to the photo manager page that would return to the product listing. Multiple approaches failed because the app runs inside Shopify's iframe.
+
+**What We Tried (ALL FAILED)**:
+
+```typescript
+// Attempt 1: Direct URL to product page
+backAction={{ content: "Back", url: `https://${shop}/admin/products/${productId}` }}
+// Result: "Firefox can't open this page" - embedded apps can't navigate to external URLs
+
+// Attempt 2: Browser history.back()
+const handleBack = () => { window.history.back(); };
+backAction={{ content: "Back", onAction: handleBack }}
+// Result: Button was inactive - iframe blocks window.history
+
+// Attempt 3: App Bridge navigate(-1)
+import { useNavigate } from "@shopify/app-bridge-react";
+const navigate = useNavigate();
+const handleBack = () => { navigate(-1); };
+// Result: Didn't test - user realized simpler solution
+```
+
+**Why These Failed**:
+1. **Direct URLs**: Embedded apps run in an iframe and can't navigate the parent window to external URLs
+2. **window.history.back()**: The iframe has its own history stack that may not work as expected
+3. **Complex navigation**: Often overkill for the actual use case
+
+### THE SOLUTION: CONSIDER THE USER FLOW
+
+**Key Realization**: The photo manager opens in a NEW TAB (via `target="_blank"` on the "Edit Image" link). Users don't need a back button - they just close the tab!
+
+**Final Solution**:
+```typescript
+// Just remove the backAction entirely
+<Page
+  title="Manage Note Photos"
+  subtitle={`Note: "${note.content.substring(0, 50)}..."`}
+>
+  {/* No backAction needed - page opens in new tab */}
+</Page>
+```
+
+### Key Lessons
+
+| Scenario | Solution |
+|----------|----------|
+| Page opens in new tab | Don't add back button - let user close tab |
+| Page opens in same context | Use Remix's `useNavigate` or `<Link>` for in-app navigation |
+| Need to navigate to Shopify admin page | Use App Bridge's `Redirect` action |
+| Need to go to previous page in embedded app | Use App Bridge's `useNavigate(-1)` |
+
+### When to Use What
+
+1. **New tab pages**: No navigation needed - user closes tab
+2. **In-app navigation**: Use Remix's routing (`<Link to="/app/somewhere">`)
+3. **External Shopify pages**: Use App Bridge Redirect:
+   ```typescript
+   import { useAppBridge } from "@shopify/app-bridge-react";
+   import { Redirect } from "@shopify/app-bridge/actions";
+
+   const app = useAppBridge();
+   const redirect = Redirect.create(app);
+   redirect.dispatch(Redirect.Action.ADMIN_PATH, '/products/123');
+   ```
+
+### The Lesson
+
+**Before adding navigation controls, ask**: How did the user get here?
+- If via new tab → they'll close it when done
+- If via in-app link → use Remix routing
+- If you need Shopify admin pages → use App Bridge
+
+**Don't overcomplicate navigation!**
+
+---
+
 ## Summary: The Most Common Mistakes
 
 1. **Editing the wrong extension file** - Always check `shopify.extension.toml` first!
@@ -1163,6 +1243,7 @@ The `Badge` component DOES support `tone="success"` and displays as green. Use B
 10. **Not checking logs** - Railway logs show exactly what's happening!
 11. **Trying to resize images in admin extensions** - Use server-side thumbnails instead!
 12. **Using Text for colored text** - Text doesn't support colors! Use Badge with `tone` prop instead!
+13. **Adding back buttons to new-tab pages** - If page opens in new tab, don't add navigation - let user close tab!
 
 ---
 
@@ -1182,9 +1263,10 @@ Here's the order we encountered and solved issues:
 10. **Extension File Mismatch** - Were editing wrong file! Check `shopify.extension.toml`
 11. **Image Sizing in Admin Extensions** - Box/maxInlineSize doesn't work! Use server-side thumbnails with sharp
 12. **Text Coloring in Admin Extensions** - Text `tone` prop doesn't work! Use Badge component instead
+13. **Back Button in Embedded Apps** - Direct URLs, history.back(), all failed in iframe! Solution: page opens in new tab, so just remove back button
 
 ---
 
 *Last Updated: January 8, 2026*
-*Based on 60+ commits of debugging sessions*
+*Based on 65+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
