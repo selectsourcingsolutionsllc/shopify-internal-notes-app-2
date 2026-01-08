@@ -10,6 +10,7 @@ import {
   Banner,
   Box,
   Image,
+  Pressable,
   useApi,
 } from '@shopify/ui-extensions-react/admin';
 
@@ -29,6 +30,7 @@ function OrderDetailsBlock() {
   const [canFulfill, setCanFulfill] = useState(true);
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
+  const [expandedPhoto, setExpandedPhoto] = useState(false);
 
   // Try different ways to get the order ID
   const orderId = (data as any)?.selected?.[0]?.id || (data as any)?.order?.id;
@@ -359,44 +361,52 @@ function OrderDetailsBlock() {
         </InlineStack>
 
         <Banner tone="warning" title="Check box to acknowledge">
-          <BlockStack gap="tight">
-            {isAcknowledged && (
-              <Badge tone="success">Acknowledged</Badge>
-            )}
-
-            {!isAcknowledged && settings?.requireAcknowledgment && (
-              <Checkbox
-                label={currentNote.content.length > 100 ? currentNote.content.substring(0, 100) + '...' : currentNote.content}
-                checked={false}
-                onChange={(checked) => {
-                  if (checked) {
-                    handleAcknowledge(currentNote.id);
-                  }
-                }}
-              />
-            )}
-
-            {isAcknowledged && ack.acknowledgedAt && (
-              <Text emphasis="subdued">
-                Acknowledged at {new Date(ack.acknowledgedAt).toLocaleString()}
-              </Text>
-            )}
-
-            {/* Photo display */}
+          <InlineStack gap="base" blockAlignment="start">
+            {/* Photo on left - click to expand */}
             {currentNote.photos && currentNote.photos.length > 0 && (
-              <InlineStack blockAlignment="center" gap="tight">
-                <Box maxInlineSize={100}>
-                  <Image
-                    source={currentNote.photos[0].url}
-                    alt="Note photo"
-                  />
-                </Box>
+              <BlockStack gap="extraTight">
+                <Pressable onPress={() => setExpandedPhoto(!expandedPhoto)}>
+                  <Box maxInlineSize={expandedPhoto ? 300 : 50}>
+                    <Image
+                      source={currentNote.photos[0].url}
+                      alt="Note photo"
+                    />
+                  </Box>
+                </Pressable>
+                <Text emphasis="subdued" size="small">
+                  {expandedPhoto ? 'Click to shrink' : 'Click to expand'}
+                </Text>
                 {currentNote.photos.length > 1 && (
                   <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
                 )}
-              </InlineStack>
+              </BlockStack>
             )}
-          </BlockStack>
+
+            {/* Note content on right */}
+            <BlockStack gap="tight">
+              {isAcknowledged && (
+                <Badge tone="success">Acknowledged</Badge>
+              )}
+
+              {!isAcknowledged && settings?.requireAcknowledgment && (
+                <Checkbox
+                  label={currentNote.content.length > 100 ? currentNote.content.substring(0, 100) + '...' : currentNote.content}
+                  checked={false}
+                  onChange={(checked) => {
+                    if (checked) {
+                      handleAcknowledge(currentNote.id);
+                    }
+                  }}
+                />
+              )}
+
+              {isAcknowledged && ack.acknowledgedAt && (
+                <Text emphasis="subdued">
+                  Acknowledged at {new Date(ack.acknowledgedAt).toLocaleString()}
+                </Text>
+              )}
+            </BlockStack>
+          </InlineStack>
         </Banner>
 
         {productNotes.length > 1 && (
@@ -404,14 +414,14 @@ function OrderDetailsBlock() {
             <Button
               variant="tertiary"
               disabled={currentNoteIndex === 0}
-              onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
+              onPress={() => { setCurrentNoteIndex(currentNoteIndex - 1); setExpandedPhoto(false); }}
             >
               Previous
             </Button>
             <Button
               variant="tertiary"
               disabled={currentNoteIndex === productNotes.length - 1}
-              onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
+              onPress={() => { setCurrentNoteIndex(currentNoteIndex + 1); setExpandedPhoto(false); }}
             >
               Next
             </Button>
