@@ -59,13 +59,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     try {
-      // Upload to Cloudflare R2
-      const { url, filename } = await uploadFile(photo, session.shop, "product-notes");
+      // Upload photo and create thumbnail
+      const { url, thumbnailUrl, filename } = await uploadFile(photo, session.shop, "product-notes");
 
       const photoRecord = await prisma.productNotePhoto.create({
         data: {
           noteId: noteId!,
           url,
+          thumbnailUrl,
           filename,
           uploadedBy: session.email || session.id,
         },

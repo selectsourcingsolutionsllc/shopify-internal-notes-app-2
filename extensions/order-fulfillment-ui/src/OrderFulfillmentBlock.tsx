@@ -281,6 +281,11 @@ function OrderFulfillmentBlock() {
   
   return (
     <BlockStack>
+      {/* TEST: This should ALWAYS appear if new code is loaded */}
+      <Banner tone="critical">
+        <Text>VERSION TEST 123 - If you see this, new code is loaded!</Text>
+      </Banner>
+
       {settings?.blockFulfillment && !canFulfill && (
         <Banner
           title="Acknowledgment Required"
@@ -325,6 +330,14 @@ function OrderFulfillmentBlock() {
 
                   {/* Debug: Show photo count */}
                   <Text emphasis="subdued">Photos: {note.photos?.length || 0}</Text>
+
+                  {/* PLACEHOLDER TEST - Always show this */}
+                  <Banner tone="info">
+                    <Text>PHOTO PLACEHOLDER - Has {note.photos?.length || 0} photos</Text>
+                    {note.photos && note.photos.length > 0 && (
+                      <Text>URL: {note.photos[0].url.substring(0, 50)}...</Text>
+                    )}
+                  </Banner>
 
                   {note.photos && note.photos.length > 0 && (
                     <InlineStack blockAlignment="center" gap="tight">
