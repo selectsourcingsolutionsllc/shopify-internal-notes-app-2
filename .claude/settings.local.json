@@ -55,7 +55,9 @@
       "Bash(git show:*)",
       "Bash(git mv:*)",
       "Bash(ren:*)",
-      "Bash(Select-String \"predev\")"
+      "Bash(Select-String \"predev\")",
+      "Bash(git status:*)",
+      "Bash(git restore:*)"
     ],
     "deny": []
   }

@@ -8,6 +8,11 @@ The user is new to programming and needs basic explanations. Always assume they 
 - Break down concepts step-by-step
 - Don't assume prior programming knowledge
 
+## Formatting Preferences:
+- Put commands on their own line, never with descriptions next to them
+- This allows easy copy-paste
+- Put explanations ABOVE or BELOW the command, not on the same line
+
 # CRITICAL: NO QUICK FIXES - DO IT RIGHT!
 
 **ALWAYS build for SCALE, not for quick patches!**

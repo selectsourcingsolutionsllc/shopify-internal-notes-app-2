@@ -9,6 +9,7 @@ import {
   Box,
   Badge,
   Banner,
+  Image,
   useApi,
   Link,
 } from '@shopify/ui-extensions-react/admin';
@@ -26,6 +27,7 @@ function ProductNotesBlock() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shopDomain, setShopDomain] = useState<string>('');
+  const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
 
   const productId = api.data.selected?.[0]?.id;
   const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
@@ -244,71 +246,186 @@ function ProductNotesBlock() {
         </Button>
       </InlineStack>
 
-      {/* Notes list */}
-      {notes.length === 0 ? (
-        <Text emphasis="subdued">No notes yet.</Text>
-      ) : (
-        <BlockStack gap="base">
-          {notes.map((note) => (
-            <Box key={note.id} padding="tight" border="base" borderRadius="base">
-              <BlockStack gap="tight">
-                <InlineStack gap="tight" blockAlignment="center">
-                  <Box minInlineSize="fill">
-                    <Text>{note.content}</Text>
-                  </Box>
-                  <Button variant="tertiary" onPress={() => handleEditNote(note)}>
-                    Edit
-                  </Button>
-                  <Button variant="tertiary" tone="critical" onPress={() => handleDeleteNote(note.id)}>
-                    ✕
-                  </Button>
-                </InlineStack>
-
-                {/* Photo count and link to manage */}
-                <InlineStack gap="tight" blockAlignment="center">
-                  <Badge tone={note.photos?.length > 0 ? "success" : "info"}>
-                    {note.photos?.length || 0} photo{note.photos?.length !== 1 ? 's' : ''}
-                  </Badge>
-                  <Link href={`https://${shopDomain}/admin/apps/internal-notes-for-listings/app/photo-manager/${note.id}`} target="_blank">
-                    Manage Photos
-                  </Link>
-                </InlineStack>
-              </BlockStack>
-            </Box>
-          ))}
+      {/* No notes - show inline add form */}
+      {notes.length === 0 && (
+        <BlockStack gap="tight">
+          <Text emphasis="subdued">No notes yet.</Text>
+          {showForm ? (
+            <BlockStack gap="tight">
+              <TextField
+                label="New note"
+                value={newNote}
+                onChange={setNewNote}
+                onInput={setNewNote}
+              />
+              {newNote.length > 211 ? (
+                <Banner tone="critical">
+                  <Text>{newNote.length - 211} characters over limit</Text>
+                </Banner>
+              ) : (
+                <Text emphasis="subdued">
+                  {211 - newNote.length} characters remaining
+                </Text>
+              )}
+              <InlineStack gap="tight">
+                <Button variant="primary" onPress={handleSaveNote} disabled={newNote.length > 211 || !newNote.trim()}>
+                  Save
+                </Button>
+                <Button onPress={() => {
+                  setShowForm(false);
+                  setNewNote('');
+                }}>
+                  Cancel
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          ) : null}
         </BlockStack>
       )}
 
-      {/* Add/Edit form */}
-      {showForm && (
-        <Box padding="tight" border="base" borderRadius="base">
-          <BlockStack gap="tight">
-            <TextField
-              label={editingNote ? 'Edit note' : 'New note'}
-              value={newNote}
-              onChange={setNewNote}
-            />
+      {/* Add new note form (replaces note view) */}
+      {notes.length > 0 && showForm && !editingNote && (
+        <BlockStack gap="extraTight">
+          <InlineStack blockAlignment="center">
+            <Text fontWeight="bold">New Note</Text>
+          </InlineStack>
 
-            <InlineStack gap="tight">
-              <Button variant="primary" onPress={handleSaveNote}>
-                Save
+          <Banner tone="info">
+            <BlockStack gap="tight">
+              <TextField
+                label="New note"
+                value={newNote}
+                onChange={setNewNote}
+                onInput={setNewNote}
+              />
+              {newNote.length > 211 ? (
+                <Banner tone="critical">
+                  <Text>{newNote.length - 211} characters over limit</Text>
+                </Banner>
+              ) : (
+                <Text emphasis="subdued">
+                  {211 - newNote.length} characters remaining
+                </Text>
+              )}
+              <InlineStack gap="tight">
+                <Button variant="primary" onPress={handleSaveNote} disabled={newNote.length > 211 || !newNote.trim()}>
+                  Save
+                </Button>
+                <Button onPress={() => {
+                  setShowForm(false);
+                  setNewNote('');
+                }}>
+                  Cancel
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Banner>
+        </BlockStack>
+      )}
+
+      {/* Notes display with inline editing (hidden when adding) */}
+      {notes.length > 0 && !(showForm && !editingNote) && (
+        <BlockStack gap="extraTight">
+          <InlineStack blockAlignment="center">
+            <Text fontWeight="bold">Note</Text>
+            <Badge tone="info">{currentNoteIndex + 1} / {notes.length}</Badge>
+          </InlineStack>
+
+          <Banner tone="info">
+            <BlockStack gap="tight">
+              {/* Note content - editable when editing this note */}
+              {editingNote?.id === notes[currentNoteIndex].id ? (
+                <BlockStack gap="tight">
+                  <TextField
+                    label="Edit note"
+                    value={newNote}
+                    onChange={setNewNote}
+                    onInput={setNewNote}
+                  />
+                  {newNote.length > 211 ? (
+                    <Banner tone="critical">
+                      <Text>{newNote.length - 211} characters over limit</Text>
+                    </Banner>
+                  ) : (
+                    <Text emphasis="subdued">
+                      {211 - newNote.length} characters remaining
+                    </Text>
+                  )}
+                  <InlineStack gap="tight">
+                    <Button variant="primary" onPress={handleSaveNote} disabled={newNote.length > 211 || !newNote.trim()}>
+                      Save
+                    </Button>
+                    <Button onPress={() => {
+                      setEditingNote(null);
+                      setNewNote('');
+                    }}>
+                      Cancel
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+              ) : (
+                <Text>
+                  {notes[currentNoteIndex].content.length > 211
+                    ? notes[currentNoteIndex].content.substring(0, 211) + '...'
+                    : notes[currentNoteIndex].content}
+                </Text>
+              )}
+
+              {/* Photo thumbnail below (only when not editing) */}
+              {editingNote?.id !== notes[currentNoteIndex].id && notes[currentNoteIndex].photos && notes[currentNoteIndex].photos.length > 0 && (
+                <InlineStack gap="tight" blockAlignment="center">
+                  <Link href={notes[currentNoteIndex].photos[0].url} external>
+                    <Image
+                      source={notes[currentNoteIndex].photos[0].thumbnailUrl || notes[currentNoteIndex].photos[0].url}
+                      alt="Note photo"
+                    />
+                  </Link>
+                  {notes[currentNoteIndex].photos.length > 1 && (
+                    <Badge tone="info">+{notes[currentNoteIndex].photos.length - 1} more</Badge>
+                  )}
+                </InlineStack>
+              )}
+
+              {/* Edit/Delete and Manage Photos (only when not editing) */}
+              {editingNote?.id !== notes[currentNoteIndex].id && (
+                <InlineStack gap="tight" blockAlignment="center">
+                  <Button variant="tertiary" onPress={() => handleEditNote(notes[currentNoteIndex])}>
+                    Edit
+                  </Button>
+                  <Button variant="tertiary" tone="critical" onPress={() => {
+                    handleDeleteNote(notes[currentNoteIndex].id);
+                    if (currentNoteIndex > 0) setCurrentNoteIndex(currentNoteIndex - 1);
+                  }}>
+                    Delete
+                  </Button>
+                  <Link href={`https://${shopDomain}/admin/apps/internal-notes-for-listings/app/photo-manager/${notes[currentNoteIndex].id}`} target="_blank">
+                    Manage Photos
+                  </Link>
+                </InlineStack>
+              )}
+            </BlockStack>
+          </Banner>
+
+          {/* Navigation buttons (only when not editing) */}
+          {notes.length > 1 && editingNote?.id !== notes[currentNoteIndex].id && (
+            <InlineStack inlineAlignment="center">
+              <Button
+                variant="tertiary"
+                disabled={currentNoteIndex === 0}
+                onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
+              >
+                Previous
               </Button>
-              <Button onPress={() => {
-                setShowForm(false);
-                setEditingNote(null);
-                setNewNote('');
-              }}>
-                Cancel
+              <Button
+                variant="tertiary"
+                disabled={currentNoteIndex === notes.length - 1}
+                onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
+              >
+                Next
               </Button>
             </InlineStack>
-
-            {!editingNote && (
-              <Text emphasis="subdued">
-                After saving, click "Manage Photos" to add images.
-              </Text>
-            )}
-          </BlockStack>
-        </Box>
+          )}
+        </BlockStack>
       )}
     </BlockStack>
   );
