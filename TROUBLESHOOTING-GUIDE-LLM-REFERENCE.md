@@ -110,6 +110,7 @@ cat extensions/*/shopify.extension.toml | grep module
 12. [Image Sizing in Admin Extensions - THE THUMBNAIL SOLUTION](#12-image-sizing-in-admin-extensions---the-thumbnail-solution)
 13. [Text Coloring in Admin Extensions - USE BADGE FOR GREEN TEXT](#13-text-coloring-in-admin-extensions---use-badge-for-green-text)
 14. [Navigation in Embedded Apps - BACK BUTTON ISSUES](#14-navigation-in-embedded-apps---back-button-issues)
+15. [App Installation and Uninstallation - HIDDEN UNINSTALL BUTTON](#15-app-installation-and-uninstallation)
 
 ---
 
@@ -1229,6 +1230,71 @@ const handleBack = () => { navigate(-1); };
 
 ---
 
+## 15. App Installation and Uninstallation
+
+### FINDING THE UNINSTALL BUTTON (IT'S HIDDEN!)
+
+**Problem**: Needed to uninstall the app to re-register new webhooks, but couldn't find the uninstall button anywhere in the Shopify admin.
+
+**Why We Needed To Uninstall**: When you add new webhooks to `shopify.server.ts`, they only get registered with Shopify during the OAuth/install flow. To register new webhooks, you MUST uninstall and reinstall the app.
+
+**Where We Looked (Couldn't Find It)**:
+- App detail page - no uninstall button visible
+- Settings page - nothing obvious
+- Various menus - nothing clear
+
+### THE SOLUTION: DIRECT URL OR THREE DOTS MENU
+
+**Method 1: Direct URL (FASTEST)**
+
+Go directly to this URL in your browser:
+```
+https://admin.shopify.com/store/YOUR-STORE-NAME/settings/apps
+```
+
+For example:
+```
+https://admin.shopify.com/store/test-app-projects/settings/apps
+```
+
+**Method 2: Through Shopify Admin**
+
+1. Go to **Settings** (gear icon, bottom left corner)
+2. Click **Apps and sales channels**
+3. Find your app in the list
+4. Click the **three dots (⋮)** icon next to the app name - THIS IS THE KEY!
+5. Click **Uninstall** from the dropdown
+6. Click the red **Uninstall** button to confirm
+
+**The Hidden UI Element**: The uninstall option is behind the three-dot "Action" menu (⋮), NOT on the app detail page itself!
+
+### After Uninstalling - How to Reinstall
+
+1. Go to https://partners.shopify.com
+2. Click on your app
+3. Click "Select store" or "Test on development store"
+4. Choose your development store
+5. Click **Install**
+6. Accept the permissions
+
+### When You Need to Reinstall
+
+You MUST uninstall and reinstall the app when:
+- Adding new webhook subscriptions
+- Adding new OAuth scopes
+- Changing app permissions in `shopify.app.toml`
+
+The app's webhooks and scopes are registered during OAuth. Changes only take effect after reinstall!
+
+### Key Lessons
+
+1. **Uninstall is hidden behind three dots (⋮)** - not on the app page itself
+2. **Use direct URL** - `https://admin.shopify.com/store/YOUR-STORE/settings/apps`
+3. **New webhooks require reinstall** - webhook registration happens during OAuth
+4. **New scopes require reinstall** - permission grants happen during OAuth
+
+---
+
 ## Summary: The Most Common Mistakes
 
 1. **Editing the wrong extension file** - Always check `shopify.extension.toml` first!
@@ -1244,6 +1310,7 @@ const handleBack = () => { navigate(-1); };
 11. **Trying to resize images in admin extensions** - Use server-side thumbnails instead!
 12. **Using Text for colored text** - Text doesn't support colors! Use Badge with `tone` prop instead!
 13. **Adding back buttons to new-tab pages** - If page opens in new tab, don't add navigation - let user close tab!
+14. **Can't find uninstall button** - It's hidden behind three dots (⋮)! Use direct URL: `https://admin.shopify.com/store/YOUR-STORE/settings/apps`
 
 ---
 
@@ -1264,9 +1331,11 @@ Here's the order we encountered and solved issues:
 11. **Image Sizing in Admin Extensions** - Box/maxInlineSize doesn't work! Use server-side thumbnails with sharp
 12. **Text Coloring in Admin Extensions** - Text `tone` prop doesn't work! Use Badge component instead
 13. **Back Button in Embedded Apps** - Direct URLs, history.back(), all failed in iframe! Solution: page opens in new tab, so just remove back button
+14. **Hidden Uninstall Button** - Can't find uninstall in Shopify admin! It's behind three dots (⋮) menu, or use direct URL
+15. **Fulfillment Hold Feature** - Added webhook to re-apply holds when released without acknowledgment. Required reinstall to register new webhook.
 
 ---
 
-*Last Updated: January 8, 2026*
-*Based on 65+ commits of debugging sessions*
+*Last Updated: January 9, 2026*
+*Based on 70+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
