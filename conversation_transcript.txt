@@ -2130,6 +2130,29 @@ npx shopify auth login
 This gives a fresh login flow.
 
 =====================================
+
+SESSION: January 8, 2026 (Continued)
+HIDE PHOTO PROOF SETTING
+====================================================
+
+**User Request:** Hide the "Require photo proof for acknowledgment" setting from the settings page.
+
+**Changes Made (app/routes/app.settings.tsx):**
+
+1. **Hidden the checkbox** (lines 129-138):
+   - Wrapped in `{false && (...)}` to hide but preserve code
+   - Checkbox for "Require photo proof for acknowledgments" no longer visible
+
+2. **Hidden the explanation** (lines 179-190):
+   - Wrapped "Photo Proof" section in "How Settings Work" card
+   - Also wrapped in `{false && (...)}` to hide but preserve code
+
+**To Bring It Back Later:**
+Change `{false && (` to `{true && (` in app.settings.tsx (two places)
+
+**Commit:** f092d82 - Hide photo proof setting from settings page
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 8, 2026
 STATUS: 🟢 FULLY WORKING - ALL UI REFINEMENTS COMPLETE
