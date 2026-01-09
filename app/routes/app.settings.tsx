@@ -126,6 +126,8 @@ export default function Settings() {
                   onChange={setRequireAcknowledgment}
                 />
                 
+{/* HIDDEN: Require photo proof setting - set to true to show */}
+                {false && (
                 <Checkbox
                   label="Require photo proof for acknowledgments"
                   helpText="Staff must upload a photo when acknowledging product notes"
@@ -133,6 +135,7 @@ export default function Settings() {
                   onChange={setRequirePhotoProof}
                   disabled={!requireAcknowledgment}
                 />
+                )}
                 
                 <Checkbox
                   label="Block order fulfillment until acknowledged"
@@ -173,15 +176,18 @@ export default function Settings() {
                   </p>
                 </div>
                 
+{/* HIDDEN: Photo Proof explanation - set to true to show */}
+                {false && (
                 <div>
                   <h3 style={{ marginBottom: "8px", fontSize: "16px", fontWeight: "600" }}>
                     Photo Proof
                   </h3>
                   <p style={{ color: "#6d7175" }}>
-                    Requires staff to upload a photo as proof when acknowledging notes. 
+                    Requires staff to upload a photo as proof when acknowledging notes.
                     Useful for quality control and training purposes.
                   </p>
                 </div>
+                )}
                 
                 <div>
                   <h3 style={{ marginBottom: "8px", fontSize: "16px", fontWeight: "600" }}>
