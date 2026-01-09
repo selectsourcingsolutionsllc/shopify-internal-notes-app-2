@@ -172,12 +172,15 @@ export default function AppIndex() {
                     {settings?.requireAcknowledgment ? "Enabled" : "Disabled"}
                   </Badge>
                 </div>
+{/* HIDDEN: Require Photo Proof row - set to true to show */}
+                {false && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>Require Photo Proof</span>
                   <Badge status={settings?.requirePhotoProof ? "success" : "neutral"}>
                     {settings?.requirePhotoProof ? "Enabled" : "Disabled"}
                   </Badge>
                 </div>
+                )}
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>Block Fulfillment</span>
                   <Badge status={settings?.blockFulfillment ? "warning" : "neutral"}>
