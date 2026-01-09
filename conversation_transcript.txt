@@ -2153,6 +2153,23 @@ Change `{false && (` to `{true && (` in app.settings.tsx (two places)
 **Commit:** f092d82 - Hide photo proof setting from settings page
 
 =====================================
+
+SESSION: January 8, 2026 (Continued)
+HIDE PHOTO PROOF FROM DASHBOARD
+====================================================
+
+**User Request:** Remove "Require Photo Proof" text from the dashboard's Current Settings card.
+
+**Change Made (app/routes/app._index.tsx):**
+- Hidden the "Require Photo Proof" row (lines 175-183)
+- Wrapped in `{false && (...)}` to hide but preserve code
+
+**To Bring It Back Later:**
+Change `{false && (` to `{true && (` in app._index.tsx
+
+**Commit:** f83e200 - Hide Require Photo Proof from dashboard
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 8, 2026
 STATUS: 🟢 FULLY WORKING - ALL UI REFINEMENTS COMPLETE
