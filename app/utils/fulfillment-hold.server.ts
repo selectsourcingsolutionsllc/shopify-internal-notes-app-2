@@ -15,6 +15,52 @@ interface HoldResult {
 }
 
 /**
+ * Get product IDs from an order via GraphQL
+ */
+export async function getOrderProductIds(
+  admin: any,
+  orderId: string
+): Promise<string[]> {
+  try {
+    const response = await admin.graphql(
+      `#graphql
+      query GetOrderProducts($orderId: ID!) {
+        order(id: $orderId) {
+          lineItems(first: 50) {
+            nodes {
+              product {
+                id
+              }
+            }
+          }
+        }
+      }`,
+      {
+        variables: {
+          orderId: `gid://shopify/Order/${orderId}`,
+        },
+      }
+    );
+
+    const data = await response.json();
+    const lineItems = data?.data?.order?.lineItems?.nodes || [];
+
+    // Extract unique product IDs
+    const productIds = new Set<string>();
+    for (const item of lineItems) {
+      if (item.product?.id) {
+        productIds.add(item.product.id);
+      }
+    }
+
+    return Array.from(productIds);
+  } catch (error) {
+    console.error("[FulfillmentHold] Error getting order products:", error);
+    return [];
+  }
+}
+
+/**
  * Get fulfillment orders for a Shopify order
  */
 export async function getFulfillmentOrders(
