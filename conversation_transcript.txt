@@ -2170,6 +2170,58 @@ Change `{false && (` to `{true && (` in app._index.tsx
 **Commit:** f83e200 - Hide Require Photo Proof from dashboard
 
 =====================================
+
+SESSION: January 9, 2026
+FULFILLMENT BLOCKING FEATURE IMPLEMENTATION
+====================================================
+
+**User Request:** Actually block fulfillment when notes need to be acknowledged (not just show a warning).
+
+**Problem:** The existing "blockFulfillment" setting only showed a UI warning banner - it didn't actually prevent fulfillment in Shopify.
+
+**Solution:** Implement Shopify Fulfillment Hold API to put orders on hold until notes are acknowledged.
+
+**How It Works:**
+1. When an order is created → Webhook fires
+2. App checks if any products have notes
+3. If blockFulfillment=true AND products have notes → Apply hold to order
+4. Staff sees "Order On Hold" in Shopify admin
+5. When staff acknowledges all notes → Hold is automatically released
+6. Order can now be fulfilled
+
+**Files Created:**
+- `app/utils/fulfillment-hold.server.ts` - Service with hold/release functions
+
+**Files Modified:**
+- `shopify.app.toml` - Added `write_merchant_managed_fulfillment_orders` scope + `orders/create` webhook
+- `app/shopify.server.ts` - Registered ORDERS_CREATE webhook
+- `app/routes/webhooks.tsx` - Added ORDERS_CREATE handler to apply holds
+- `app/routes/api.public.acknowledgments.tsx` - Release hold when all notes acknowledged
+- `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx` - Updated UI to pass allProductIds and show "Order On Hold" banner
+
+**Key Functions (fulfillment-hold.server.ts):**
+- `applyFulfillmentHold()` - Apply hold via GraphQL mutation
+- `releaseFulfillmentHold()` - Release hold via GraphQL mutation
+- `checkOrderNeedsHold()` - Check if order has products with notes
+- `checkAllNotesAcknowledged()` - Check if all notes have been acknowledged
+- `applyHoldsToOrder()` - Apply holds to all fulfillment orders
+- `releaseHoldsFromOrder()` - Release holds from all fulfillment orders
+
+**GraphQL Mutations Used:**
+- `fulfillmentOrderHold` - To put order on hold
+- `fulfillmentOrderReleaseHold` - To release the hold
+
+**Deployment:**
+- Code pushed to Railway
+- Extension deployed with `npx shopify app deploy --force`
+- Version: internal-notes-for-listings-102
+
+**Requires Re-installation:**
+Because a new scope was added (`write_merchant_managed_fulfillment_orders`), the app must be uninstalled and re-installed on any stores to grant the new permission.
+
+**Commit:** 2bdf951 - Add fulfillment hold blocking feature
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 8, 2026
 STATUS: 🟢 FULLY WORKING - ALL UI REFINEMENTS COMPLETE
