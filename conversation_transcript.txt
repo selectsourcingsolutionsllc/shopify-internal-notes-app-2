@@ -2358,8 +2358,62 @@ Added Section 15: App Installation and Uninstallation
 **Key Lesson:**
 New webhooks only register during OAuth/install flow. You MUST uninstall and reinstall the app when adding new webhook subscriptions!
 
+**Issue 6: Webhook Not Registered in shopify.app.toml**
+
+After reinstall, the hold was applying but when released, the `FULFILLMENT_ORDERS_HOLD_RELEASED` webhook wasn't being received.
+
+**Root Cause:** The webhook was added to `shopify.server.ts` but NOT to `shopify.app.toml`. Both places need the webhook subscription.
+
+**Fix:** Added webhook subscription to shopify.app.toml:
+```toml
+[[webhooks.subscriptions]]
+topics = [ "fulfillment_orders/hold_released" ]
+uri = "/webhooks"
+```
+
+Also added missing scope: `read_merchant_managed_fulfillment_orders`
+
+**Issue 7: Wrong Webhook - Old vs New API**
+
+Even after registering the webhook, it still wasn't firing!
+
+**Root Cause:** The `fulfillment_orders/hold_released` webhook only fires when ALL holds are released and the order is no longer on hold. Since we only have one hold, this should work BUT it wasn't.
+
+**Discovery:** Shopify has NEWER webhooks (API 2025-01+):
+- `fulfillment_holds/added` - fires each time a hold is placed
+- `fulfillment_holds/released` - fires each time a hold is released
+
+These fire for individual hold events, which is what we need!
+
+**Fix:** Switched to `fulfillment_holds/released` in all three places:
+1. `shopify.app.toml` - webhook subscription
+2. `shopify.server.ts` - FULFILLMENT_HOLDS_RELEASED
+3. `app/routes/webhooks.tsx` - case handler
+
+**Commits This Session (continued):**
+- 1c094ba - Add fulfillment_orders/hold_released webhook to shopify.app.toml
+- 5256d4f - Add webhook topic logging to debug hold_released
+- 3eab6c9 - Switch to fulfillment_holds/released webhook (API 2025-01+)
+
+=====================================
+🔴 NEXT TODO WHEN RESUMING:
+=====================================
+
+1. Deploy to Shopify: `npx shopify app deploy --force`
+2. Uninstall app: https://admin.shopify.com/store/test-app-projects/settings/apps
+3. Reinstall from Shopify Partners
+4. Test the hold enforcement:
+   - Create order with product that has a note
+   - Order should go on hold
+   - Release the hold
+   - Check Railway logs for: `[Webhook] Topic: FULFILLMENT_HOLDS_RELEASED`
+   - Hold should be RE-APPLIED automatically!
+
+5. If webhook fires but hold doesn't re-apply, check the payload format
+   (the new webhook may have different payload structure)
+
 =====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 9, 2026
-STATUS: 🟡 TESTING - Hold enforcement webhook awaiting verification
+STATUS: 🟡 PENDING - Need to test fulfillment_holds/released webhook
 =====================================
