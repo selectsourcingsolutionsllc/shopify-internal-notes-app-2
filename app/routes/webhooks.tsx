@@ -1,6 +1,10 @@
-import { authenticate } from "../shopify.server";
+import { authenticate, unauthenticated } from "../shopify.server";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
+import {
+  checkOrderNeedsHold,
+  applyHoldsToOrder,
+} from "../utils/fulfillment-hold.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   const { topic, shop, session } = await authenticate.webhook(request);
@@ -9,9 +13,15 @@ export async function action({ request }: ActionFunctionArgs) {
     throw new Response("No shop provided", { status: 400 });
   }
 
+  // Clone the request to read the body (since it can only be read once)
+  const payload = await request.clone().json();
+
   switch (topic) {
     case "APP_UNINSTALLED":
       await handleAppUninstalled(shop);
+      break;
+    case "ORDERS_CREATE":
+      await handleOrderCreated(shop, payload);
       break;
     case "CUSTOMERS_DATA_REQUEST":
       await handleCustomerDataRequest(shop);
@@ -23,7 +33,8 @@ export async function action({ request }: ActionFunctionArgs) {
       await handleShopRedact(shop);
       break;
     default:
-      throw new Response("Unhandled webhook topic", { status: 404 });
+      console.log(`[Webhook] Unhandled topic: ${topic}`);
+      break;
   }
 
   return new Response();
@@ -59,4 +70,52 @@ async function handleShopRedact(shop: string) {
   // This is called 48 hours after app uninstall
   // Ensure all shop data is removed
   await handleAppUninstalled(shop);
+}
+
+async function handleOrderCreated(shop: string, payload: any) {
+  console.log(`[Webhook] Order created for shop: ${shop}, order ID: ${payload.id}`);
+
+  try {
+    // Extract product IDs from the order line items
+    const productIds: string[] = [];
+    if (payload.line_items) {
+      for (const item of payload.line_items) {
+        if (item.product_id) {
+          productIds.push(String(item.product_id));
+        }
+      }
+    }
+
+    if (productIds.length === 0) {
+      console.log("[Webhook] No products in order, skipping hold check");
+      return;
+    }
+
+    console.log("[Webhook] Checking products for notes:", productIds);
+
+    // Check if this order needs a hold
+    const needsHold = await checkOrderNeedsHold(shop, productIds);
+
+    if (!needsHold) {
+      console.log("[Webhook] Order does not need hold");
+      return;
+    }
+
+    console.log("[Webhook] Order needs hold, applying...");
+
+    // Get admin API client for this shop
+    const { admin } = await unauthenticated.admin(shop);
+
+    // Apply holds to all fulfillment orders
+    const result = await applyHoldsToOrder(admin, String(payload.id));
+
+    if (result.success) {
+      console.log("[Webhook] Successfully applied holds to order", payload.id);
+    } else {
+      console.error("[Webhook] Failed to apply some holds:", result.results);
+    }
+  } catch (error) {
+    console.error("[Webhook] Error handling order created:", error);
+    // Don't throw - we don't want to fail the webhook
+  }
 }
