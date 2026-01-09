@@ -7,14 +7,13 @@ import {
 } from "../utils/fulfillment-hold.server";
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { topic, shop, session } = await authenticate.webhook(request);
+  const { topic, shop, session, payload } = await authenticate.webhook(request);
 
   if (!shop) {
     throw new Response("No shop provided", { status: 400 });
   }
 
-  // Clone the request to read the body (since it can only be read once)
-  const payload = await request.clone().json();
+  // payload is already parsed by authenticate.webhook
 
   switch (topic) {
     case "APP_UNINSTALLED":
@@ -104,7 +103,18 @@ async function handleOrderCreated(shop: string, payload: any) {
     console.log("[Webhook] Order needs hold, applying...");
 
     // Get admin API client for this shop
-    const { admin } = await unauthenticated.admin(shop);
+    // This requires an offline session stored in the database
+    let admin;
+    try {
+      const result = await unauthenticated.admin(shop);
+      admin = result.admin;
+      console.log("[Webhook] Got admin API client for shop:", shop);
+    } catch (sessionError) {
+      console.error("[Webhook] Failed to get admin session for shop:", shop);
+      console.error("[Webhook] Session error:", sessionError);
+      console.error("[Webhook] This usually means the app needs to be reinstalled to create an offline session");
+      return; // Exit gracefully, don't fail the webhook
+    }
 
     // Apply holds to all fulfillment orders
     const result = await applyHoldsToOrder(admin, String(payload.id));
