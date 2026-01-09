@@ -2066,6 +2066,70 @@ When a page opens in a new tab, don't add navigation controls - let users close 
 ✅ Clean, simple user experience
 
 =====================================
+
+SESSION: January 8, 2026 (New Session)
+HOW TO LAUNCH THE PROJECT LOCALLY
+====================================================
+
+**Goal:** Launch the Shopify app in development mode on local machine.
+
+**The Command:**
+```
+npm run dev
+```
+
+**Before Running:**
+1. Open PowerShell
+2. Navigate to the project folder:
+   ```
+   cd C:\Users\isaac\shopify-internal-notes-app-2
+   ```
+3. If first time or missing packages, run:
+   ```
+   npm install
+   ```
+
+**What Happens When You Run `npm run dev`:**
+1. Starts the Shopify app in development mode
+2. Creates a temporary tunnel (Cloudflare URL) so Shopify can talk to your computer
+3. May ask you to verify your identity via Shopify Partners
+
+**Shopify CLI Verification Process:**
+- The CLI shows a URL in PowerShell that looks like:
+  ```
+  https://partners.shopify.com/cli/verify?token=XXXXX
+  ```
+- Copy this URL from PowerShell
+- Paste it in your web browser
+- Log into Shopify Partners if prompted
+- Click to approve/verify
+- Return to PowerShell - the app will continue starting
+
+**IMPORTANT:** The verification URL:
+- Is UNIQUE to each session (can't be replicated)
+- Appears in the FIRST few lines after running the command
+- Expires quickly - copy and paste it right away
+- Look for any line starting with `https://`
+
+**If Verification Doesn't Work:**
+1. Press `Ctrl + C` to stop the process
+2. Run the command again:
+   ```
+   npm run dev
+   ```
+3. Watch carefully for the URL and copy it immediately
+
+**Alternative - Manual Login:**
+```
+npx shopify auth logout
+```
+Then:
+```
+npx shopify auth login
+```
+This gives a fresh login flow.
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 8, 2026
 STATUS: 🟢 FULLY WORKING - ALL UI REFINEMENTS COMPLETE
