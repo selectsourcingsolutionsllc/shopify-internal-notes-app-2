@@ -12,6 +12,12 @@ import {
 export async function action({ request }: ActionFunctionArgs) {
   const { topic, shop, session, payload } = await authenticate.webhook(request);
 
+  // Log ALL incoming webhooks to help debug
+  console.log(`[Webhook] ======== INCOMING WEBHOOK ========`);
+  console.log(`[Webhook] Topic: ${topic}`);
+  console.log(`[Webhook] Shop: ${shop}`);
+  console.log(`[Webhook] ===================================`);
+
   if (!shop) {
     throw new Response("No shop provided", { status: 400 });
   }
