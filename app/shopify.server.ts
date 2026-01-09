@@ -18,6 +18,9 @@ const shopify = shopifyApp({
   apiVersion: ApiVersion.January24,
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
+  // Use offline tokens so webhooks can make API calls
+  // Online tokens only work for embedded app requests, not background/webhook calls
+  useOnlineTokens: false,
   future: {
     unstable_newEmbeddedAuthStrategy: true,
   },
