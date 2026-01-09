@@ -33,7 +33,7 @@ const shopify = shopifyApp({
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-    FULFILLMENT_ORDERS_HOLD_RELEASED: {
+    FULFILLMENT_HOLDS_RELEASED: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
