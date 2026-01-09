@@ -76,11 +76,14 @@ async function handleOrderCreated(shop: string, payload: any) {
 
   try {
     // Extract product IDs from the order line items
+    // Convert to Shopify GID format to match how they're stored in the database
     const productIds: string[] = [];
     if (payload.line_items) {
       for (const item of payload.line_items) {
         if (item.product_id) {
-          productIds.push(String(item.product_id));
+          // Webhook sends plain ID like "8433093509208"
+          // Database stores as "gid://shopify/Product/8433093509208"
+          productIds.push(`gid://shopify/Product/${item.product_id}`);
         }
       }
     }
