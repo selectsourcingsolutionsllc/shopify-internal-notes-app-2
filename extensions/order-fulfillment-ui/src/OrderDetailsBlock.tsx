@@ -359,43 +359,68 @@ function OrderDetailsBlock() {
           <Badge tone="warning">{currentNoteIndex + 1} / {productNotes.length}</Badge>
         </InlineStack>
 
-        <Banner tone="warning" title="Check box to acknowledge">
-          <BlockStack gap="tight">
-            {/* Checkbox with note content - always visible */}
-            <Checkbox
-              label={currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}
-              checked={isAcknowledged}
-              disabled={isAcknowledged}
-              onChange={(checked) => {
-                if (checked) {
-                  handleAcknowledge(currentNote.id);
-                }
-              }}
-            />
+        {/* Show acknowledgment UI only if requireAcknowledgment is enabled */}
+        {settings?.requireAcknowledgment ? (
+          <Banner tone="warning" title="Check box to acknowledge">
+            <BlockStack gap="tight">
+              {/* Checkbox with note content - always visible */}
+              <Checkbox
+                label={currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}
+                checked={isAcknowledged}
+                disabled={isAcknowledged}
+                onChange={(checked) => {
+                  if (checked) {
+                    handleAcknowledge(currentNote.id);
+                  }
+                }}
+              />
 
-            {isAcknowledged && ack.acknowledgedAt && (
-              <InlineStack gap="tight">
-                <Badge tone="success">Acknowledged</Badge>
-                <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
-              </InlineStack>
-            )}
+              {isAcknowledged && ack.acknowledgedAt && (
+                <InlineStack gap="tight">
+                  <Badge tone="success">Acknowledged</Badge>
+                  <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
+                </InlineStack>
+              )}
 
-            {/* Photo thumbnail below */}
-            {currentNote.photos && currentNote.photos.length > 0 && (
-              <InlineStack gap="tight" blockAlignment="center">
-                <Link href={currentNote.photos[0].url} external>
-                  <Image
-                    source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
-                    alt="Note photo"
-                  />
-                </Link>
-                {currentNote.photos.length > 1 && (
-                  <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
-                )}
-              </InlineStack>
-            )}
-          </BlockStack>
-        </Banner>
+              {/* Photo thumbnail below */}
+              {currentNote.photos && currentNote.photos.length > 0 && (
+                <InlineStack gap="tight" blockAlignment="center">
+                  <Link href={currentNote.photos[0].url} external>
+                    <Image
+                      source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
+                      alt="Note photo"
+                    />
+                  </Link>
+                  {currentNote.photos.length > 1 && (
+                    <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
+                  )}
+                </InlineStack>
+              )}
+            </BlockStack>
+          </Banner>
+        ) : (
+          /* Show notes as info-only when acknowledgment is NOT required */
+          <Banner tone="info" title="Product Note">
+            <BlockStack gap="tight">
+              <Text>{currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}</Text>
+
+              {/* Photo thumbnail below */}
+              {currentNote.photos && currentNote.photos.length > 0 && (
+                <InlineStack gap="tight" blockAlignment="center">
+                  <Link href={currentNote.photos[0].url} external>
+                    <Image
+                      source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
+                      alt="Note photo"
+                    />
+                  </Link>
+                  {currentNote.photos.length > 1 && (
+                    <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
+                  )}
+                </InlineStack>
+              )}
+            </BlockStack>
+          </Banner>
+        )}
 
         {productNotes.length > 1 && (
           <InlineStack inlineAlignment="center">
