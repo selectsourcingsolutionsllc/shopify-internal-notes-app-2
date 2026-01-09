@@ -4,6 +4,9 @@ import prisma from "../db.server";
 import {
   checkOrderNeedsHold,
   applyHoldsToOrder,
+  applyFulfillmentHold,
+  checkAllNotesAcknowledged,
+  getOrderProductIds,
 } from "../utils/fulfillment-hold.server";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -21,6 +24,9 @@ export async function action({ request }: ActionFunctionArgs) {
       break;
     case "ORDERS_CREATE":
       await handleOrderCreated(shop, payload);
+      break;
+    case "FULFILLMENT_ORDERS_HOLD_RELEASED":
+      await handleHoldReleased(shop, payload);
       break;
     case "CUSTOMERS_DATA_REQUEST":
       await handleCustomerDataRequest(shop);
@@ -130,5 +136,79 @@ async function handleOrderCreated(shop: string, payload: any) {
   } catch (error) {
     console.error("[Webhook] Error handling order created:", error);
     // Don't throw - we don't want to fail the webhook
+  }
+}
+
+async function handleHoldReleased(shop: string, payload: any) {
+  console.log(`[Webhook] Hold released for shop: ${shop}`);
+  console.log(`[Webhook] Payload:`, JSON.stringify(payload, null, 2));
+
+  try {
+    // The payload contains the fulfillment order that had its hold released
+    const fulfillmentOrderId = payload.fulfillment_order?.id || payload.id;
+    const orderId = payload.fulfillment_order?.order_id || payload.order_id;
+
+    if (!fulfillmentOrderId || !orderId) {
+      console.log("[Webhook] Missing fulfillment order or order ID, skipping");
+      return;
+    }
+
+    console.log(`[Webhook] Hold released on fulfillment order ${fulfillmentOrderId} for order ${orderId}`);
+
+    // Get admin API client for this shop
+    let admin;
+    try {
+      const result = await unauthenticated.admin(shop);
+      admin = result.admin;
+    } catch (sessionError) {
+      console.error("[Webhook] Failed to get admin session:", sessionError);
+      return;
+    }
+
+    // Get product IDs from the order
+    const productIds = await getOrderProductIds(admin, String(orderId));
+
+    if (productIds.length === 0) {
+      console.log("[Webhook] No products found in order, not re-applying hold");
+      return;
+    }
+
+    console.log("[Webhook] Products in order:", productIds);
+
+    // Check if blockFulfillment is enabled
+    const settings = await prisma.appSetting.findUnique({
+      where: { shopDomain: shop },
+    });
+
+    if (!settings?.blockFulfillment) {
+      console.log("[Webhook] blockFulfillment is disabled, not re-applying hold");
+      return;
+    }
+
+    // Check if all notes have been acknowledged
+    const allAcknowledged = await checkAllNotesAcknowledged(
+      shop,
+      `gid://shopify/Order/${orderId}`,
+      productIds
+    );
+
+    if (allAcknowledged) {
+      console.log("[Webhook] All notes acknowledged, hold can stay released");
+      return;
+    }
+
+    // Notes NOT acknowledged - RE-APPLY THE HOLD!
+    console.log("[Webhook] Notes NOT acknowledged! Re-applying hold...");
+
+    const fulfillmentOrderGid = `gid://shopify/FulfillmentOrder/${fulfillmentOrderId}`;
+    const holdResult = await applyFulfillmentHold(admin, fulfillmentOrderGid);
+
+    if (holdResult.success) {
+      console.log("[Webhook] Successfully RE-APPLIED hold to fulfillment order", fulfillmentOrderId);
+    } else {
+      console.error("[Webhook] Failed to re-apply hold:", holdResult.error);
+    }
+  } catch (error) {
+    console.error("[Webhook] Error handling hold released:", error);
   }
 }
