@@ -30,6 +30,7 @@ function OrderDetailsBlock() {
   const [canFulfill, setCanFulfill] = useState(true);
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
+  const [allProductIds, setAllProductIds] = useState<string[]>([]);
 
   // Try different ways to get the order ID
   const orderId = (data as any)?.selected?.[0]?.id || (data as any)?.order?.id;
@@ -184,6 +185,9 @@ function OrderDetailsBlock() {
 
       console.log('[Order Extension] Product IDs found:', productIds);
 
+      // Save all product IDs for later use (when releasing hold)
+      setAllProductIds(productIds);
+
       if (productIds.length === 0) {
         console.log('[Order Extension] No product IDs found');
         setProductNotes([]);
@@ -275,6 +279,9 @@ function OrderDetailsBlock() {
       const formData = new FormData();
       formData.append('noteId', noteId);
       formData.append('orderId', orderId);
+      // Pass all product IDs so the server can check if all notes are acknowledged
+      // and release the fulfillment hold if so
+      formData.append('allProductIds', JSON.stringify(allProductIds));
 
       const url = `${BASE_URL}/api/public/acknowledgments?shop=${encodeURIComponent(shop)}`;
 
@@ -285,6 +292,8 @@ function OrderDetailsBlock() {
 
       if (!response.ok) throw new Error('Failed to acknowledge note');
 
+      const result = await response.json();
+
       // Update local state
       setAcknowledgments(prev => ({
         ...prev,
@@ -293,6 +302,12 @@ function OrderDetailsBlock() {
           acknowledgedAt: new Date().toISOString(),
         },
       }));
+
+      // If the hold was released, update canFulfill immediately
+      if (result.holdReleased) {
+        console.log('[Order Extension] Hold released! Order can now be fulfilled.');
+        setCanFulfill(true);
+      }
 
     } catch (err: any) {
       setError(err.message);
@@ -345,11 +360,11 @@ function OrderDetailsBlock() {
       <BlockStack gap="extraTight">
         {settings?.blockFulfillment && !canFulfill && (
           <Banner
-            title="Acknowledgment Required"
+            title="Order On Hold"
             tone="critical"
           >
             <Text>
-              All product notes must be acknowledged before fulfilling this order.
+              This order is on hold. Acknowledge all product notes to release the hold and enable fulfillment.
             </Text>
           </Banner>
         )}

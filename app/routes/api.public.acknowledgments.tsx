@@ -1,6 +1,11 @@
 import { json } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
+import { unauthenticated } from "../shopify.server";
+import {
+  checkAllNotesAcknowledged,
+  releaseHoldsFromOrder,
+} from "../utils/fulfillment-hold.server";
 
 // Public endpoint for UI extensions - submit acknowledgments
 // NOTE: CORS headers are handled by Express middleware in server.js
@@ -80,6 +85,35 @@ export async function action({ request }: ActionFunctionArgs) {
           acknowledgedAt: new Date(),
         },
       });
+
+      // Check if all notes are acknowledged and release hold if so
+      const allProductIdsJson = formData.get("allProductIds") as string;
+      if (allProductIdsJson) {
+        try {
+          const allProductIds = JSON.parse(allProductIdsJson) as string[];
+          console.log("[PUBLIC API] Checking if all notes acknowledged for order:", orderId);
+
+          const allAcknowledged = await checkAllNotesAcknowledged(
+            shop,
+            orderId,
+            allProductIds
+          );
+
+          if (allAcknowledged) {
+            console.log("[PUBLIC API] All notes acknowledged! Releasing hold...");
+
+            // Get admin API client to release the hold
+            const { admin } = await unauthenticated.admin(shop);
+            const result = await releaseHoldsFromOrder(admin, orderId);
+
+            console.log("[PUBLIC API] Hold release result:", result);
+            return json({ acknowledgment, holdReleased: result.success });
+          }
+        } catch (holdError) {
+          console.error("[PUBLIC API] Error checking/releasing hold:", holdError);
+          // Don't fail the acknowledgment if hold release fails
+        }
+      }
 
       return json({ acknowledgment });
     } catch (error) {
