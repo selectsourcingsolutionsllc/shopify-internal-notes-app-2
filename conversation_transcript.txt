@@ -2222,7 +2222,144 @@ Because a new scope was added (`write_merchant_managed_fulfillment_orders`), the
 **Commit:** 2bdf951 - Add fulfillment hold blocking feature
 
 =====================================
+
+SESSION: January 9, 2026
+FULFILLMENT HOLD DEBUGGING AND ENFORCEMENT
+====================================================
+
+**Starting Point:**
+- Fulfillment hold feature was implemented
+- User tested by creating orders but got 500 errors on webhooks
+
+**Issue 1: Webhook 500 Errors**
+
+Railway logs showed:
+```
+TypeError: unusable
+    at _Request.clone (node:internal/deps/undici/undici:9856:17)
+```
+
+**Root Cause:** The webhook handler was calling `request.clone().json()` after `authenticate.webhook(request)` had already consumed the request body.
+
+**Fix:** Use the `payload` returned directly from `authenticate.webhook()`:
+```typescript
+// BEFORE (broken)
+const { topic, shop, session } = await authenticate.webhook(request);
+const payload = await request.clone().json();
+
+// AFTER (working)
+const { topic, shop, session, payload } = await authenticate.webhook(request);
+```
+
+**Issue 2: No Offline Session for API Calls**
+
+With `unstable_newEmbeddedAuthStrategy: true`, the app was only creating online tokens. Webhooks need offline tokens stored in the database.
+
+**Fix:** Added `useOnlineTokens: false` to shopify.server.ts:
+```typescript
+const shopify = shopifyApp({
+  // ...
+  useOnlineTokens: false,  // Store offline tokens for webhook API calls
+  future: {
+    unstable_newEmbeddedAuthStrategy: true,
+  },
+});
+```
+
+**Issue 3: Product ID Format Mismatch**
+
+Logs showed:
+```
+[Webhook] Checking products for notes: [ '8433093509208' ]
+[FulfillmentHold] Found 0 notes for products: [ '8433093509208' ]
+```
+
+**Root Cause:** Webhook sends plain IDs like `8433093509208`, but database stores them as `gid://shopify/Product/8433093509208`.
+
+**Fix:** Convert to GID format in webhook handler:
+```typescript
+productIds.push(`gid://shopify/Product/${item.product_id}`);
+```
+
+**Issue 4: Hold Could Be Manually Released**
+
+After fixing the above issues, holds were being applied successfully. BUT users could just click "Release Hold" in Shopify admin and bypass the blocking!
+
+**User Feedback:** "all you have to do to get around that is click 'release hold' thats NOT what i want!"
+
+**Solution: Hold Enforcement Webhook**
+
+Added `FULFILLMENT_ORDERS_HOLD_RELEASED` webhook that:
+1. Fires when someone clicks "Release Hold"
+2. Checks if all product notes have been acknowledged
+3. If NOT acknowledged, immediately RE-APPLIES the hold
+4. Creates an enforcement loop - can't escape without acknowledging
+
+**New Files/Changes:**
+- `app/shopify.server.ts` - Added FULFILLMENT_ORDERS_HOLD_RELEASED webhook
+- `app/routes/webhooks.tsx` - Added `handleHoldReleased()` function
+- `app/utils/fulfillment-hold.server.ts` - Added `getOrderProductIds()` function
+
+**Issue 5: Webhook Not Firing After Release**
+
+After implementing the enforcement webhook, releasing holds didn't trigger the webhook.
+
+**Root Cause:** New webhooks require app reinstallation to register with Shopify.
+
+**Problem:** User couldn't find the uninstall button in Shopify admin!
+
+**Discovery: Hidden Uninstall Button**
+
+The uninstall option is hidden behind the three-dot (⋮) menu, NOT on the app detail page.
+
+**Solution - Two Methods:**
+
+1. **Direct URL (fastest):**
+   ```
+   https://admin.shopify.com/store/YOUR-STORE-NAME/settings/apps
+   ```
+
+2. **Through Shopify Admin:**
+   - Settings → Apps and sales channels
+   - Click three dots (⋮) next to app name
+   - Click Uninstall
+
+**User reinstalled app successfully after finding the uninstall button.**
+
+**Troubleshooting Guide Updated:**
+
+Added Section 15: App Installation and Uninstallation
+- Direct URL to uninstall page
+- Three dots menu location
+- When reinstall is required (new webhooks, new scopes)
+
+**Commits This Session:**
+- c8cd209 - Change to offline sessions for webhook API calls
+- 12ff12a - Fix product ID format mismatch in webhook handler
+- b27c040 - Add hold enforcement - re-apply hold if released without acknowledgment
+- ab35f32 - Update transcript with fulfillment blocking feature
+
+**Current Status:**
+✅ Webhook 500 errors fixed
+✅ Offline sessions configured for API calls
+✅ Product ID format matching correctly
+✅ Holds being applied on order creation
+✅ Hold enforcement webhook added
+✅ App reinstalled to register new webhook
+⏳ Awaiting test of hold re-application after release
+
+**How Hold Enforcement Works:**
+1. Order created → ORDERS_CREATE webhook → Hold applied
+2. User clicks "Release Hold" → FULFILLMENT_ORDERS_HOLD_RELEASED webhook fires
+3. App checks: Are all notes acknowledged?
+4. If NO → Immediately re-apply the hold
+5. If YES → Hold stays released, order can be fulfilled
+
+**Key Lesson:**
+New webhooks only register during OAuth/install flow. You MUST uninstall and reinstall the app when adding new webhook subscriptions!
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
-LAST UPDATE: January 8, 2026
-STATUS: 🟢 FULLY WORKING - ALL UI REFINEMENTS COMPLETE
+LAST UPDATE: January 9, 2026
+STATUS: 🟡 TESTING - Hold enforcement webhook awaiting verification
 =====================================
