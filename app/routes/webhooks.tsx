@@ -374,7 +374,8 @@ async function handleHoldReleased(shop: string, payload: any) {
     }
 
     // CHECK FOR VALID AUTHORIZATION FIRST
-    // If this release was done via our app's "Release Hold" button, there will be a valid authorization
+    // If this release was done via our app, there will be a valid authorization
+    // Note: Shopify sometimes sends duplicate webhooks, so we also accept recently consumed authorizations
     const authorization = await prisma.orderReleaseAuthorization.findUnique({
       where: {
         orderId_shopDomain: {
@@ -385,18 +386,28 @@ async function handleHoldReleased(shop: string, payload: any) {
     });
 
     const now = new Date();
-    if (authorization && !authorization.consumed && authorization.expiresAt > now) {
-      // Valid authorization exists - this is a legitimate release via our app
-      console.log("[Webhook] Valid authorization found - this is a legitimate release via our app");
+    const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
 
-      // Consume the authorization so it can't be reused
-      await prisma.orderReleaseAuthorization.update({
-        where: { id: authorization.id },
-        data: { consumed: true },
-      });
+    // Accept authorization if:
+    // 1. Not consumed and not expired (first webhook), OR
+    // 2. Already consumed but created within last minute (duplicate webhook)
+    if (authorization && authorization.expiresAt > now) {
+      if (!authorization.consumed) {
+        // First webhook - consume the authorization
+        console.log("[Webhook] Valid authorization found - this is a legitimate release via our app");
 
-      console.log("[Webhook] Authorization consumed - hold will stay released");
-      return;
+        await prisma.orderReleaseAuthorization.update({
+          where: { id: authorization.id },
+          data: { consumed: true },
+        });
+
+        console.log("[Webhook] Authorization consumed - hold will stay released");
+        return;
+      } else if (authorization.createdAt > oneMinuteAgo) {
+        // Duplicate webhook - authorization was just consumed, still valid
+        console.log("[Webhook] Authorization already consumed (duplicate webhook) - hold will stay released");
+        return;
+      }
     }
 
     // NO VALID AUTHORIZATION - This is an unauthorized release (someone clicked Shopify's Unhold button)
