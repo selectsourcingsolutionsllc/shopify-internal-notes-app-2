@@ -86,10 +86,10 @@ export async function action({ request }: ActionFunctionArgs) {
         },
       });
 
-      // Check if all notes are acknowledged (but DON'T auto-release hold)
-      // User must explicitly click "Release Hold" button to release
+      // Check if all notes are acknowledged and auto-release hold if so
       const allProductIdsJson = formData.get("allProductIds") as string;
       let allAcknowledged = false;
+      let holdReleased = false;
 
       if (allProductIdsJson) {
         try {
@@ -103,13 +103,53 @@ export async function action({ request }: ActionFunctionArgs) {
           );
 
           console.log("[PUBLIC API] All acknowledged:", allAcknowledged);
-          // Note: Hold is NOT released here - user must click button
+
+          // If all notes are acknowledged, auto-release the hold
+          if (allAcknowledged) {
+            console.log("[PUBLIC API] All notes acknowledged - auto-releasing hold...");
+
+            // Create authorization token BEFORE releasing hold
+            const expiresAt = new Date(Date.now() + 60 * 1000); // 60 seconds
+
+            await prisma.orderReleaseAuthorization.upsert({
+              where: {
+                orderId_shopDomain: {
+                  orderId,
+                  shopDomain: shop,
+                },
+              },
+              create: {
+                orderId,
+                shopDomain: shop,
+                expiresAt,
+                consumed: false,
+              },
+              update: {
+                expiresAt,
+                consumed: false,
+              },
+            });
+
+            console.log("[PUBLIC API] Authorization created, releasing hold...");
+
+            // Get admin API client to release the hold
+            const { admin } = await unauthenticated.admin(shop);
+
+            // Extract numeric order ID from GID format
+            const orderIdMatch = orderId.match(/Order\/(\d+)/);
+            const numericOrderId = orderIdMatch ? orderIdMatch[1] : orderId;
+
+            const result = await releaseHoldsFromOrder(admin, numericOrderId);
+            holdReleased = result.success;
+
+            console.log("[PUBLIC API] Hold release result:", result);
+          }
         } catch (checkError) {
-          console.error("[PUBLIC API] Error checking acknowledgments:", checkError);
+          console.error("[PUBLIC API] Error checking/releasing:", checkError);
         }
       }
 
-      return json({ acknowledgment, allAcknowledged });
+      return json({ acknowledgment, allAcknowledged, holdReleased });
     } catch (error) {
       console.error("[PUBLIC API] Error:", error);
       return json({ error: "Database error" }, { status: 500 });
