@@ -505,11 +505,9 @@ async function handleHoldReleased(shop: string, payload: any) {
     });
 
     const now = new Date();
-    const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
 
-    // Accept authorization if:
-    // 1. Not consumed and not expired (first webhook), OR
-    // 2. Already consumed but created within last minute (duplicate webhook)
+    // Accept authorization if it exists and hasn't expired
+    // This handles both fresh authorizations and duplicate webhooks
     if (authorization && authorization.expiresAt > now) {
       if (!authorization.consumed) {
         // First webhook - consume the authorization
@@ -522,9 +520,10 @@ async function handleHoldReleased(shop: string, payload: any) {
 
         console.log("[Webhook] Authorization consumed - hold will stay released");
         return;
-      } else if (authorization.createdAt > oneMinuteAgo) {
-        // Duplicate webhook - authorization was just consumed, still valid
-        console.log("[Webhook] Authorization already consumed (duplicate webhook) - hold will stay released");
+      } else {
+        // Already consumed but not expired - this handles duplicate webhooks
+        // Since authorization only lasts 60 seconds, any non-expired consumed auth is recent
+        console.log("[Webhook] Authorization already consumed but not expired (duplicate webhook) - hold will stay released");
         return;
       }
     }
