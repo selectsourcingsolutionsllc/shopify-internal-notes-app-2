@@ -8,7 +8,8 @@ import {
 } from "../utils/fulfillment-hold.server";
 
 // Public endpoint for UI extensions - explicitly release hold after acknowledgment
-// This is the ONLY way the hold can be released - prevents race conditions
+// This creates an authorization token so webhooks know this is a legitimate release
+// The authorization expires in 60 seconds - enough time for the release to complete
 
 // Helper to extract shop domain from session token
 function getShopFromToken(request: Request): string | null {
@@ -70,7 +71,32 @@ export async function action({ request }: ActionFunctionArgs) {
         }, { status: 403 });
       }
 
-      console.log("[RELEASE API] All notes acknowledged - releasing hold...");
+      console.log("[RELEASE API] All notes acknowledged - creating authorization and releasing hold...");
+
+      // Create authorization token BEFORE releasing hold
+      // This allows the webhook to know this is a legitimate release
+      const expiresAt = new Date(Date.now() + 60 * 1000); // 60 seconds from now
+
+      await prisma.orderReleaseAuthorization.upsert({
+        where: {
+          orderId_shopDomain: {
+            orderId,
+            shopDomain: shop,
+          },
+        },
+        create: {
+          orderId,
+          shopDomain: shop,
+          expiresAt,
+          consumed: false,
+        },
+        update: {
+          expiresAt,
+          consumed: false,
+        },
+      });
+
+      console.log("[RELEASE API] Authorization created, expires at:", expiresAt);
 
       // Get admin API client to release the hold
       const { admin } = await unauthenticated.admin(shop);

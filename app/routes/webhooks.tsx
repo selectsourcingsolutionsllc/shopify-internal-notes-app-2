@@ -163,6 +163,7 @@ async function handleFulfillmentCreated(shop: string, payload: any) {
       return;
     }
 
+    const orderGid = `gid://shopify/Order/${orderId}`;
     console.log(`[Webhook] Fulfillment ${fulfillmentId} created for order ${orderId}`);
 
     // Check if blockFulfillment is enabled
@@ -172,6 +173,24 @@ async function handleFulfillmentCreated(shop: string, payload: any) {
 
     if (!settings?.blockFulfillment) {
       console.log("[Webhook] blockFulfillment is disabled, not checking acknowledgments");
+      return;
+    }
+
+    // Check for valid authorization FIRST
+    // If user released hold via our app, there should be a valid authorization
+    const authorization = await prisma.orderReleaseAuthorization.findUnique({
+      where: {
+        orderId_shopDomain: {
+          orderId: orderGid,
+          shopDomain: shop,
+        },
+      },
+    });
+
+    const now = new Date();
+    if (authorization && !authorization.consumed && authorization.expiresAt > now) {
+      // Valid authorization exists - this fulfillment was done after proper release
+      console.log("[Webhook] Valid authorization found - fulfillment was done after proper release");
       return;
     }
 
@@ -202,20 +221,21 @@ async function handleFulfillmentCreated(shop: string, payload: any) {
 
     console.log("[Webhook] Products in fulfillment:", productIds);
 
-    // Check if all notes have been acknowledged
-    const allAcknowledged = await checkAllNotesAcknowledged(
-      shop,
-      `gid://shopify/Order/${orderId}`,
-      productIds
-    );
+    // Check if this order has products with notes
+    const notesCount = await prisma.productNote.count({
+      where: {
+        shopDomain: shop,
+        productId: { in: productIds },
+      },
+    });
 
-    if (allAcknowledged) {
-      console.log("[Webhook] All notes acknowledged, fulfillment can proceed");
+    if (notesCount === 0) {
+      console.log("[Webhook] No notes for products in this fulfillment, allowing");
       return;
     }
 
-    // Notes NOT acknowledged - CANCEL THE FULFILLMENT!
-    console.log("[Webhook] Notes NOT acknowledged! CANCELING fulfillment...");
+    // Products have notes and NO valid authorization - CANCEL THE FULFILLMENT!
+    console.log("[Webhook] Products have notes and NO authorization! CANCELING fulfillment...");
 
     const fulfillmentGid = `gid://shopify/Fulfillment/${fulfillmentId}`;
 
@@ -244,8 +264,16 @@ async function handleFulfillmentCreated(shop: string, payload: any) {
     } else {
       console.log("[Webhook] Successfully CANCELED fulfillment", fulfillmentId);
 
-      // Also re-apply the hold to the order
-      console.log("[Webhook] Re-applying hold to order...");
+      // Clear acknowledgments and re-apply the hold to the order
+      console.log("[Webhook] Clearing acknowledgments and re-applying hold to order...");
+
+      await prisma.orderAcknowledgment.deleteMany({
+        where: {
+          shopDomain: shop,
+          orderId: orderGid,
+        },
+      });
+
       const holdResult = await applyHoldsToOrder(admin, String(orderId));
       if (holdResult.success) {
         console.log("[Webhook] Successfully re-applied hold after cancellation");
@@ -304,17 +332,8 @@ async function handleHoldReleased(shop: string, payload: any) {
       console.log("[Webhook] Found order ID:", orderId);
     }
 
+    const orderGid = `gid://shopify/Order/${orderId}`;
     console.log(`[Webhook] Hold released on fulfillment order ${fulfillmentOrderNumericId} for order ${orderId}`);
-
-    // Get product IDs from the order
-    const productIds = await getOrderProductIds(admin, String(orderId));
-
-    if (productIds.length === 0) {
-      console.log("[Webhook] No products found in order, not re-applying hold");
-      return;
-    }
-
-    console.log("[Webhook] Products in order:", productIds);
 
     // Check if blockFulfillment is enabled
     const settings = await prisma.appSetting.findUnique({
@@ -326,20 +345,69 @@ async function handleHoldReleased(shop: string, payload: any) {
       return;
     }
 
-    // Check if all notes have been acknowledged
-    const allAcknowledged = await checkAllNotesAcknowledged(
-      shop,
-      `gid://shopify/Order/${orderId}`,
-      productIds
-    );
+    // CHECK FOR VALID AUTHORIZATION FIRST
+    // If this release was done via our app's "Release Hold" button, there will be a valid authorization
+    const authorization = await prisma.orderReleaseAuthorization.findUnique({
+      where: {
+        orderId_shopDomain: {
+          orderId: orderGid,
+          shopDomain: shop,
+        },
+      },
+    });
 
-    if (allAcknowledged) {
-      console.log("[Webhook] All notes acknowledged, hold can stay released");
+    const now = new Date();
+    if (authorization && !authorization.consumed && authorization.expiresAt > now) {
+      // Valid authorization exists - this is a legitimate release via our app
+      console.log("[Webhook] Valid authorization found - this is a legitimate release via our app");
+
+      // Consume the authorization so it can't be reused
+      await prisma.orderReleaseAuthorization.update({
+        where: { id: authorization.id },
+        data: { consumed: true },
+      });
+
+      console.log("[Webhook] Authorization consumed - hold will stay released");
       return;
     }
 
-    // Notes NOT acknowledged - RE-APPLY THE HOLD!
-    console.log("[Webhook] Notes NOT acknowledged! Re-applying hold...");
+    // NO VALID AUTHORIZATION - This is an unauthorized release (someone clicked Shopify's Unhold button)
+    console.log("[Webhook] NO VALID AUTHORIZATION - This is an unauthorized release attempt!");
+
+    // Get product IDs from the order
+    const productIds = await getOrderProductIds(admin, String(orderId));
+
+    if (productIds.length === 0) {
+      console.log("[Webhook] No products found in order, not re-applying hold");
+      return;
+    }
+
+    console.log("[Webhook] Products in order:", productIds);
+
+    // Check if this order has products with notes that need acknowledgment
+    const notesCount = await prisma.productNote.count({
+      where: {
+        shopDomain: shop,
+        productId: { in: productIds },
+      },
+    });
+
+    if (notesCount === 0) {
+      console.log("[Webhook] No notes for products in this order, hold can stay released");
+      return;
+    }
+
+    // Products have notes - RE-APPLY THE HOLD!
+    console.log("[Webhook] Order has products with notes - RE-APPLYING HOLD!");
+
+    // Also clear any existing acknowledgments to force re-acknowledgment
+    const deleteResult = await prisma.orderAcknowledgment.deleteMany({
+      where: {
+        shopDomain: shop,
+        orderId: orderGid,
+      },
+    });
+    console.log("[Webhook] Cleared", deleteResult.count, "existing acknowledgments");
 
     const fulfillmentOrderGid = `gid://shopify/FulfillmentOrder/${fulfillmentOrderNumericId}`;
     const holdResult = await applyFulfillmentHold(admin, fulfillmentOrderGid);
