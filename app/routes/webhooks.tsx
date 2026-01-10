@@ -237,6 +237,34 @@ async function handleFulfillmentCreated(shop: string, payload: any) {
     // Products have notes and NO valid authorization - CANCEL THE FULFILLMENT!
     console.log("[Webhook] Products have notes and NO authorization! CANCELING fulfillment...");
 
+    // Add a note to the order explaining why fulfillment was blocked
+    try {
+      await admin.graphql(`
+        mutation orderUpdate($input: OrderInput!) {
+          orderUpdate(input: $input) {
+            order {
+              id
+              note
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `, {
+        variables: {
+          input: {
+            id: orderGid,
+            note: "⚠️ FULFILLMENT BLOCKED: Internal notes must be acknowledged before shipping. Please view the order details and acknowledge all product notes before fulfilling."
+          }
+        }
+      });
+      console.log("[Webhook] Added order note explaining fulfillment block");
+    } catch (noteError) {
+      console.error("[Webhook] Failed to add order note:", noteError);
+    }
+
     const fulfillmentGid = `gid://shopify/Fulfillment/${fulfillmentId}`;
 
     const cancelResponse = await admin.graphql(`
@@ -399,6 +427,34 @@ async function handleHoldReleased(shop: string, payload: any) {
 
     // Products have notes - RE-APPLY THE HOLD!
     console.log("[Webhook] Order has products with notes - RE-APPLYING HOLD!");
+
+    // Add a note to the order explaining why hold was re-applied
+    try {
+      await admin.graphql(`
+        mutation orderUpdate($input: OrderInput!) {
+          orderUpdate(input: $input) {
+            order {
+              id
+              note
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `, {
+        variables: {
+          input: {
+            id: orderGid,
+            note: "⚠️ FULFILLMENT BLOCKED: Internal notes must be acknowledged before shipping. Please view the order details and acknowledge all product notes before fulfilling."
+          }
+        }
+      });
+      console.log("[Webhook] Added order note explaining hold re-application");
+    } catch (noteError) {
+      console.error("[Webhook] Failed to add order note:", noteError);
+    }
 
     // Also clear any existing acknowledgments to force re-acknowledgment
     const deleteResult = await prisma.orderAcknowledgment.deleteMany({
