@@ -64,3 +64,13 @@ DO NOT change code until confirming the basic infrastructure is working.
 - API Key: REDACTED_SHOPIFY_API_KEY
 - Client Secret: REDACTED_SHOPIFY_API_SECRET
 - Always confirm with user before using these credentials
+
+# PRODUCTION CHECKLIST
+
+**IMPORTANT:** Before deploying to production or when the user asks about app readiness, check `PRODUCTION_CHECKLIST.md` in the project root.
+
+This checklist contains security issues and bugs found by CodeRabbit that MUST be fixed before the app can safely handle real customer data.
+
+- Remind the user about remaining checklist items periodically
+- When fixing an issue from the checklist, update the checkbox to `[x]` when done
+- Critical items block production deployment
