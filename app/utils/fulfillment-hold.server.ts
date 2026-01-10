@@ -68,7 +68,7 @@ export async function getOrderIdFromFulfillmentOrder(
 ): Promise<string | null> {
   try {
     const response = await admin.graphql(
-      \`#graphql
+      `#graphql
       query GetFulfillmentOrderDetails($id: ID!) {
         fulfillmentOrder(id: $id) {
           id
@@ -76,7 +76,7 @@ export async function getOrderIdFromFulfillmentOrder(
             id
           }
         }
-      }\`,
+      }`,
       {
         variables: {
           id: fulfillmentOrderId,
