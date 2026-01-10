@@ -2,37 +2,10 @@
 # Docs: https://docs.coderabbit.ai/configuration
 
 reviews:
-  # Focus only on bugs, not style or minor issues
+  # Show all issues - bugs, style, improvements, everything
   high_level_summary: true
-  high_level_summary_instructions: |
-    Focus ONLY on bugs and potential errors. Ignore:
-    - Code style issues
-    - Formatting
-    - Naming conventions
-    - Documentation
-    - Minor improvements
 
-    Only report issues that could cause the code to break or behave incorrectly.
-
-  review_instructions: |
-    You are a bug hunter. Only report:
-    - Logic errors
-    - Runtime errors
-    - Security vulnerabilities
-    - Null/undefined issues
-    - Off-by-one errors
-    - Race conditions
-    - Memory leaks
-    - Unhandled exceptions
-
-    Do NOT report:
-    - Style preferences
-    - Variable naming
-    - Missing comments
-    - Code organization suggestions
-    - Performance optimizations (unless critical)
-
-  # Keep reviews concise
+  # Keep reviews thorough
   poem: false
 
 chat:
