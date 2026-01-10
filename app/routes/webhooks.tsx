@@ -161,7 +161,7 @@ async function handleOrderCreated(shop: string, payload: any) {
           variables: {
             input: {
               id: orderGid,
-              note: "⚠️ FULFILLMENT BLOCKED: Internal notes must be acknowledged before shipping. Please view the order details and acknowledge all product notes before fulfilling."
+              note: "⚠️ FULFILLMENT BLOCKED⚠️: \n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling."
             }
           }
         });
@@ -285,7 +285,7 @@ async function handleFulfillmentCreated(shop: string, payload: any) {
         variables: {
           input: {
             id: orderGid,
-            note: "⚠️ FULFILLMENT BLOCKED: Internal notes must be acknowledged before shipping. Please view the order details and acknowledge all product notes before fulfilling."
+            note: "⚠️ FULFILLMENT BLOCKED⚠️: \n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling."
           }
         }
       });
@@ -487,7 +487,7 @@ async function handleHoldReleased(shop: string, payload: any) {
         variables: {
           input: {
             id: orderGid,
-            note: "⚠️ FULFILLMENT BLOCKED: Internal notes must be acknowledged before shipping. Please view the order details and acknowledge all product notes before fulfilling."
+            note: "⚠️ FULFILLMENT BLOCKED⚠️: \n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling."
           }
         }
       });
