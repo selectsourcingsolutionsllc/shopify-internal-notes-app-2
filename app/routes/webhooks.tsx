@@ -12,7 +12,7 @@ import {
 
 // Constants for the hold warning in Additional Details (customAttributes)
 const HOLD_ATTRIBUTE_KEY = "fulfillment_blocked";
-const HOLD_ATTRIBUTE_VALUE = "⚠️ FULFILLMENT BLOCKED⚠️: \n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling.";
+const HOLD_ATTRIBUTE_VALUE = "⚠️ FULFILLMENT BLOCKED⚠️: =============================There is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling.";
 
 // Helper to get existing order customAttributes
 async function getOrderCustomAttributes(admin: any, orderGid: string): Promise<Array<{key: string, value: string}>> {
