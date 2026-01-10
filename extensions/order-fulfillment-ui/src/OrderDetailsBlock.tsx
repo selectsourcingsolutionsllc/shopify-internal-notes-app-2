@@ -235,6 +235,11 @@ function OrderDetailsBlock() {
       });
       setAcknowledgments(acks);
 
+      // Check if hold needs to be re-applied (e.g., if user left without fulfilling)
+      if (productIds.length > 0) {
+        await checkAndReapplyHold(productIds);
+      }
+
     } catch (err: any) {
       console.error('[Order Extension] Error fetching notes:', err);
       setError(err.message);
@@ -262,6 +267,46 @@ function OrderDetailsBlock() {
       setSettings(responseData.settings);
     } catch (err: any) {
       console.error('[Order Extension] Failed to fetch settings:', err);
+    }
+  };
+
+  // Check if hold needs to be re-applied (called when extension loads)
+  const checkAndReapplyHold = async (productIds: string[]) => {
+    try {
+      if (!orderId || productIds.length === 0) return;
+
+      const shop = shopDomain || await fetchShopDomain();
+      if (!shop) return;
+
+      console.log('[Order Extension] Checking if hold needs to be re-applied...');
+
+      const formData = new FormData();
+      formData.append('orderId', orderId);
+      formData.append('productIds', JSON.stringify(productIds));
+
+      const url = `${BASE_URL}/api/public/check-hold?shop=${encodeURIComponent(shop)}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        console.error('[Order Extension] Check-hold request failed:', response.status);
+        return;
+      }
+
+      const result = await response.json();
+      console.log('[Order Extension] Check-hold result:', result);
+
+      if (result.holdApplied) {
+        console.log('[Order Extension] Hold was re-applied, refreshing data...');
+        // Refresh the acknowledgments since they were cleared
+        setAcknowledgments({});
+        setCanFulfill(false);
+      }
+    } catch (err: any) {
+      console.error('[Order Extension] Error checking hold:', err);
     }
   };
 
