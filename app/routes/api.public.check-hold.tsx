@@ -138,8 +138,12 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ holdApplied: false, reason: "no notes" });
       }
 
-      // Check for valid authorization (not expired, not consumed)
+      // Check for valid authorization
+      // Accept if: not expired AND (not consumed OR consumed within last minute)
+      // The "consumed within last minute" handles the case where the webhook already consumed it
       const now = new Date();
+      const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
+
       const authorization = await prisma.orderReleaseAuthorization.findUnique({
         where: {
           orderId_shopDomain: {
@@ -149,9 +153,16 @@ export async function action({ request }: ActionFunctionArgs) {
         },
       });
 
-      if (authorization && !authorization.consumed && authorization.expiresAt > now) {
-        console.log("[CHECK-HOLD] Valid authorization exists, no hold needed");
-        return json({ holdApplied: false, reason: "valid authorization" });
+      if (authorization && authorization.expiresAt > now) {
+        // Authorization exists and hasn't expired
+        if (!authorization.consumed) {
+          console.log("[CHECK-HOLD] Valid unconsumed authorization exists, no hold needed");
+          return json({ holdApplied: false, reason: "valid authorization" });
+        } else if (authorization.createdAt > oneMinuteAgo) {
+          // Was consumed but created recently - this is from a legitimate release
+          console.log("[CHECK-HOLD] Recently consumed authorization exists, no hold needed");
+          return json({ holdApplied: false, reason: "recently consumed authorization" });
+        }
       }
 
       // No valid authorization - need to re-apply hold
