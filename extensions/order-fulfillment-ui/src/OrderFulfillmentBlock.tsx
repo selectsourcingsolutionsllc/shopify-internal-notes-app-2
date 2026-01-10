@@ -30,6 +30,7 @@ function OrderFulfillmentBlock() {
   const [currentNoteId, setCurrentNoteId] = useState<string | null>(null);
   const [canFulfill, setCanFulfill] = useState(true);
   const [debugInfo, setDebugInfo] = useState<string>('');
+  const [orderProductIds, setOrderProductIds] = useState<string[]>([]);
 
   const orderId = data.selected?.[0]?.id;
   const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
@@ -56,7 +57,9 @@ function OrderFulfillmentBlock() {
     setDebugInfo(`Order: ${orderId || 'none'}, Shop: ${shop || 'none'}`);
 
     if (orderId) {
-      fetchOrderNotes();
+      // Reset acknowledgments first, then fetch notes
+      // This ensures every person viewing the order sees notes fresh
+      resetAndFetchNotes();
       fetchSettings();
     } else {
       setLoading(false);
@@ -185,6 +188,130 @@ function OrderFulfillmentBlock() {
       console.error('[Extension] Failed to fetch settings:', err);
     }
   };
+
+  // Reset acknowledgments and re-apply hold when page loads
+  // This ensures every person viewing the order must acknowledge notes
+  const resetAndFetchNotes = async () => {
+    try {
+      setLoading(true);
+      console.log('[Order Extension] Starting resetAndFetchNotes for order:', orderId);
+
+      // First, get product IDs via GraphQL
+      let productIds: string[] = [];
+
+      try {
+        const query = (api as any).query;
+        if (query) {
+          const result = await query(`
+            query GetOrder($id: ID!) {
+              order(id: $id) {
+                id
+                name
+                lineItems(first: 50) {
+                  edges {
+                    node {
+                      product {
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `, { variables: { id: orderId } });
+
+          console.log('[Order Extension] GraphQL result:', JSON.stringify(result));
+
+          if (result?.data?.order?.lineItems?.edges) {
+            productIds = result.data.order.lineItems.edges
+              .map((edge: any) => edge.node?.product?.id)
+              .filter(Boolean);
+          }
+        }
+      } catch (queryErr) {
+        console.log('[Order Extension] GraphQL query failed:', queryErr);
+      }
+
+      console.log('[Order Extension] Product IDs found:', productIds);
+
+      if (productIds.length === 0) {
+        console.log('[Order Extension] No product IDs found');
+        setProductNotes([]);
+        setLoading(false);
+        return;
+      }
+
+      // Save product IDs to state for use when acknowledging
+      setOrderProductIds(productIds);
+
+      // Reset acknowledgments and re-apply hold
+      const shop = getShopDomain();
+      const resetUrl = `${BASE_URL}/api/public/reset-acknowledgments${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+
+      console.log('[Order Extension] Resetting acknowledgments for order:', orderId);
+
+      try {
+        const resetResponse = await fetch(resetUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId,
+            productIds,
+          }),
+        });
+
+        if (resetResponse.ok) {
+          const resetData = await resetResponse.json();
+          console.log('[Order Extension] Reset result:', resetData);
+        } else {
+          console.log('[Order Extension] Reset failed:', resetResponse.status);
+        }
+      } catch (resetErr) {
+        console.log('[Order Extension] Reset error:', resetErr);
+        // Continue even if reset fails - still show notes
+      }
+
+      // Now fetch notes (acknowledgments will be empty after reset)
+      const url = `${BASE_URL}/api/public/orders/${encodeURIComponent(orderId)}/notes${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+
+      console.log('[Order Extension] Fetching order notes:', url);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ productIds }),
+      });
+
+      console.log('[Order Extension] Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch notes');
+      }
+
+      const responseData = await response.json();
+      console.log('[Order Extension] Response data:', JSON.stringify(responseData));
+
+      setProductNotes(responseData.notes || []);
+
+      // Initialize acknowledgments as empty (since we just reset them)
+      const acks: Record<string, any> = {};
+      (responseData.notes || []).forEach((note: any) => {
+        acks[note.id] = { acknowledged: false };
+      });
+      setAcknowledgments(acks);
+
+    } catch (err: any) {
+      console.error('[Order Extension] Error in resetAndFetchNotes:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const handleAcknowledge = async (noteId: string, photoRequired = false) => {
     if (photoRequired || settings?.requirePhotoProof) {
@@ -200,6 +327,8 @@ function OrderFulfillmentBlock() {
       const formData = new FormData();
       formData.append('noteId', noteId);
       formData.append('orderId', orderId);
+      // Pass all product IDs so API can check if all notes are acknowledged
+      formData.append('allProductIds', JSON.stringify(orderProductIds));
 
       if (photoData) {
         formData.append('photo', photoData);
@@ -212,9 +341,12 @@ function OrderFulfillmentBlock() {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!response.ok) throw new Error('Failed to acknowledge note');
-      
+
+      const responseData = await response.json();
+      console.log('[Order Extension] Acknowledgment response:', responseData);
+
       // Update local state
       setAcknowledgments(prev => ({
         ...prev,
@@ -224,10 +356,16 @@ function OrderFulfillmentBlock() {
           proofPhotoUrl: photoData ? URL.createObjectURL(photoData) : null,
         },
       }));
-      
+
+      // If hold was released, update canFulfill
+      if (responseData.holdReleased) {
+        console.log('[Order Extension] Hold released! Can now fulfill.');
+        setCanFulfill(true);
+      }
+
       setShowPhotoModal(false);
       setCurrentNoteId(null);
-      
+
     } catch (err: any) {
       setError(err.message);
     }
