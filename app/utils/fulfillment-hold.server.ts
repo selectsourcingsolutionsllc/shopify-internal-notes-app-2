@@ -59,6 +59,47 @@ export async function getOrderProductIds(
     return [];
   }
 }
+/**
+ * Get order ID from a fulfillment order ID
+ */
+export async function getOrderIdFromFulfillmentOrder(
+  admin: any,
+  fulfillmentOrderId: string
+): Promise<string | null> {
+  try {
+    const response = await admin.graphql(
+      \`#graphql
+      query GetFulfillmentOrderDetails($id: ID!) {
+        fulfillmentOrder(id: $id) {
+          id
+          order {
+            id
+          }
+        }
+      }\`,
+      {
+        variables: {
+          id: fulfillmentOrderId,
+        },
+      }
+    );
+
+    const data = await response.json();
+    const orderId = data?.data?.fulfillmentOrder?.order?.id;
+
+    if (orderId) {
+      // Extract numeric ID from gid://shopify/Order/123456
+      const match = orderId.match(/Order\/(\d+)/);
+      return match ? match[1] : null;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[FulfillmentHold] Error getting order from fulfillment order:", error);
+    return null;
+  }
+}
+
 
 /**
  * Get fulfillment orders for a Shopify order

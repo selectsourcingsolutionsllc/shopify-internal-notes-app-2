@@ -7,6 +7,7 @@ import {
   applyFulfillmentHold,
   checkAllNotesAcknowledged,
   getOrderProductIds,
+  getOrderIdFromFulfillmentOrder,
 } from "../utils/fulfillment-hold.server";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -151,15 +152,19 @@ async function handleHoldReleased(shop: string, payload: any) {
 
   try {
     // The payload contains the fulfillment order that had its hold released
-    const fulfillmentOrderId = payload.fulfillment_order?.id || payload.id;
-    const orderId = payload.fulfillment_order?.order_id || payload.order_id;
+    // Extract fulfillment order ID - it might be a GID or plain ID
+    let fulfillmentOrderId = payload.fulfillment_order?.id || payload.id;
 
-    if (!fulfillmentOrderId || !orderId) {
-      console.log("[Webhook] Missing fulfillment order or order ID, skipping");
+    if (!fulfillmentOrderId) {
+      console.log("[Webhook] Missing fulfillment order ID, skipping");
       return;
     }
 
-    console.log(`[Webhook] Hold released on fulfillment order ${fulfillmentOrderId} for order ${orderId}`);
+    // Extract numeric ID if it's a GID
+    const foMatch = String(fulfillmentOrderId).match(/FulfillmentOrder\/(\d+)/);
+    const fulfillmentOrderNumericId = foMatch ? foMatch[1] : fulfillmentOrderId;
+
+    console.log(`[Webhook] Fulfillment order ID: ${fulfillmentOrderNumericId}`);
 
     // Get admin API client for this shop
     let admin;
@@ -170,6 +175,26 @@ async function handleHoldReleased(shop: string, payload: any) {
       console.error("[Webhook] Failed to get admin session:", sessionError);
       return;
     }
+
+    // Order ID might not be in the payload - we need to look it up
+    let orderId = payload.fulfillment_order?.order_id || payload.order_id;
+
+    if (!orderId) {
+      console.log("[Webhook] Order ID not in payload, looking it up...");
+      // Use the GID format for the lookup
+      const fulfillmentOrderGid = String(fulfillmentOrderId).startsWith('gid://')
+        ? fulfillmentOrderId
+        : `gid://shopify/FulfillmentOrder/${fulfillmentOrderNumericId}`;
+      orderId = await getOrderIdFromFulfillmentOrder(admin, fulfillmentOrderGid);
+
+      if (!orderId) {
+        console.log("[Webhook] Could not find order ID, skipping");
+        return;
+      }
+      console.log("[Webhook] Found order ID:", orderId);
+    }
+
+    console.log(`[Webhook] Hold released on fulfillment order ${fulfillmentOrderNumericId} for order ${orderId}`);
 
     // Get product IDs from the order
     const productIds = await getOrderProductIds(admin, String(orderId));
@@ -206,11 +231,11 @@ async function handleHoldReleased(shop: string, payload: any) {
     // Notes NOT acknowledged - RE-APPLY THE HOLD!
     console.log("[Webhook] Notes NOT acknowledged! Re-applying hold...");
 
-    const fulfillmentOrderGid = `gid://shopify/FulfillmentOrder/${fulfillmentOrderId}`;
+    const fulfillmentOrderGid = `gid://shopify/FulfillmentOrder/${fulfillmentOrderNumericId}`;
     const holdResult = await applyFulfillmentHold(admin, fulfillmentOrderGid);
 
     if (holdResult.success) {
-      console.log("[Webhook] Successfully RE-APPLIED hold to fulfillment order", fulfillmentOrderId);
+      console.log("[Webhook] Successfully RE-APPLIED hold to fulfillment order", fulfillmentOrderNumericId);
     } else {
       console.error("[Webhook] Failed to re-apply hold:", holdResult.error);
     }
