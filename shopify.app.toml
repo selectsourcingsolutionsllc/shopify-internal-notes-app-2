@@ -28,6 +28,10 @@ api_version = "2025-07"
   topics = [ "fulfillment_orders/hold_released" ]
   uri = "/webhooks"
 
+  [[webhooks.subscriptions]]
+  topics = [ "fulfillments/create" ]
+  uri = "/webhooks"
+
 [access.admin]
 direct_api_mode = "offline"
 
