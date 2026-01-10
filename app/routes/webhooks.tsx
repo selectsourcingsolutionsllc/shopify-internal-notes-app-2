@@ -35,6 +35,9 @@ export async function action({ request }: ActionFunctionArgs) {
     case "FULFILLMENT_ORDERS_HOLD_RELEASED":
       await handleHoldReleased(shop, payload);
       break;
+    case "FULFILLMENTS_CREATE":
+      await handleFulfillmentCreated(shop, payload);
+      break;
     case "CUSTOMERS_DATA_REQUEST":
       await handleCustomerDataRequest(shop);
       break;
@@ -143,6 +146,113 @@ async function handleOrderCreated(shop: string, payload: any) {
   } catch (error) {
     console.error("[Webhook] Error handling order created:", error);
     // Don't throw - we don't want to fail the webhook
+  }
+}
+
+async function handleFulfillmentCreated(shop: string, payload: any) {
+  console.log(`[Webhook] Fulfillment created for shop: ${shop}`);
+  console.log(`[Webhook] Fulfillment payload:`, JSON.stringify(payload, null, 2));
+
+  try {
+    // Get fulfillment ID and order ID from payload
+    const fulfillmentId = payload.id;
+    const orderId = payload.order_id;
+
+    if (!fulfillmentId || !orderId) {
+      console.log("[Webhook] Missing fulfillment ID or order ID, skipping");
+      return;
+    }
+
+    console.log(`[Webhook] Fulfillment ${fulfillmentId} created for order ${orderId}`);
+
+    // Check if blockFulfillment is enabled
+    const settings = await prisma.appSetting.findUnique({
+      where: { shopDomain: shop },
+    });
+
+    if (!settings?.blockFulfillment) {
+      console.log("[Webhook] blockFulfillment is disabled, not checking acknowledgments");
+      return;
+    }
+
+    // Get admin API client
+    let admin;
+    try {
+      const result = await unauthenticated.admin(shop);
+      admin = result.admin;
+    } catch (sessionError) {
+      console.error("[Webhook] Failed to get admin session:", sessionError);
+      return;
+    }
+
+    // Get product IDs from the fulfillment line items
+    const productIds: string[] = [];
+    if (payload.line_items) {
+      for (const item of payload.line_items) {
+        if (item.product_id) {
+          productIds.push(`gid://shopify/Product/${item.product_id}`);
+        }
+      }
+    }
+
+    if (productIds.length === 0) {
+      console.log("[Webhook] No products in fulfillment, skipping");
+      return;
+    }
+
+    console.log("[Webhook] Products in fulfillment:", productIds);
+
+    // Check if all notes have been acknowledged
+    const allAcknowledged = await checkAllNotesAcknowledged(
+      shop,
+      `gid://shopify/Order/${orderId}`,
+      productIds
+    );
+
+    if (allAcknowledged) {
+      console.log("[Webhook] All notes acknowledged, fulfillment can proceed");
+      return;
+    }
+
+    // Notes NOT acknowledged - CANCEL THE FULFILLMENT!
+    console.log("[Webhook] Notes NOT acknowledged! CANCELING fulfillment...");
+
+    const fulfillmentGid = `gid://shopify/Fulfillment/${fulfillmentId}`;
+
+    const cancelResponse = await admin.graphql(`
+      mutation fulfillmentCancel($id: ID!) {
+        fulfillmentCancel(id: $id) {
+          fulfillment {
+            id
+            status
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `, {
+      variables: { id: fulfillmentGid }
+    });
+
+    const cancelResult = await cancelResponse.json();
+    console.log("[Webhook] Cancel result:", JSON.stringify(cancelResult, null, 2));
+
+    if (cancelResult.data?.fulfillmentCancel?.userErrors?.length > 0) {
+      console.error("[Webhook] Failed to cancel fulfillment:", cancelResult.data.fulfillmentCancel.userErrors);
+    } else {
+      console.log("[Webhook] Successfully CANCELED fulfillment", fulfillmentId);
+
+      // Also re-apply the hold to the order
+      console.log("[Webhook] Re-applying hold to order...");
+      const holdResult = await applyHoldsToOrder(admin, String(orderId));
+      if (holdResult.success) {
+        console.log("[Webhook] Successfully re-applied hold after cancellation");
+      }
+    }
+  } catch (error) {
+    console.error("[Webhook] Error handling fulfillment created:", error);
   }
 }
 
