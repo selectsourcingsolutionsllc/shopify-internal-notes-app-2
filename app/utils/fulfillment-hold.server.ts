@@ -328,10 +328,18 @@ export async function applyHoldsToOrder(
   admin: any,
   orderId: string
 ): Promise<{ success: boolean; results: HoldResult[] }> {
+  console.log("[FulfillmentHold] Getting fulfillment orders for order:", orderId);
   const fulfillmentOrders = await getFulfillmentOrders(admin, orderId);
+  console.log("[FulfillmentHold] Found", fulfillmentOrders.length, "fulfillment orders:", JSON.stringify(fulfillmentOrders));
   const results: HoldResult[] = [];
 
+  if (fulfillmentOrders.length === 0) {
+    console.log("[FulfillmentHold] No fulfillment orders found for order", orderId);
+    return { success: true, results: [] };
+  }
+
   for (const fo of fulfillmentOrders) {
+    console.log("[FulfillmentHold] Processing fulfillment order:", fo.id, "status:", fo.status);
     // Only apply hold to orders that are in a state that can be held
     if (fo.status === "OPEN" || fo.status === "SCHEDULED") {
       const result = await applyFulfillmentHold(admin, fo.id);
