@@ -143,6 +143,36 @@ export async function action({ request }: ActionFunctionArgs) {
             holdReleased = result.success;
 
             console.log("[PUBLIC API] Hold release result:", result);
+
+            // Clear the "FULFILLMENT BLOCKED" note from the order
+            if (holdReleased) {
+              try {
+                await admin.graphql(`
+                  mutation orderUpdate($input: OrderInput!) {
+                    orderUpdate(input: $input) {
+                      order {
+                        id
+                        note
+                      }
+                      userErrors {
+                        field
+                        message
+                      }
+                    }
+                  }
+                `, {
+                  variables: {
+                    input: {
+                      id: orderId,
+                      note: ""
+                    }
+                  }
+                });
+                console.log("[PUBLIC API] Cleared order note");
+              } catch (noteError) {
+                console.error("[PUBLIC API] Failed to clear order note:", noteError);
+              }
+            }
           }
         } catch (checkError) {
           console.error("[PUBLIC API] Error checking/releasing:", checkError);
