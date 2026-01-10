@@ -86,36 +86,30 @@ export async function action({ request }: ActionFunctionArgs) {
         },
       });
 
-      // Check if all notes are acknowledged and release hold if so
+      // Check if all notes are acknowledged (but DON'T auto-release hold)
+      // User must explicitly click "Release Hold" button to release
       const allProductIdsJson = formData.get("allProductIds") as string;
+      let allAcknowledged = false;
+
       if (allProductIdsJson) {
         try {
           const allProductIds = JSON.parse(allProductIdsJson) as string[];
           console.log("[PUBLIC API] Checking if all notes acknowledged for order:", orderId);
 
-          const allAcknowledged = await checkAllNotesAcknowledged(
+          allAcknowledged = await checkAllNotesAcknowledged(
             shop,
             orderId,
             allProductIds
           );
 
-          if (allAcknowledged) {
-            console.log("[PUBLIC API] All notes acknowledged! Releasing hold...");
-
-            // Get admin API client to release the hold
-            const { admin } = await unauthenticated.admin(shop);
-            const result = await releaseHoldsFromOrder(admin, orderId);
-
-            console.log("[PUBLIC API] Hold release result:", result);
-            return json({ acknowledgment, holdReleased: result.success });
-          }
-        } catch (holdError) {
-          console.error("[PUBLIC API] Error checking/releasing hold:", holdError);
-          // Don't fail the acknowledgment if hold release fails
+          console.log("[PUBLIC API] All acknowledged:", allAcknowledged);
+          // Note: Hold is NOT released here - user must click button
+        } catch (checkError) {
+          console.error("[PUBLIC API] Error checking acknowledgments:", checkError);
         }
       }
 
-      return json({ acknowledgment });
+      return json({ acknowledgment, allAcknowledged });
     } catch (error) {
       console.error("[PUBLIC API] Error:", error);
       return json({ error: "Database error" }, { status: 500 });
