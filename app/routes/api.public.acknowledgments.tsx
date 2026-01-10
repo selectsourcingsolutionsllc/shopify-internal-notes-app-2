@@ -6,6 +6,7 @@ import {
   checkAllNotesAcknowledged,
   releaseHoldsFromOrder,
 } from "../utils/fulfillment-hold.server";
+import { removeHoldNoteFromOrder } from "./webhooks";
 
 // Public endpoint for UI extensions - submit acknowledgments
 // NOTE: CORS headers are handled by Express middleware in server.js
@@ -144,33 +145,13 @@ export async function action({ request }: ActionFunctionArgs) {
 
             console.log("[PUBLIC API] Hold release result:", result);
 
-            // Clear the "FULFILLMENT BLOCKED" note from the order
+            // Remove the "FULFILLMENT BLOCKED" warning from the order note (preserves other notes)
             if (holdReleased) {
               try {
-                await admin.graphql(`
-                  mutation orderUpdate($input: OrderInput!) {
-                    orderUpdate(input: $input) {
-                      order {
-                        id
-                        note
-                      }
-                      userErrors {
-                        field
-                        message
-                      }
-                    }
-                  }
-                `, {
-                  variables: {
-                    input: {
-                      id: orderId,
-                      note: ""
-                    }
-                  }
-                });
-                console.log("[PUBLIC API] Cleared order note");
+                await removeHoldNoteFromOrder(admin, orderId);
+                console.log("[PUBLIC API] Removed hold warning from order note");
               } catch (noteError) {
-                console.error("[PUBLIC API] Failed to clear order note:", noteError);
+                console.error("[PUBLIC API] Failed to remove hold warning:", noteError);
               }
             }
           }
