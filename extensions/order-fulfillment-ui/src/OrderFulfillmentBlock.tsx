@@ -368,10 +368,16 @@ function OrderFulfillmentBlock() {
         },
       }));
 
-      // Check if all notes are now acknowledged (but hold is NOT released yet)
+      // Check if all notes are now acknowledged and hold was auto-released
       if (responseData.allAcknowledged) {
-        console.log('[Order Extension] All notes acknowledged! User can now release hold.');
-        setCanFulfill(true); // Enable the release button
+        console.log('[Order Extension] All notes acknowledged!');
+        setCanFulfill(true);
+
+        // Check if hold was auto-released
+        if (responseData.holdReleased) {
+          console.log('[Order Extension] Hold was auto-released!');
+          setHoldReleased(true);
+        }
       }
 
       setShowPhotoModal(false);
