@@ -77,20 +77,38 @@ async function addHoldNoteToOrder(admin: any, orderGid: string): Promise<void> {
 export async function removeHoldNoteFromOrder(admin: any, orderGid: string): Promise<void> {
   const existingNote = await getOrderNote(admin, orderGid);
 
+  console.log("[Webhook] Attempting to remove hold warning from note");
+  console.log("[Webhook] Existing note:", JSON.stringify(existingNote));
+
   if (!existingNote.includes(HOLD_WARNING_START)) {
     console.log("[Webhook] No hold warning in note, nothing to remove");
     return;
   }
 
-  // Remove our warning text (with separator if present)
+  // More robust removal - find the warning start and remove everything until the separator or end
   let newNote = existingNote;
-  if (newNote.includes(HOLD_WARNING_TEXT + NOTE_SEPARATOR)) {
-    newNote = newNote.replace(HOLD_WARNING_TEXT + NOTE_SEPARATOR, "");
+
+  // Find where our warning starts
+  const warningStartIndex = newNote.indexOf(HOLD_WARNING_START);
+  if (warningStartIndex === -1) {
+    console.log("[Webhook] Warning start not found, nothing to remove");
+    return;
+  }
+
+  // Check if there's a separator after our warning (meaning there's other content)
+  const separatorIndex = newNote.indexOf(NOTE_SEPARATOR, warningStartIndex);
+
+  if (separatorIndex !== -1) {
+    // Remove from warning start to end of separator (keep content after separator)
+    newNote = newNote.substring(0, warningStartIndex) + newNote.substring(separatorIndex + NOTE_SEPARATOR.length);
   } else {
-    newNote = newNote.replace(HOLD_WARNING_TEXT, "");
+    // No separator - just remove from warning start to end
+    newNote = newNote.substring(0, warningStartIndex);
   }
 
   newNote = newNote.trim();
+
+  console.log("[Webhook] New note after removal:", JSON.stringify(newNote));
 
   await admin.graphql(`
     mutation orderUpdate($input: OrderInput!) {
