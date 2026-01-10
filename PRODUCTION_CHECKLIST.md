@@ -1,0 +1,94 @@
+# Production Readiness Checklist
+
+This checklist contains issues found by CodeRabbit that should be fixed before going to production.
+
+---
+
+## Critical (Must Fix)
+
+- [ ] **JWT Token Verification** - Tokens are decoded without signature verification. Hackers could fake being another shop.
+  - Files: `api.public.orders.$orderId.notes.tsx`, `api.public.products.$productId.notes.tsx`, `api.public.products.$productId.notes.$noteId.tsx`, `api.public.settings.tsx`, `api.public.acknowledgments.tsx`
+
+- [ ] **CORS Too Permissive** - Using `"*"` allows any website to access your API. Should restrict to Shopify domains only.
+  - Files: `app/utils/cors.server.ts`, `app/entry.server.tsx`, `api.orders.$orderId.notes.tsx`, `api.public.products.$productId.notes.$noteId.photos.tsx`
+
+- [ ] **File Upload Validation** - No file size limits or file type checking. Could crash server or allow malicious uploads.
+  - File: `app/utils/storage.server.ts`
+
+- [ ] **Path Traversal Vulnerability** - `deleteFile` function could be tricked into deleting files outside the upload folder.
+  - File: `app/utils/storage.server.ts`
+
+- [ ] **Test Route Accessible in Production** - Anyone could create fake test data in your live database.
+  - File: `app/routes/test.create-sample-data.tsx`
+
+---
+
+## High Priority (Should Fix)
+
+- [ ] **Duplicate Variable Declaration** - `MONTHLY_PLAN` is declared twice, could cause errors.
+  - File: `app/routes/app.billing.tsx`
+
+- [ ] **SSR Window Error** - Using `window.location.search` causes errors during server-side rendering.
+  - Files: `app/routes/app.billing.tsx`, `app/routes/app.settings.tsx`
+
+- [ ] **Stack Traces Exposed** - Error details shown to users could reveal sensitive info to hackers.
+  - File: `app/root.tsx`
+
+- [ ] **Prisma Singleton Bug** - Creates two database connections instead of one in development.
+  - File: `app/db.server.ts`
+
+- [ ] **Missing Validation Before Update** - Notes could potentially be updated by wrong shop.
+  - File: `app/routes/api.products.$productId.notes.tsx`
+
+- [ ] **Undefined productId Bug** - Could cause database errors if productId is missing.
+  - File: `app/routes/api.acknowledgments.tsx`
+
+- [ ] **Undefined orders_to_redact Bug** - Could crash when processing GDPR redact requests.
+  - File: `app/routes/api.gdpr.customer-redact.tsx`
+
+---
+
+## Medium Priority (Good to Fix)
+
+- [ ] **Hardcoded Production URLs** - Makes development and testing harder.
+  - Files: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`, `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
+
+- [ ] **N+1 Query Pattern** - Fetches product titles one at a time instead of in batch (slow for large orders).
+  - File: `app/routes/api.orders.$orderId.notes.tsx`
+
+- [ ] **Checkbox Always False** - The acknowledgment checkbox doesn't visually toggle.
+  - File: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
+
+- [ ] **Unused trackUsage Function** - Dead code that should be removed or implemented.
+  - File: `app/utils/analytics.server.ts`
+
+- [ ] **Missing orderId Validation** - Could send "undefined" to the server.
+  - File: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
+
+---
+
+## Low Priority (Nice to Have)
+
+- [ ] **Privacy Policy Date** - Shows today's date instead of when policy was actually updated.
+  - File: `app/routes/privacy-policy.tsx`
+
+- [ ] **Placeholder Address** - `[Your Business Address]` still in privacy policy.
+  - File: `app/routes/privacy-policy.tsx`
+
+- [ ] **Character Limit 211** - Unusual number, should document why or use standard like 200 or 255.
+  - File: `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
+
+- [ ] **Sensitive Data in Logs** - Full payloads logged could leak customer info.
+  - File: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
+
+- [ ] **Native File Input** - May not work in Shopify extension sandbox.
+  - File: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
+
+---
+
+## Notes
+
+- This checklist was generated from CodeRabbit's automated code review on January 9, 2026
+- Items are ordered by severity/impact
+- Check off items as you fix them
+- Critical items should be fixed before any production deployment with real customer data
