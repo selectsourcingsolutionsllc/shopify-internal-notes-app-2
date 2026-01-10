@@ -31,7 +31,7 @@ export async function action({ request }: ActionFunctionArgs) {
     case "ORDERS_CREATE":
       await handleOrderCreated(shop, payload);
       break;
-    case "FULFILLMENT_HOLDS_RELEASED":
+    case "FULFILLMENT_ORDERS_HOLD_RELEASED":
       await handleHoldReleased(shop, payload);
       break;
     case "CUSTOMERS_DATA_REQUEST":

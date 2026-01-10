@@ -25,7 +25,7 @@ api_version = "2025-07"
   uri = "/webhooks"
 
   [[webhooks.subscriptions]]
-  topics = [ "fulfillment_holds/released" ]
+  topics = [ "fulfillment_orders/hold_released" ]
   uri = "/webhooks"
 
 [access.admin]
