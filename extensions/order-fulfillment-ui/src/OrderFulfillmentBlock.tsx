@@ -32,6 +32,8 @@ function OrderFulfillmentBlock() {
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [orderProductIds, setOrderProductIds] = useState<string[]>([]);
   const [holdSecured, setHoldSecured] = useState(false); // Track if hold has been re-applied
+  const [holdReleased, setHoldReleased] = useState(false); // Track if user has released the hold
+  const [releasingHold, setReleasingHold] = useState(false); // Track if release is in progress
 
   const orderId = data.selected?.[0]?.id;
   const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
@@ -366,10 +368,10 @@ function OrderFulfillmentBlock() {
         },
       }));
 
-      // If hold was released, update canFulfill
-      if (responseData.holdReleased) {
-        console.log('[Order Extension] Hold released! Can now fulfill.');
-        setCanFulfill(true);
+      // Check if all notes are now acknowledged (but hold is NOT released yet)
+      if (responseData.allAcknowledged) {
+        console.log('[Order Extension] All notes acknowledged! User can now release hold.');
+        setCanFulfill(true); // Enable the release button
       }
 
       setShowPhotoModal(false);
@@ -384,6 +386,43 @@ function OrderFulfillmentBlock() {
     const file = event.target.files[0];
     if (file && currentNoteId) {
       await submitAcknowledgment(currentNoteId, file);
+    }
+  };
+
+  // Explicitly release the hold - user must click this button
+  const releaseHoldAndFulfill = async () => {
+    try {
+      setReleasingHold(true);
+      console.log('[Order Extension] User clicked Release Hold button');
+
+      const shop = getShopDomain();
+      const url = `${BASE_URL}/api/public/release-hold${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId,
+          productIds: orderProductIds,
+        }),
+      });
+
+      const responseData = await response.json();
+      console.log('[Order Extension] Release hold response:', responseData);
+
+      if (response.ok && responseData.success) {
+        setHoldReleased(true);
+        console.log('[Order Extension] Hold released! User can now fulfill.');
+      } else {
+        setError(responseData.error || 'Failed to release hold');
+      }
+    } catch (err: any) {
+      console.error('[Order Extension] Error releasing hold:', err);
+      setError(err.message);
+    } finally {
+      setReleasingHold(false);
     }
   };
   
@@ -439,10 +478,28 @@ function OrderFulfillmentBlock() {
         </Banner>
       )}
 
-      {/* Show success when all acknowledged */}
-      {settings?.blockFulfillment && canFulfill && productNotes.length > 0 && (
+      {/* Show button to release hold when all acknowledged but hold not released */}
+      {settings?.blockFulfillment && canFulfill && !holdReleased && productNotes.length > 0 && (
+        <Box padding="base">
+          <BlockStack>
+            <Banner tone="warning">
+              <Text fontWeight="bold">All notes acknowledged - Click button below to unlock fulfillment</Text>
+            </Banner>
+            <Button
+              variant="primary"
+              onPress={releaseHoldAndFulfill}
+              disabled={releasingHold}
+            >
+              {releasingHold ? 'Releasing Hold...' : 'Release Hold & Proceed to Fulfillment'}
+            </Button>
+          </BlockStack>
+        </Box>
+      )}
+
+      {/* Show success when hold is released */}
+      {holdReleased && (
         <Banner tone="success">
-          <Text>All notes acknowledged - You may now fulfill this order</Text>
+          <Text fontWeight="bold">Hold released - You may now create shipping labels and fulfill this order</Text>
         </Banner>
       )}
       
