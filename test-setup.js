@@ -30,3 +30,4 @@ async function testDatabaseConnection() {
 }
 
 testDatabaseConnection();
+// CodeRabbit review trigger - safe to remove

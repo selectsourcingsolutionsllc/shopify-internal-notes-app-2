@@ -24,3 +24,4 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   return json({ settings });
 }
+// CodeRabbit review trigger - safe to remove

@@ -144,3 +144,5 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   return json({ error: "Method not allowed" }, { status: 405, headers: corsHeaders });
 }
+
+// CodeRabbit review trigger - safe to remove

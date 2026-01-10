@@ -63,3 +63,5 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return json({ error: "Database error" }, { status: 500 });
   }
 }
+
+// CodeRabbit review trigger - safe to remove

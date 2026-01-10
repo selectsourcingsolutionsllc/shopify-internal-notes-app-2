@@ -215,3 +215,4 @@ export default function NotesIndex() {
     </Page>
   );
 }
+// CodeRabbit review trigger - safe to remove

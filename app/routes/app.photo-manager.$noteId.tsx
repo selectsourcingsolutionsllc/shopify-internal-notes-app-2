@@ -288,3 +288,5 @@ export default function NotePhotosPage() {
     </Page>
   );
 }
+
+// CodeRabbit review trigger - safe to remove
