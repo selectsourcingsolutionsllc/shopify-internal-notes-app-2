@@ -12,7 +12,7 @@ import {
 
 // Constants for the hold warning note
 const HOLD_WARNING_START = "⚠️ FULFILLMENT BLOCKED⚠️:";
-const HOLD_WARNING_TEXT = "⚠️ FULFILLMENT BLOCKED⚠️: =============================There is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling.";
+const HOLD_WARNING_TEXT = "⚠️ FULFILLMENT BLOCKED⚠️:\n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling.";
 const NOTE_SEPARATOR = "\n\n---\n\n";
 
 // Helper to get existing order note
