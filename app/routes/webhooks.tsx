@@ -10,51 +10,57 @@ import {
   getOrderIdFromFulfillmentOrder,
 } from "../utils/fulfillment-hold.server";
 
-// Constants for the hold warning note
-const HOLD_WARNING_START = "⚠️ FULFILLMENT BLOCKED⚠️:";
-const HOLD_WARNING_TEXT = `⚠️ FULFILLMENT BLOCKED⚠️: \n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling.`;
-const NOTE_SEPARATOR = "\n\n---\n\n";
+// Constants for the hold warning in Additional Details (customAttributes)
+const HOLD_ATTRIBUTE_KEY = "fulfillment_blocked";
+const HOLD_ATTRIBUTE_VALUE = "⚠️ Internal notes must be acknowledged before shipping";
 
-// Helper to get existing order note
-async function getOrderNote(admin: any, orderGid: string): Promise<string> {
+// Helper to get existing order customAttributes
+async function getOrderCustomAttributes(admin: any, orderGid: string): Promise<Array<{key: string, value: string}>> {
   try {
     const response = await admin.graphql(`
       query getOrder($id: ID!) {
         order(id: $id) {
-          note
+          customAttributes {
+            key
+            value
+          }
         }
       }
     `, { variables: { id: orderGid } });
     const data = await response.json();
-    return data.data?.order?.note || "";
+    return data.data?.order?.customAttributes || [];
   } catch (error) {
-    console.error("[Webhook] Failed to get order note:", error);
-    return "";
+    console.error("[Webhook] Failed to get order customAttributes:", error);
+    return [];
   }
 }
 
-// Helper to add hold warning to order note (preserves existing notes)
+// Helper to add hold warning to order's Additional Details (preserves other attributes)
 async function addHoldNoteToOrder(admin: any, orderGid: string): Promise<void> {
-  const existingNote = await getOrderNote(admin, orderGid);
+  const existingAttributes = await getOrderCustomAttributes(admin, orderGid);
 
-  // Check if warning already exists
-  if (existingNote.includes(HOLD_WARNING_START)) {
-    console.log("[Webhook] Hold warning already in note, skipping");
+  // Check if our attribute already exists
+  const alreadyExists = existingAttributes.some(attr => attr.key === HOLD_ATTRIBUTE_KEY);
+  if (alreadyExists) {
+    console.log("[Webhook] Hold warning already in Additional Details, skipping");
     return;
   }
 
-  // Prepend our warning to existing note
-  let newNote = HOLD_WARNING_TEXT;
-  if (existingNote.trim()) {
-    newNote = HOLD_WARNING_TEXT + NOTE_SEPARATOR + existingNote;
-  }
+  // Add our attribute to the existing ones
+  const newAttributes = [
+    ...existingAttributes,
+    { key: HOLD_ATTRIBUTE_KEY, value: HOLD_ATTRIBUTE_VALUE }
+  ];
 
   await admin.graphql(`
     mutation orderUpdate($input: OrderInput!) {
       orderUpdate(input: $input) {
         order {
           id
-          note
+          customAttributes {
+            key
+            value
+          }
         }
         userErrors {
           field
@@ -66,38 +72,36 @@ async function addHoldNoteToOrder(admin: any, orderGid: string): Promise<void> {
     variables: {
       input: {
         id: orderGid,
-        note: newNote
+        customAttributes: newAttributes
       }
     }
   });
-  console.log("[Webhook] Added hold warning to order note (preserved existing notes)");
+  console.log("[Webhook] Added hold warning to Additional Details (preserved other attributes)");
 }
 
-// Helper to remove hold warning from order note (preserves other notes)
+// Helper to remove hold warning from order's Additional Details (preserves other attributes)
 export async function removeHoldNoteFromOrder(admin: any, orderGid: string): Promise<void> {
-  const existingNote = await getOrderNote(admin, orderGid);
+  const existingAttributes = await getOrderCustomAttributes(admin, orderGid);
 
-  if (!existingNote.includes(HOLD_WARNING_START)) {
-    console.log("[Webhook] No hold warning in note, nothing to remove");
+  // Check if our attribute exists
+  const hasOurAttribute = existingAttributes.some(attr => attr.key === HOLD_ATTRIBUTE_KEY);
+  if (!hasOurAttribute) {
+    console.log("[Webhook] No hold warning in Additional Details, nothing to remove");
     return;
   }
 
-  // Remove our warning text (with separator if present)
-  let newNote = existingNote;
-  if (newNote.includes(HOLD_WARNING_TEXT + NOTE_SEPARATOR)) {
-    newNote = newNote.replace(HOLD_WARNING_TEXT + NOTE_SEPARATOR, "");
-  } else {
-    newNote = newNote.replace(HOLD_WARNING_TEXT, "");
-  }
-
-  newNote = newNote.trim();
+  // Remove only our attribute, keep all others
+  const newAttributes = existingAttributes.filter(attr => attr.key !== HOLD_ATTRIBUTE_KEY);
 
   await admin.graphql(`
     mutation orderUpdate($input: OrderInput!) {
       orderUpdate(input: $input) {
         order {
           id
-          note
+          customAttributes {
+            key
+            value
+          }
         }
         userErrors {
           field
@@ -109,11 +113,11 @@ export async function removeHoldNoteFromOrder(admin: any, orderGid: string): Pro
     variables: {
       input: {
         id: orderGid,
-        note: newNote
+        customAttributes: newAttributes
       }
     }
   });
-  console.log("[Webhook] Removed hold warning from order note (preserved other notes)");
+  console.log("[Webhook] Removed hold warning from Additional Details (preserved other attributes)");
 }
 
 export async function action({ request }: ActionFunctionArgs) {
