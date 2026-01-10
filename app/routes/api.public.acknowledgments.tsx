@@ -146,13 +146,13 @@ export async function action({ request }: ActionFunctionArgs) {
             console.log("[PUBLIC API] Hold release result:", result);
 
             // Remove the "FULFILLMENT BLOCKED" warning from the order note (preserves other notes)
-            if (holdReleased) {
-              try {
-                await removeHoldNoteFromOrder(admin, orderId);
-                console.log("[PUBLIC API] Removed hold warning from order note");
-              } catch (noteError) {
-                console.error("[PUBLIC API] Failed to remove hold warning:", noteError);
-              }
+            // Always try to remove when all notes are acknowledged, regardless of hold release result
+            try {
+              console.log("[PUBLIC API] Attempting to remove hold warning for order:", orderId);
+              await removeHoldNoteFromOrder(admin, orderId);
+              console.log("[PUBLIC API] Successfully removed hold warning from order note");
+            } catch (noteError) {
+              console.error("[PUBLIC API] Failed to remove hold warning:", noteError);
             }
           }
         } catch (checkError) {

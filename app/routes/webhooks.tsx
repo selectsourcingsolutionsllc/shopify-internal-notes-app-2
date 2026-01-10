@@ -110,7 +110,7 @@ export async function removeHoldNoteFromOrder(admin: any, orderGid: string): Pro
 
   console.log("[Webhook] New note after removal:", JSON.stringify(newNote));
 
-  await admin.graphql(`
+  const response = await admin.graphql(`
     mutation orderUpdate($input: OrderInput!) {
       orderUpdate(input: $input) {
         order {
@@ -131,7 +131,15 @@ export async function removeHoldNoteFromOrder(admin: any, orderGid: string): Pro
       }
     }
   });
-  console.log("[Webhook] Removed hold warning from order note (preserved other notes)");
+
+  const result = await response.json();
+  console.log("[Webhook] Order update result:", JSON.stringify(result));
+
+  if (result?.data?.orderUpdate?.userErrors?.length > 0) {
+    console.error("[Webhook] Error updating order note:", result.data.orderUpdate.userErrors);
+  } else {
+    console.log("[Webhook] Successfully removed hold warning from order note");
+  }
 }
 
 export async function action({ request }: ActionFunctionArgs) {
