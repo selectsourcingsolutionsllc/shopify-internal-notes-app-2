@@ -140,6 +140,35 @@ async function handleOrderCreated(shop: string, payload: any) {
 
     if (result.success) {
       console.log("[Webhook] Successfully applied holds to order", payload.id);
+
+      // Add a note to the order explaining why it's on hold
+      const orderGid = `gid://shopify/Order/${payload.id}`;
+      try {
+        await admin.graphql(`
+          mutation orderUpdate($input: OrderInput!) {
+            orderUpdate(input: $input) {
+              order {
+                id
+                note
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `, {
+          variables: {
+            input: {
+              id: orderGid,
+              note: "⚠️ FULFILLMENT BLOCKED: Internal notes must be acknowledged before shipping. Please view the order details and acknowledge all product notes before fulfilling."
+            }
+          }
+        });
+        console.log("[Webhook] Added order note explaining fulfillment hold");
+      } catch (noteError) {
+        console.error("[Webhook] Failed to add order note:", noteError);
+      }
     } else {
       console.error("[Webhook] Failed to apply some holds:", result.results);
     }
