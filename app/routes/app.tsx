@@ -31,3 +31,4 @@ export default function App() {
     </PolarisAppProvider>
   );
 }
+// CodeRabbit review trigger - safe to remove

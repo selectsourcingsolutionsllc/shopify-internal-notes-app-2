@@ -82,3 +82,5 @@ const port = process.env.PORT || 3000;
 app.listen(port, "0.0.0.0", () => {
   console.log(`Express server listening on http://0.0.0.0:${port}`);
 });
+
+// CodeRabbit review trigger - safe to remove

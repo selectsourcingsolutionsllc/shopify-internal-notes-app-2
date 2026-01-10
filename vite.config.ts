@@ -22,3 +22,5 @@ export default defineConfig({
     noExternal: ["@shopify/polaris", "@shopify/shopify-app-remix"],
   },
 });
+
+// CodeRabbit review trigger - safe to remove

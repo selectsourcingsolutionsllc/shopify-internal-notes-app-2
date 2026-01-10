@@ -3,3 +3,5 @@ export default {
   ignoredRouteFiles: ["**/.*"],
   serverModuleFormat: "cjs",
 };
+
+// CodeRabbit review trigger - safe to remove

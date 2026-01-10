@@ -198,3 +198,4 @@ export default function AppIndex() {
     </Page>
   );
 }
+// CodeRabbit review trigger - safe to remove

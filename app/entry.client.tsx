@@ -10,3 +10,4 @@ startTransition(() => {
     </StrictMode>
   );
 });
+// CodeRabbit review trigger - safe to remove

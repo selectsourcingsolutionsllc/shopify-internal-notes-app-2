@@ -459,3 +459,5 @@ function OrderDetailsBlock() {
     </Box>
   );
 }
+
+// CodeRabbit review trigger - safe to remove

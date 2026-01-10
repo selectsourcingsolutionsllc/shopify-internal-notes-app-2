@@ -80,3 +80,5 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   return json({ error: "Method not allowed" }, { status: 405 });
 }
+
+// CodeRabbit review trigger - safe to remove

@@ -95,3 +95,5 @@ export async function deleteFile(url: string, thumbnailUrl?: string): Promise<vo
     }
   }
 }
+
+// CodeRabbit review trigger - safe to remove

@@ -25,3 +25,4 @@ function ProductNotesAction() {
     />
   );
 }
+// CodeRabbit review trigger - safe to remove

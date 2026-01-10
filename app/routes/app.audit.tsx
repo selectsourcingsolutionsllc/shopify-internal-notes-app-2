@@ -9,3 +9,5 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function AuditLog() {
   return null;
 }
+
+// CodeRabbit review trigger - safe to remove

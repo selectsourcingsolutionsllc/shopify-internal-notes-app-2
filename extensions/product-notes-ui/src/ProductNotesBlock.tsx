@@ -430,3 +430,5 @@ function ProductNotesBlock() {
     </BlockStack>
   );
 }
+
+// CodeRabbit review trigger - safe to remove

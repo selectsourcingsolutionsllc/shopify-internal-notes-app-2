@@ -79,3 +79,4 @@ export function ErrorBoundary() {
     </html>
   );
 }
+// CodeRabbit review trigger - safe to remove
