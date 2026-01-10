@@ -64,3 +64,13 @@ DO NOT change code until confirming the basic infrastructure is working.
 - API Key: 759aead17dfbcb721121009dacc43ce2
 - Client Secret: cd2a9a6a0e7e45d8bc113dea282bf821
 - Always confirm with user before using these credentials
+
+# PRODUCTION CHECKLIST
+
+**IMPORTANT:** Before deploying to production or when the user asks about app readiness, check `PRODUCTION_CHECKLIST.md` in the project root.
+
+This checklist contains security issues and bugs found by CodeRabbit that MUST be fixed before the app can safely handle real customer data.
+
+- Remind the user about remaining checklist items periodically
+- When fixing an issue from the checklist, update the checkbox to `[x]` when done
+- Critical items block production deployment
