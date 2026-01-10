@@ -28,9 +28,10 @@ function OrderFulfillmentBlock() {
   const [error, setError] = useState<string | null>(null);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [currentNoteId, setCurrentNoteId] = useState<string | null>(null);
-  const [canFulfill, setCanFulfill] = useState(true);
+  const [canFulfill, setCanFulfill] = useState(false); // Start false - must acknowledge first
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [orderProductIds, setOrderProductIds] = useState<string[]>([]);
+  const [holdSecured, setHoldSecured] = useState(false); // Track if hold has been re-applied
 
   const orderId = data.selected?.[0]?.id;
   const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
@@ -265,12 +266,20 @@ function OrderFulfillmentBlock() {
         if (resetResponse.ok) {
           const resetData = await resetResponse.json();
           console.log('[Order Extension] Reset result:', resetData);
+          // Mark hold as secured once the API confirms it was applied
+          if (resetData.holdApplied || resetData.success) {
+            setHoldSecured(true);
+            console.log('[Order Extension] Hold secured - fulfillment blocked');
+          }
         } else {
           console.log('[Order Extension] Reset failed:', resetResponse.status);
+          // Still mark as secured to show notes - the hold may already be in place
+          setHoldSecured(true);
         }
       } catch (resetErr) {
         console.log('[Order Extension] Reset error:', resetErr);
-        // Continue even if reset fails - still show notes
+        // Still mark as secured to allow viewing notes
+        setHoldSecured(true);
       }
 
       // Now fetch notes (acknowledgments will be empty after reset)
@@ -382,8 +391,12 @@ function OrderFulfillmentBlock() {
     return (
       <Box padding="base">
         <BlockStack>
-          <Text fontWeight="bold">Internal Notes</Text>
-          <Text>Loading product notes...</Text>
+          <Banner tone="critical">
+            <Text fontWeight="bold">STOP - DO NOT FULFILL THIS ORDER YET</Text>
+          </Banner>
+          <Banner tone="warning">
+            <Text>Securing fulfillment hold... Please wait before creating shipping labels or fulfilling.</Text>
+          </Banner>
           <Text emphasis="subdued">{debugInfo}</Text>
         </BlockStack>
       </Box>
@@ -419,19 +432,17 @@ function OrderFulfillmentBlock() {
   
   return (
     <BlockStack>
-      {/* TEST: This should ALWAYS appear if new code is loaded */}
-      <Banner tone="critical">
-        <Text>VERSION TEST 123 - If you see this, new code is loaded!</Text>
-      </Banner>
-
+      {/* Show critical warning if notes need acknowledgment */}
       {settings?.blockFulfillment && !canFulfill && (
-        <Banner
-          title="Acknowledgment Required"
-          tone="warning"
-        >
-          <Text>
-            All product notes must be acknowledged before fulfilling this order.
-          </Text>
+        <Banner tone="critical">
+          <Text fontWeight="bold">FULFILLMENT BLOCKED - Acknowledge all notes below before shipping</Text>
+        </Banner>
+      )}
+
+      {/* Show success when all acknowledged */}
+      {settings?.blockFulfillment && canFulfill && productNotes.length > 0 && (
+        <Banner tone="success">
+          <Text>All notes acknowledged - You may now fulfill this order</Text>
         </Banner>
       )}
       
@@ -465,17 +476,6 @@ function OrderFulfillmentBlock() {
                   </InlineStack>
                   
                   <Text>{note.content}</Text>
-
-                  {/* Debug: Show photo count */}
-                  <Text emphasis="subdued">Photos: {note.photos?.length || 0}</Text>
-
-                  {/* PLACEHOLDER TEST - Always show this */}
-                  <Banner tone="info">
-                    <Text>PHOTO PLACEHOLDER - Has {note.photos?.length || 0} photos</Text>
-                    {note.photos && note.photos.length > 0 && (
-                      <Text>URL: {note.photos[0].url.substring(0, 50)}...</Text>
-                    )}
-                  </Banner>
 
                   {note.photos && note.photos.length > 0 && (
                     <InlineStack blockAlignment="center" gap="tight">
@@ -527,13 +527,6 @@ function OrderFulfillmentBlock() {
             );
           })}
           
-          {settings?.requireAcknowledgment && !canFulfill && (
-            <Banner tone="critical">
-              <Text>
-                Order fulfillment is blocked until all notes are acknowledged.
-              </Text>
-            </Banner>
-          )}
         </BlockStack>
       </Box>
       
