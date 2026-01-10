@@ -10,6 +10,112 @@ import {
   getOrderIdFromFulfillmentOrder,
 } from "../utils/fulfillment-hold.server";
 
+// Constants for the hold warning note
+const HOLD_WARNING_START = "⚠️ FULFILLMENT BLOCKED⚠️:";
+const HOLD_WARNING_TEXT = `⚠️ FULFILLMENT BLOCKED⚠️: \n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling.`;
+const NOTE_SEPARATOR = "\n\n---\n\n";
+
+// Helper to get existing order note
+async function getOrderNote(admin: any, orderGid: string): Promise<string> {
+  try {
+    const response = await admin.graphql(`
+      query getOrder($id: ID!) {
+        order(id: $id) {
+          note
+        }
+      }
+    `, { variables: { id: orderGid } });
+    const data = await response.json();
+    return data.data?.order?.note || "";
+  } catch (error) {
+    console.error("[Webhook] Failed to get order note:", error);
+    return "";
+  }
+}
+
+// Helper to add hold warning to order note (preserves existing notes)
+async function addHoldNoteToOrder(admin: any, orderGid: string): Promise<void> {
+  const existingNote = await getOrderNote(admin, orderGid);
+
+  // Check if warning already exists
+  if (existingNote.includes(HOLD_WARNING_START)) {
+    console.log("[Webhook] Hold warning already in note, skipping");
+    return;
+  }
+
+  // Prepend our warning to existing note
+  let newNote = HOLD_WARNING_TEXT;
+  if (existingNote.trim()) {
+    newNote = HOLD_WARNING_TEXT + NOTE_SEPARATOR + existingNote;
+  }
+
+  await admin.graphql(`
+    mutation orderUpdate($input: OrderInput!) {
+      orderUpdate(input: $input) {
+        order {
+          id
+          note
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `, {
+    variables: {
+      input: {
+        id: orderGid,
+        note: newNote
+      }
+    }
+  });
+  console.log("[Webhook] Added hold warning to order note (preserved existing notes)");
+}
+
+// Helper to remove hold warning from order note (preserves other notes)
+export async function removeHoldNoteFromOrder(admin: any, orderGid: string): Promise<void> {
+  const existingNote = await getOrderNote(admin, orderGid);
+
+  if (!existingNote.includes(HOLD_WARNING_START)) {
+    console.log("[Webhook] No hold warning in note, nothing to remove");
+    return;
+  }
+
+  // Remove our warning text (with separator if present)
+  let newNote = existingNote;
+  if (newNote.includes(HOLD_WARNING_TEXT + NOTE_SEPARATOR)) {
+    newNote = newNote.replace(HOLD_WARNING_TEXT + NOTE_SEPARATOR, "");
+  } else {
+    newNote = newNote.replace(HOLD_WARNING_TEXT, "");
+  }
+
+  newNote = newNote.trim();
+
+  await admin.graphql(`
+    mutation orderUpdate($input: OrderInput!) {
+      orderUpdate(input: $input) {
+        order {
+          id
+          note
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `, {
+    variables: {
+      input: {
+        id: orderGid,
+        note: newNote
+      }
+    }
+  });
+  console.log("[Webhook] Removed hold warning from order note (preserved other notes)");
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   const { topic, shop, session, payload } = await authenticate.webhook(request);
 
@@ -141,31 +247,10 @@ async function handleOrderCreated(shop: string, payload: any) {
     if (result.success) {
       console.log("[Webhook] Successfully applied holds to order", payload.id);
 
-      // Add a note to the order explaining why it's on hold
+      // Add a note to the order explaining why it's on hold (preserves existing notes)
       const orderGid = `gid://shopify/Order/${payload.id}`;
       try {
-        await admin.graphql(`
-          mutation orderUpdate($input: OrderInput!) {
-            orderUpdate(input: $input) {
-              order {
-                id
-                note
-              }
-              userErrors {
-                field
-                message
-              }
-            }
-          }
-        `, {
-          variables: {
-            input: {
-              id: orderGid,
-              note: "⚠️ FULFILLMENT BLOCKED⚠️: \n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling."
-            }
-          }
-        });
-        console.log("[Webhook] Added order note explaining fulfillment hold");
+        await addHoldNoteToOrder(admin, orderGid);
       } catch (noteError) {
         console.error("[Webhook] Failed to add order note:", noteError);
       }
@@ -266,30 +351,9 @@ async function handleFulfillmentCreated(shop: string, payload: any) {
     // Products have notes and NO valid authorization - CANCEL THE FULFILLMENT!
     console.log("[Webhook] Products have notes and NO authorization! CANCELING fulfillment...");
 
-    // Add a note to the order explaining why fulfillment was blocked
+    // Add a note to the order explaining why fulfillment was blocked (preserves existing notes)
     try {
-      await admin.graphql(`
-        mutation orderUpdate($input: OrderInput!) {
-          orderUpdate(input: $input) {
-            order {
-              id
-              note
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `, {
-        variables: {
-          input: {
-            id: orderGid,
-            note: "⚠️ FULFILLMENT BLOCKED⚠️: \n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling."
-          }
-        }
-      });
-      console.log("[Webhook] Added order note explaining fulfillment block");
+      await addHoldNoteToOrder(admin, orderGid);
     } catch (noteError) {
       console.error("[Webhook] Failed to add order note:", noteError);
     }
@@ -468,30 +532,9 @@ async function handleHoldReleased(shop: string, payload: any) {
     // Products have notes - RE-APPLY THE HOLD!
     console.log("[Webhook] Order has products with notes - RE-APPLYING HOLD!");
 
-    // Add a note to the order explaining why hold was re-applied
+    // Add a note to the order explaining why hold was re-applied (preserves existing notes)
     try {
-      await admin.graphql(`
-        mutation orderUpdate($input: OrderInput!) {
-          orderUpdate(input: $input) {
-            order {
-              id
-              note
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `, {
-        variables: {
-          input: {
-            id: orderGid,
-            note: "⚠️ FULFILLMENT BLOCKED⚠️: \n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling."
-          }
-        }
-      });
-      console.log("[Webhook] Added order note explaining hold re-application");
+      await addHoldNoteToOrder(admin, orderGid);
     } catch (noteError) {
       console.error("[Webhook] Failed to add order note:", noteError);
     }
