@@ -109,3 +109,15 @@ model BillingSubscription {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+
+model OrderReleaseAuthorization {
+  id          String   @id @default(cuid())
+  orderId     String
+  shopDomain  String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  consumed    Boolean  @default(false)
+
+  @@unique([orderId, shopDomain])
+  @@index([orderId, shopDomain])
+}
