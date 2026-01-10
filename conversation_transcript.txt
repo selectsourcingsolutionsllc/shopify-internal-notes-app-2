@@ -2549,19 +2549,111 @@ This requires changing the acknowledgment logic:
 - Desired: Acknowledgment should be per-session or reset after some condition
 
 =====================================
+SESSION: January 10, 2026 - Authorization System & Auto-Release
+=====================================
+
+**User Request:**
+User wanted acknowledgments to reset when the page is left - not persist forever.
+
+**Problem Identified:**
+Old acknowledgments were persisting in the database. When someone:
+1. Acknowledged notes previously
+2. Left the page
+3. Clicked Shopify's "Unhold" button
+The webhook would see old acknowledgments and not re-apply the hold.
+
+**Solution Implemented: Authorization System**
+
+Created `OrderReleaseAuthorization` model in Prisma:
+- Tracks legitimate hold releases done via our app
+- Has expiration time (60 seconds) and consumed flag
+- Allows webhook to distinguish between:
+  - Legitimate release (via our app's Release Hold button)
+  - Unauthorized release (someone clicking Shopify's Unhold button)
+
+**Files Modified:**
+1. `prisma/schema.prisma` - Added OrderReleaseAuthorization model
+2. `app/routes/api.public.release-hold.tsx` - Creates authorization before releasing hold
+3. `app/routes/webhooks.tsx` - Checks for valid authorization in handleHoldReleased and handleFulfillmentCreated
+
+**Webhook Logic:**
+- If valid authorization exists → allow hold to stay released
+- If NO authorization → re-apply hold and clear acknowledgments
+
+**Testing - Auto-Cancel Working:**
+After user reinstalled app (to get new `read_fulfillments` scope), the `fulfillments/create` webhook started working. Auto-cancel feature now cancels fulfillments created without authorization.
+
+**Order Notes Feature:**
+User discovered that adding a note to the order's Notes field via the API causes it to appear on the shipping label page. This was unexpected but useful - now merchants see:
+"⚠️ FULFILLMENT BLOCKED: Internal notes must be acknowledged before shipping..."
+
+Added order notes in:
+- `handleFulfillmentCreated` - when canceling unauthorized fulfillment
+- `handleHoldReleased` - when re-applying hold
+
+**Auto-Release Feature:**
+User requested to skip needing to click "Release Hold" button.
+
+Modified `app/routes/api.public.acknowledgments.tsx`:
+- When last note is acknowledged, automatically:
+  1. Create authorization token
+  2. Release the hold
+  3. Return holdReleased: true to UI
+
+Updated `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`:
+- Check for holdReleased in response
+- Update UI to show success
+
+**Bug: Duplicate Webhooks**
+Shopify sends duplicate `FULFILLMENT_ORDERS_HOLD_RELEASED` webhooks.
+First webhook consumes authorization, second webhook sees it consumed and re-applies hold.
+
+**Fix Attempted:**
+Modified webhook to also accept recently consumed authorizations (within 1 minute) as valid:
+```javascript
+if (authorization.createdAt > oneMinuteAgo) {
+  // Duplicate webhook - authorization was just consumed, still valid
+  console.log("[Webhook] Authorization already consumed (duplicate webhook)");
+  return;
+}
+```
+
+**Current Status: 🔴 NOT FULLY WORKING**
+The hold still gets re-applied after acknowledgment. The duplicate webhook fix didn't work.
+
+**Commits This Session:**
+- 4745fe9 - Add authorization system to prevent bypassing fulfillment holds
+- 9b5cc8e - Add order note explaining why fulfillment is blocked
+- 9bd9880 - Auto-release hold when all notes are acknowledged
+- 98acc68 - Fix duplicate webhook causing hold to be re-applied (not working)
+
+=====================================
 🔴 NEXT TODO WHEN RESUMING:
 =====================================
 
-1. Implement acknowledgment reset logic
-   - Option A: Reset when order page is closed/navigated away
-   - Option B: Reset after X minutes
-   - Option C: Always require acknowledgment (no persistence)
-   - Need to clarify with user which behavior they want
+1. **FIX: Hold being re-applied after acknowledgment**
+   - The duplicate webhook fix (checking createdAt > oneMinuteAgo) didn't work
+   - Need to investigate WHY the authorization isn't being found/accepted
+   - Possible issues:
+     a. Order ID format mismatch between acknowledgments API and webhook
+     b. Timing issue - webhook fires before authorization is created
+     c. Multiple webhooks with different orderId formats
+   - Request user to share Railway logs when they acknowledge notes
+   - Check if authorization is being created with correct orderId format
+   - Check if webhook is looking up with same orderId format
 
-2. Work through PRODUCTION_CHECKLIST.md items before going live
+2. **Debug Steps:**
+   - Add more logging to see:
+     - What orderId format is used when creating authorization
+     - What orderGid format is used when looking up authorization
+     - Whether authorization is found at all
+     - What the authorization's consumed and createdAt values are
+
+3. **Alternative Fix if Format Mismatch:**
+   - Ensure both use consistent GID format: `gid://shopify/Order/XXXXXXX`
 
 =====================================
 END OF CONVERSATION TRANSCRIPT
-LAST UPDATE: January 9, 2026
-STATUS: 🟢 WORKING - Hold enforcement complete, acknowledgment reset needed
+LAST UPDATE: January 10, 2026
+STATUS: 🔴 BUG - Hold re-applied after acknowledgment despite authorization system
 =====================================
