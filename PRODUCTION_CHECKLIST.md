@@ -50,19 +50,19 @@ This checklist contains issues found by CodeRabbit that should be fixed before g
 
 ## Medium Priority (Good to Fix)
 
-- [ ] **Hardcoded Production URLs** - Makes development and testing harder.
+- [x] **Hardcoded Production URLs** - FIXED: Created shared config (`extensions/shared/config.ts`) that uses `SHOPIFY_APP_URL` environment variable with production fallback.
   - Files: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`, `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
 
-- [ ] **N+1 Query Pattern** - Fetches product titles one at a time instead of in batch (slow for large orders).
+- [x] **N+1 Query Pattern** - FIXED: Changed to single batch query using GraphQL `nodes` field.
   - File: `app/routes/api.orders.$orderId.notes.tsx`
 
-- [ ] **Checkbox Always False** - The acknowledgment checkbox doesn't visually toggle.
+- [x] **Checkbox Always False** - FIXED: Added `pendingAcknowledgments` state to show immediate visual feedback when checkbox is clicked.
   - File: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
 
-- [ ] **Unused trackUsage Function** - Dead code that should be removed or implemented.
-  - File: `app/utils/analytics.server.ts`
+- [x] **Unused trackUsage Function** - FIXED: Removed dead code file.
+  - File: `app/utils/analytics.server.ts` (deleted)
 
-- [ ] **Missing orderId Validation** - Could send "undefined" to the server.
+- [x] **Missing orderId Validation** - FIXED: Added validation check before submitting acknowledgments and releasing holds.
   - File: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
 
 ---

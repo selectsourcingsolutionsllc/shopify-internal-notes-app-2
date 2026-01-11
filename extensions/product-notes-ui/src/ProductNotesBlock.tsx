@@ -13,6 +13,7 @@ import {
   useApi,
   Link,
 } from '@shopify/ui-extensions-react/admin';
+import { BASE_URL } from '../../shared/config';
 
 const TARGET = 'admin.product-details.block.render';
 
@@ -30,7 +31,6 @@ function ProductNotesBlock() {
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
 
   const productId = api.data.selected?.[0]?.id;
-  const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
 
   // Fetch shop domain using Direct API Access
   const fetchShopDomain = async (): Promise<string> => {
