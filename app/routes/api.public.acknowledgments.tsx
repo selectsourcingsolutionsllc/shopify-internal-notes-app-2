@@ -53,28 +53,37 @@ export async function action({ request }: ActionFunctionArgs) {
       const productId = formData.get("productId") as string;
       const sessionId = formData.get("sessionId") as string;
 
-      console.log("[PUBLIC API] Acknowledgment - sessionId:", sessionId);
+      console.log("[PUBLIC API] Acknowledgment - sessionId:", sessionId, "noteId:", noteId);
+
+      // noteId is required now - each acknowledgment is for a specific note
+      if (!noteId) {
+        return json({ error: "Missing noteId" }, { status: 400 });
+      }
+
+      if (!orderId) {
+        return json({ error: "Missing orderId" }, { status: 400 });
+      }
 
       // Get the product ID from the note if not provided
       let finalProductId = productId;
-      if (!finalProductId && noteId) {
+      if (!finalProductId) {
         const note = await prisma.productNote.findUnique({
           where: { id: noteId },
         });
         if (note) {
           finalProductId = note.productId;
+        } else {
+          return json({ error: "Note not found" }, { status: 404 });
         }
       }
 
-      if (!orderId || !finalProductId) {
-        return json({ error: "Missing orderId or productId" }, { status: 400 });
-      }
-
+      // Upsert by orderId + noteId (unique constraint)
+      // This ensures each note is tracked separately
       const acknowledgment = await prisma.orderAcknowledgment.upsert({
         where: {
-          orderId_productId: {
+          orderId_noteId: {
             orderId,
-            productId: finalProductId,
+            noteId,
           },
         },
         create: {
@@ -91,6 +100,8 @@ export async function action({ request }: ActionFunctionArgs) {
           sessionId,
         },
       });
+
+      console.log("[PUBLIC API] Acknowledgment created/updated for note:", noteId);
 
       // Check if all notes are acknowledged and auto-release hold if so
       const allProductIdsJson = formData.get("allProductIds") as string;

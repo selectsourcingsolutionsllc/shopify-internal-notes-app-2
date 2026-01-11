@@ -296,28 +296,30 @@ export async function checkAllNotesAcknowledged(
     return true;
   }
 
-  // Get acknowledgments for this order
+  console.log("[FulfillmentHold] Found", notes.length, "notes that need acknowledgment");
+
+  // Get acknowledgments for this order by noteId
   const acknowledgments = await prisma.orderAcknowledgment.findMany({
     where: {
       shopDomain,
       orderId,
-      productId: { in: productIds },
     },
-    select: { productId: true },
+    select: { noteId: true },
   });
 
-  // Check if every product with notes has an acknowledgment
-  const acknowledgedProductIds = new Set(acknowledgments.map(a => a.productId));
-  const productsWithNotes = new Set(notes.map(n => n.productId));
+  console.log("[FulfillmentHold] Found", acknowledgments.length, "acknowledgments for this order");
 
-  for (const productId of productsWithNotes) {
-    if (!acknowledgedProductIds.has(productId)) {
-      console.log("[FulfillmentHold] Product", productId, "not acknowledged yet");
+  // Check if every NOTE has an acknowledgment (not just every product)
+  const acknowledgedNoteIds = new Set(acknowledgments.map(a => a.noteId));
+
+  for (const note of notes) {
+    if (!acknowledgedNoteIds.has(note.id)) {
+      console.log("[FulfillmentHold] Note", note.id, "not acknowledged yet");
       return false;
     }
   }
 
-  console.log("[FulfillmentHold] All notes acknowledged for order", orderId);
+  console.log("[FulfillmentHold] All", notes.length, "notes acknowledged for order", orderId);
   return true;
 }
 
