@@ -2835,7 +2835,76 @@ Key findings:
 - 1ed0f64 - Update pricing tiers and change to 7-day trial
 
 =====================================
+SESSION: January 11, 2026 (Continued)
+SHOPIFY APP STORE APPROVAL AUDIT & APP LISTING PREPARATION
+=====================================
+
+**Goal:** Research Shopify App Store approval requirements and audit the app for compliance.
+
+**Research Sources:**
+- https://shopify.dev/docs/apps/launch/app-requirements-checklist
+- https://shopify.dev/docs/apps/store/common-rejections
+- https://shopify.dev/docs/apps/launch/shopify-app-store/app-store-requirements
+- https://shopify.dev/docs/apps/build/security/set-up-iframe-protection
+
+**Audit Results - All Technical Requirements PASSED:**
+
+| Category | Status |
+|----------|--------|
+| OAuth & Authentication | ✅ Pass |
+| Session Tokens (not cookies) | ✅ Pass |
+| App Bridge Integration | ✅ Pass |
+| Billing API | ✅ Pass |
+| GDPR Webhooks (all 3) | ✅ Pass |
+| GraphQL API (not REST) | ✅ Pass |
+| Polaris Design System | ✅ Pass |
+| Privacy Policy & Terms | ✅ Pass |
+| Admin UI Extensions | ✅ Pass |
+| App Uninstall Cleanup | ✅ Pass |
+| Security Headers | ✅ Pass |
+
+**Issue Found & Fixed:**
+
+**Duplicate Wildcard CORS Header** in `app/entry.server.tsx`
+- Was adding `Access-Control-Allow-Origin: "*"` which overrode security restrictions
+- Removed the wildcard CORS headers
+- CORS now only handled by server.js and cors.server.ts (restricted to Shopify domains)
+
+**Created:** `SHOPIFY_APPROVAL_CHECKLIST.md` - comprehensive checklist of all requirements
+
+**Commits:**
+- e226da4 - Fix CORS security issue and add Shopify approval checklist
+
+---
+
+**APP LISTING ASSETS NEEDED:**
+
+The app is technically ready, but these marketing assets must be created for the Partner Dashboard:
+
+| Item | Required Size | Status |
+|------|--------------|--------|
+| App Icon | 1200×1200px PNG/JPEG, no text | ❌ Not created |
+| Feature Media | 1600×900px image OR 2-3 min video | ❌ Not created |
+| Screenshots (3-6) | 1600×900px each | ❌ Not created |
+| App Introduction | 100 characters max | ❌ Not written |
+| App Details | 500 characters | ❌ Not written |
+| Demo Store URL | With setup instructions | ❌ Not set up |
+| Screencast | English, showing setup & features | ❌ Not recorded |
+
+**What EXISTS (Code Pages):**
+- ✅ Privacy Policy page (`/privacy-policy`)
+- ✅ Terms of Service page (`/terms-of-service`)
+- ✅ App name configured ("Internal Notes for Listings" - 28 chars)
+
+**Terminology Note:**
+Shopify officially calls the public app page the "App Listing" (or "App Store listing"). This is managed in the Partner Dashboard under "App Listing" section.
+
+**Current Status:**
+✅ App technically ready for submission
+❌ Marketing assets still needed (icon, screenshots, text, video)
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 11, 2026
-STATUS: ✅ ALL WORKING - Session-based hold logic, multi-note support, fulfilled order handling
+STATUS: ✅ TECHNICALLY READY FOR SHOPIFY APP STORE - Marketing assets needed
 =====================================
