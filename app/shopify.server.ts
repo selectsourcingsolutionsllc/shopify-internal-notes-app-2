@@ -51,7 +51,7 @@ const shopify = shopifyApp({
       amount: 19.99,
       currencyCode: "USD",
       interval: BillingInterval.Every30Days,
-      trialDays: 14,
+      trialDays: 7,
     },
   },
   ...(process.env.SHOP_CUSTOM_DOMAIN

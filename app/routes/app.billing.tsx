@@ -26,30 +26,36 @@ import { useState, useCallback } from "react";
 // Pricing tiers configuration
 const PRICING_TIERS = [
   {
-    id: "free",
-    name: "Free",
-    price: 0,
-    period: "forever",
-    description: "Perfect for trying out",
+    id: "starter",
+    name: "Starter",
+    price: 9.99,
+    period: "month",
+    productRange: "0-50 products",
+    description: "Perfect for new stores",
     features: [
-      "5 product notes",
-      "1 team member",
-      "Basic support",
+      "Up to 50 products",
+      "Unlimited notes",
+      "Photo attachments",
+      "Email support",
+      "7-day free trial",
     ],
     recommended: false,
-    planKey: null, // Free tier doesn't need billing
+    planKey: "Starter Plan",
   },
   {
     id: "basic",
     name: "Basic",
-    price: 9.99,
+    price: 14.99,
     period: "month",
-    description: "For small stores",
+    productRange: "50-300 products",
+    description: "For growing stores",
     features: [
-      "50 product notes",
-      "3 team members",
+      "Up to 300 products",
+      "Unlimited notes",
       "Photo attachments",
+      "Audit logging",
       "Email support",
+      "7-day free trial",
     ],
     recommended: false,
     planKey: "Basic Plan",
@@ -59,32 +65,54 @@ const PRICING_TIERS = [
     name: "Pro",
     price: 19.99,
     period: "month",
+    productRange: "300-3,000 products",
     description: "Most popular choice",
     features: [
+      "Up to 3,000 products",
       "Unlimited notes",
-      "10 team members",
       "Photo attachments",
       "Audit logging",
       "CSV exports",
       "Priority support",
-      "14-day free trial",
+      "7-day free trial",
     ],
     recommended: true,
     planKey: MONTHLY_PLAN,
   },
   {
+    id: "titan",
+    name: "Titan",
+    price: 24.99,
+    period: "month",
+    productRange: "3,000-10,000 products",
+    description: "For large catalogs",
+    features: [
+      "Up to 10,000 products",
+      "Unlimited notes",
+      "Photo attachments",
+      "Audit logging",
+      "CSV exports",
+      "Priority support",
+      "7-day free trial",
+    ],
+    recommended: false,
+    planKey: "Titan Plan",
+  },
+  {
     id: "enterprise",
     name: "Enterprise",
-    price: 49.99,
+    price: 29.99,
     period: "month",
-    description: "For large operations",
+    productRange: "10,000+ products",
+    description: "Unlimited scale",
     features: [
-      "Everything in Pro",
-      "Unlimited team members",
-      "API access",
-      "Custom integrations",
+      "Unlimited products",
+      "Unlimited notes",
+      "Photo attachments",
+      "Audit logging",
+      "CSV exports",
       "Dedicated support",
-      "SLA guarantee",
+      "7-day free trial",
     ],
     recommended: false,
     planKey: "Enterprise Plan",
@@ -133,7 +161,7 @@ export async function action({ request }: ActionFunctionArgs) {
         shopDomain: session.shop,
         subscriptionId: billingResponse.appSubscription.id,
         status: "PENDING",
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       },
       update: {
         subscriptionId: billingResponse.appSubscription.id,
@@ -176,10 +204,10 @@ export default function Billing() {
   const [searchParams, setSearchParams] = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "true";
 
-  // Volume slider state (for display purposes)
-  const [monthlyOrders, setMonthlyOrders] = useState(500);
+  // Volume slider state (for display purposes - based on product count)
+  const [productCount, setProductCount] = useState(100);
   const handleVolumeChange = useCallback(
-    (value: number) => setMonthlyOrders(value),
+    (value: number) => setProductCount(value),
     []
   );
 
@@ -258,30 +286,32 @@ export default function Billing() {
           <Card>
             <BlockStack gap="400">
               <Text variant="headingMd" as="h2">
-                Estimate your monthly volume
+                How many products do you have?
               </Text>
               <RangeSlider
-                label="Monthly orders"
-                value={monthlyOrders}
+                label="Number of products"
+                value={productCount}
                 onChange={handleVolumeChange}
                 min={0}
-                max={5000}
-                step={100}
+                max={15000}
+                step={50}
                 output
                 suffix={
                   <Text as="span" variant="bodyMd">
-                    {monthlyOrders.toLocaleString()} orders/month
+                    {productCount.toLocaleString()} products
                   </Text>
                 }
               />
               <Text as="p" tone="subdued">
-                {monthlyOrders <= 100
-                  ? "The Free plan is perfect for you!"
-                  : monthlyOrders <= 500
-                  ? "We recommend the Basic plan for your volume."
-                  : monthlyOrders <= 2000
-                  ? "The Pro plan is ideal for your store size."
-                  : "Enterprise plan offers the best value at your scale."}
+                {productCount <= 50
+                  ? "The Starter plan is perfect for you!"
+                  : productCount <= 300
+                  ? "We recommend the Basic plan for your catalog size."
+                  : productCount <= 3000
+                  ? "The Pro plan is ideal for your store."
+                  : productCount <= 10000
+                  ? "The Titan plan is built for catalogs your size."
+                  : "Enterprise plan offers unlimited scale for your business."}
               </Text>
             </BlockStack>
           </Card>
@@ -289,7 +319,7 @@ export default function Billing() {
 
         {/* Pricing grid */}
         <Layout.Section>
-          <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
+          <InlineGrid columns={{ xs: 1, sm: 2, md: 3, lg: 5 }} gap="400">
             {PRICING_TIERS.map((tier) => (
               <Card key={tier.id} background={tier.recommended ? "bg-surface-secondary" : undefined}>
                 <BlockStack gap="400">
@@ -309,12 +339,13 @@ export default function Billing() {
                       <Text variant="heading2xl" as="p" fontWeight="bold">
                         ${tier.price}
                       </Text>
-                      {tier.price > 0 && (
-                        <Text as="span" tone="subdued">
-                          /{tier.period}
-                        </Text>
-                      )}
+                      <Text as="span" tone="subdued">
+                        /{tier.period}
+                      </Text>
                     </InlineStack>
+                    <Text as="p" fontWeight="semibold">
+                      {tier.productRange}
+                    </Text>
                     <Text as="p" tone="subdued">
                       {tier.description}
                     </Text>
@@ -336,14 +367,7 @@ export default function Billing() {
 
                   {/* CTA Button */}
                   <Box paddingBlockStart="200">
-                    {tier.planKey === null ? (
-                      <Button
-                        fullWidth
-                        disabled={hasActiveSubscription}
-                      >
-                        {hasActiveSubscription ? "Current Plan" : "Get Started Free"}
-                      </Button>
-                    ) : tier.planKey === MONTHLY_PLAN && hasActiveSubscription ? (
+                    {tier.planKey === MONTHLY_PLAN && hasActiveSubscription ? (
                       <Button
                         fullWidth
                         variant="primary"
@@ -359,11 +383,7 @@ export default function Billing() {
                         loading={isSubmitting}
                         disabled={isSubmitting || hasActiveSubscription}
                       >
-                        {tier.price === 0
-                          ? "Get Started"
-                          : tier.recommended
-                          ? "Start Free Trial"
-                          : "Subscribe"}
+                        {tier.recommended ? "Start 7-Day Trial" : "Start Trial"}
                       </Button>
                     )}
                   </Box>
@@ -396,7 +416,7 @@ export default function Billing() {
                     What happens after the free trial?
                   </Text>
                   <Text as="p" tone="subdued">
-                    After your 14-day trial, you'll be charged the plan price. Cancel anytime before the trial ends to avoid charges.
+                    After your 7-day trial, you'll be charged the plan price. Cancel anytime before the trial ends to avoid charges.
                   </Text>
                 </BlockStack>
 

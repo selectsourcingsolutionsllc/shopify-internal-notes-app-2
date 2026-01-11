@@ -89,11 +89,11 @@ export default function AppIndex() {
           title="Start your free trial"
           status="warning"
           action={{
-            content: "Start 14-day trial",
+            content: "Start 7-day trial",
             url: "/app/billing",
           }}
         >
-          <p>Get full access to all features with a 14-day free trial.</p>
+          <p>Get full access to all features with a 7-day free trial.</p>
         </Banner>
       )}
 
