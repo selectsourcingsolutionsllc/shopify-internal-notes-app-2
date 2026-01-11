@@ -111,6 +111,12 @@ cat extensions/*/shopify.extension.toml | grep module
 13. [Text Coloring in Admin Extensions - USE BADGE FOR GREEN TEXT](#13-text-coloring-in-admin-extensions---use-badge-for-green-text)
 14. [Navigation in Embedded Apps - BACK BUTTON ISSUES](#14-navigation-in-embedded-apps---back-button-issues)
 15. [App Installation and Uninstallation - HIDDEN UNINSTALL BUTTON](#15-app-installation-and-uninstallation)
+16. [Session-Based Hold Logic - THE TIMER AUTHORIZATION DISASTER](#16-session-based-hold-logic---the-timer-authorization-disaster)
+17. [Multi-Note Acknowledgment - THE ONE vs ALL BUG](#17-multi-note-acknowledgment---the-one-vs-all-bug)
+18. [Fulfilled Order Handling - THE ZOMBIE HOLD BUG](#18-fulfilled-order-handling---the-zombie-hold-bug)
+19. [Delayed Webhook Handling - THE RACE CONDITION BUG](#19-delayed-webhook-handling---the-race-condition-bug)
+20. [Acknowledgment Checkbox Persistence - THE DATA TRANSFORMATION BUG](#20-acknowledgment-checkbox-persistence---the-data-transformation-bug)
+21. [Extension Deployment - THE NULL SESSION ID BUG](#21-extension-deployment---the-null-session-id-bug)
 
 ---
 
@@ -1311,6 +1317,12 @@ The app's webhooks and scopes are registered during OAuth. Changes only take eff
 12. **Using Text for colored text** - Text doesn't support colors! Use Badge with `tone` prop instead!
 13. **Adding back buttons to new-tab pages** - If page opens in new tab, don't add navigation - let user close tab!
 14. **Can't find uninstall button** - It's hidden behind three dots (⋮)! Use direct URL: `https://admin.shopify.com/store/YOUR-STORE/settings/apps`
+15. **Using timer-based authorization** - Time is not a proxy for user presence! Use session tokens (UUID) to track if user is still on the page.
+16. **Unique constraint on wrong field** - If multiple notes per product, constraint must be per-note not per-product!
+17. **Not checking fulfillment status** - Always check if order is already fulfilled before modifying holds!
+18. **Assuming webhooks are real-time** - Shopify webhooks can be delayed by minutes! Always check current state before acting.
+19. **Raw DB records missing UI fields** - Transform data at API boundary to add fields UI expects (like `acknowledged: true`)
+20. **Extension code not deployed** - Changed extension code? Must run `npx shopify app deploy --force` - git push only updates backend!
 
 ---
 
@@ -1333,9 +1345,532 @@ Here's the order we encountered and solved issues:
 13. **Back Button in Embedded Apps** - Direct URLs, history.back(), all failed in iframe! Solution: page opens in new tab, so just remove back button
 14. **Hidden Uninstall Button** - Can't find uninstall in Shopify admin! It's behind three dots (⋮) menu, or use direct URL
 15. **Fulfillment Hold Feature** - Added webhook to re-apply holds when released without acknowledgment. Required reinstall to register new webhook.
+16. **Timer Authorization Disaster** - Built a 60-second timer system, but user wanted session-based tracking. Timer approach fundamentally wrong - replaced with UUID session tokens.
+17. **One-Note Releases Hold Bug** - Hold released after acknowledging 1 of 3 notes! Unique constraint was on productId, needed noteId. Changed to per-note tracking.
+18. **Zombie Hold Bug** - Hold warning appeared on already-fulfilled orders. Added fulfilled status check before any hold operations.
+19. **Delayed Webhook Race Condition** - ORDERS_CREATE webhook arrived 3 minutes late and re-applied hold after user acknowledged notes. Added acknowledgment check in webhook handler.
+20. **Checkbox Persistence Bug** - Checkboxes showed unchecked after reload even though DB had records. Raw DB records don't have `acknowledged: true` field - added data transformation on load.
+21. **Null SessionId Bug** - SessionId was null in logs. Extension code wasn't deployed! Must run `npx shopify app deploy --force` after changing extension code.
 
 ---
 
-*Last Updated: January 9, 2026*
-*Based on 70+ commits of debugging sessions*
+## 16. Session-Based Hold Logic - THE TIMER AUTHORIZATION DISASTER
+
+### THE PROBLEM WITH TIMER-BASED AUTHORIZATION
+
+**Original Broken Design**: We implemented a timer-based authorization system where:
+1. User acknowledges notes → creates an "authorization token" with 60-second expiry
+2. After 60 seconds, the authorization expires
+3. Hold gets re-applied automatically
+
+**Why the User Hated It**: The user explicitly said: "you can't put a timer that just puts the hold back on because the user took too long. the hold needs to come back ONLY if the user clicks off the page, reloads the page, or closes the window/tab"
+
+The timer approach was fundamentally wrong because:
+- User could be reading notes for 5 minutes (legitimate behavior)
+- User could step away briefly
+- Any delay beyond 60 seconds = hold comes back = frustrated user
+- **The business logic should be about PAGE SESSION, not time elapsed**
+
+### WHAT WE TRIED (MULTIPLE FAILED ATTEMPTS)
+
+**Attempt 1: Timer-Based Authorization Tokens**
+```typescript
+// WRONG APPROACH
+const authorization = await prisma.fulfillmentAuthorization.create({
+  data: {
+    orderId,
+    expiresAt: new Date(Date.now() + 60 * 1000), // 60 second expiry
+  },
+});
+```
+
+**Why It Failed**: Time-based expiry is the wrong model entirely. User activity != time elapsed.
+
+**Attempt 2: Extending Timer on Each Action**
+```typescript
+// STILL WRONG
+// Tried to reset the 60-second timer on each acknowledgment
+await prisma.fulfillmentAuthorization.update({
+  where: { orderId },
+  data: { expiresAt: new Date(Date.now() + 60 * 1000) },
+});
+```
+
+**Why It Failed**: Still fundamentally broken. User could acknowledge all notes, then wait 61 seconds, and hold comes back.
+
+### THE SOLUTION: SESSION-BASED TRACKING
+
+The correct approach is to track the BROWSER SESSION, not time:
+
+**How It Works**:
+1. When extension loads, generate a unique `sessionId` (UUID)
+2. This sessionId stays the same as long as the page is open
+3. Store sessionId with each acknowledgment
+4. When user returns to the page (new sessionId), clear old acknowledgments and re-apply hold
+
+**Implementation**:
+
+```typescript
+// Extension: Generate sessionId on mount (stays stable for page lifetime)
+const sessionId = useMemo(() => generateSessionId(), []);
+
+function generateSessionId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// Pass sessionId with every API call
+formData.append('sessionId', sessionId);
+```
+
+**Server-Side Check**:
+```typescript
+// api.public.check-hold.tsx
+const existingAcknowledgments = await prisma.orderAcknowledgment.findMany({
+  where: { shopDomain: shop, orderId },
+  select: { sessionId: true },
+});
+
+if (existingAcknowledgments.length > 0) {
+  // Check if any acknowledgment has the same sessionId
+  const sameSession = existingAcknowledgments.some(ack => ack.sessionId === sessionId);
+
+  if (sameSession) {
+    // Same session = user is still on the page, don't re-apply hold
+    return json({ holdApplied: false, reason: "same session" });
+  }
+
+  // Different session = user left and came back
+  // Clear old acknowledgments so they must re-acknowledge
+  await prisma.orderAcknowledgment.deleteMany({
+    where: { shopDomain: shop, orderId },
+  });
+}
+
+// Apply hold since it's a new session
+await applyHoldsToOrder(admin, numericOrderId);
+```
+
+### KEY LESSONS
+
+| Approach | Why It's Wrong/Right |
+|----------|---------------------|
+| Timer expiry (60 seconds) | WRONG - Time is not a proxy for user leaving the page |
+| Session tokens (UUID) | RIGHT - Tracks actual browser session lifecycle |
+| Resetting timer on activity | WRONG - Still expires when user is idle but on page |
+| Checking sessionId match | RIGHT - Detects same vs different page session |
+
+### THE MENTAL MODEL
+
+Think of it like a physical clipboard in a warehouse:
+- **Timer approach**: "You have 60 seconds to read this, then I take it away" (terrible UX)
+- **Session approach**: "As long as you're holding the clipboard, it's yours. When you put it down and walk away, it goes back to the rack." (correct UX)
+
+The sessionId IS the "holding the clipboard" - it exists as long as the page is open.
+
+---
+
+## 17. Multi-Note Acknowledgment - THE ONE vs ALL BUG
+
+### THE PROBLEM
+
+**Symptom**: User has 3 notes on an order. They acknowledge ONE note, and the hold is released! It should wait until ALL notes are acknowledged.
+
+**What Happened in Testing**:
+```
+User: [Acknowledges note 1 of 3]
+System: "Hold released! Order can now be fulfilled."
+User: "WTF I still have 2 more notes!"
+```
+
+### WHY IT HAPPENED (DATABASE CONSTRAINT)
+
+The original database schema had this unique constraint:
+```prisma
+model OrderAcknowledgment {
+  orderId    String
+  productId  String
+  // ...
+  @@unique([orderId, productId])  // <-- THE PROBLEM!
+}
+```
+
+**The Logic Bug**:
+- A product can have MULTIPLE notes attached to it
+- The unique constraint was on `orderId` + `productId`
+- So only ONE acknowledgment could exist per product, regardless of how many notes that product had
+- When checking "are all notes acknowledged?", we were counting acknowledgments per product, not per note
+
+**Example**:
+- Product A has 3 notes (noteId: 1, 2, 3)
+- User acknowledges note 1 → creates acknowledgment for Product A
+- System checks: "Is there an acknowledgment for Product A? Yes!" → RELEASES HOLD
+- But notes 2 and 3 were never acknowledged!
+
+### THE SOLUTION: PER-NOTE TRACKING
+
+Changed the schema to track acknowledgments PER NOTE, not per product:
+
+```prisma
+model OrderAcknowledgment {
+  orderId    String
+  productId  String
+  noteId     String   // ADDED - each acknowledgment is for a specific note
+  // ...
+  @@unique([orderId, noteId])  // CHANGED - unique per note, not per product
+}
+```
+
+**Updated Check Logic**:
+```typescript
+// fulfillment-hold.server.ts
+export async function checkAllNotesAcknowledged(shop, orderId, productIds) {
+  // Get ALL notes for these products
+  const notes = await prisma.productNote.findMany({
+    where: { shopDomain: shop, productId: { in: productIds } },
+    select: { id: true },
+  });
+
+  // Get acknowledgments for this order
+  const acknowledgments = await prisma.orderAcknowledgment.findMany({
+    where: { shopDomain: shop, orderId },
+    select: { noteId: true },
+  });
+
+  // Check that EVERY note has been acknowledged
+  const acknowledgedNoteIds = new Set(acknowledgments.map(a => a.noteId));
+  for (const note of notes) {
+    if (!acknowledgedNoteIds.has(note.id)) {
+      console.log("[FulfillmentHold] Note", note.id, "not acknowledged yet");
+      return false;  // At least one note not acknowledged
+    }
+  }
+  return true;  // All notes acknowledged
+}
+```
+
+### KEY LESSONS
+
+1. **Data model must match business logic**: If each note needs acknowledgment, the constraint must be per-note
+2. **Think about multiplicity**: One product can have many notes - the schema must support this
+3. **Test with multiple items**: Always test with 2+ notes to catch "one vs all" bugs
+
+### THE FIX SEQUENCE
+
+1. Add `noteId` field to `OrderAcknowledgment` model
+2. Change unique constraint from `@@unique([orderId, productId])` to `@@unique([orderId, noteId])`
+3. Run `npx prisma migrate dev` to create migration
+4. Update acknowledgment creation to include `noteId`
+5. Update check logic to verify each note individually
+6. Run `npx prisma migrate deploy` on Railway
+
+---
+
+## 18. Fulfilled Order Handling - THE ZOMBIE HOLD BUG
+
+### THE PROBLEM
+
+**Symptom**: User acknowledges all notes, fulfills the order, clicks away, comes back to the order page - and sees "FULFILLMENT BLOCKED" warning again!
+
+**What Happened**:
+1. User acknowledges all notes → hold released
+2. User fulfills order → order is now FULFILLED status
+3. User clicks away from order page
+4. User returns to order page (new sessionId)
+5. check-hold endpoint sees "different session" → clears acknowledgments → tries to apply hold
+6. User sees "Order On Hold" banner on an already-fulfilled order
+
+**Why This Is Bad**: The order is already shipped! Why is it showing as blocked?
+
+### ROOT CAUSE
+
+The `check-hold` endpoint wasn't checking if the order was already fulfilled before attempting to re-apply holds:
+
+```typescript
+// OLD CODE (buggy)
+if (existingAcknowledgments.length > 0 && !sameSession) {
+  // Different session - clear acknowledgments and re-apply hold
+  await prisma.orderAcknowledgment.deleteMany({ where: { orderId } });
+  await applyHoldsToOrder(admin, orderId);  // <-- Tries to hold a fulfilled order!
+}
+```
+
+### THE SOLUTION: CHECK FULFILLMENT STATUS FIRST
+
+Before doing ANYTHING with holds, check if the order is already fulfilled:
+
+```typescript
+// api.public.check-hold.tsx
+// CHECK IF ORDER IS ALREADY FULFILLED FIRST
+const fulfillmentOrders = await getFulfillmentOrders(admin, numericOrderId);
+const fulfillableStatuses = ["OPEN", "SCHEDULED", "ON_HOLD"];
+const hasUnfulfilledItems = fulfillmentOrders.some(
+  fo => fulfillableStatuses.includes(fo.status)
+);
+
+if (!hasUnfulfilledItems) {
+  console.log("[CHECK-HOLD] Order is already fulfilled/closed - no action needed");
+  console.log("[CHECK-HOLD] Fulfillment order statuses:",
+    fulfillmentOrders.map(fo => fo.status));
+  return json({ holdApplied: false, reason: "order already fulfilled" });
+}
+
+// Only AFTER confirming order is not fulfilled, proceed with session check...
+```
+
+### WHY THE ORDER MATTERS
+
+The check sequence must be:
+1. **Is blockFulfillment enabled?** → If no, skip everything
+2. **Are there notes for this order?** → If no, skip everything
+3. **Is the order already fulfilled?** → If yes, skip everything ← THIS WAS MISSING!
+4. **Is this the same session?** → If yes, don't re-apply hold
+5. **Different session** → Clear acknowledgments, re-apply hold
+
+Adding the fulfilled check BEFORE the session check prevents zombie holds on completed orders.
+
+### KEY LESSONS
+
+1. **Check preconditions in order of importance**: Fulfilled status should be checked early
+2. **Fulfilled orders should be immutable**: Don't modify holds on orders that are already shipped
+3. **Log the status**: Logging fulfillment order statuses helped debug this quickly
+
+---
+
+## 19. Delayed Webhook Handling - THE RACE CONDITION BUG
+
+### THE PROBLEM
+
+**Symptom**: User acknowledges all notes, waits on the page for a few minutes, and suddenly the hold comes back! Even though they never left the page.
+
+**The Confusing Log Sequence**:
+```
+[Order Extension] Check-hold result: { holdApplied: false, reason: "same session" }
+// User waits 2-3 minutes...
+[Webhook] ORDERS_CREATE for order gid://shopify/Order/6273953399097
+[Webhook] Applying fulfillment hold...
+[Webhook] Hold applied successfully!
+// User's UI now shows "FULFILLMENT BLOCKED" again
+```
+
+### ROOT CAUSE: DELAYED WEBHOOKS
+
+Shopify's ORDERS_CREATE webhook can be delayed by several minutes. Here's what happened:
+
+**Timeline**:
+1. T+0s: Order created in Shopify
+2. T+0s: User opens order page, extension loads
+3. T+5s: User acknowledges all 3 notes
+4. T+10s: Hold released, user sees "Order can be fulfilled"
+5. T+180s: **ORDERS_CREATE webhook finally arrives** (3 minutes late!)
+6. T+180s: Webhook handler sees "new order" → applies hold
+7. T+180s: User's UI suddenly shows "FULFILLMENT BLOCKED" again!
+
+**Why Webhooks Are Delayed**: Shopify batches and delays webhooks for various reasons:
+- High traffic on Shopify's side
+- Retry logic if our server was briefly unavailable
+- Shopify's internal queue processing
+
+### THE SOLUTION: CHECK ACKNOWLEDGMENTS IN WEBHOOK
+
+Before applying a hold in the ORDERS_CREATE webhook, check if notes are already acknowledged:
+
+```typescript
+// webhooks.tsx - ORDERS_CREATE handler
+case "ORDERS_CREATE": {
+  // ... get order details, product IDs, etc.
+
+  // Check if notes are already acknowledged (handles delayed webhook scenario)
+  const allAcknowledged = await checkAllNotesAcknowledged(shop, orderGid, productIds);
+  if (allAcknowledged) {
+    console.log("[Webhook] All notes already acknowledged - skipping hold (delayed webhook)");
+    return;  // Don't apply hold - user already acknowledged everything!
+  }
+
+  // Only apply hold if notes aren't acknowledged
+  await applyHoldsToOrder(admin, orderId);
+}
+```
+
+### THE RACE CONDITION EXPLAINED
+
+```
+                   User opens page         User acknowledges notes
+                         ↓                         ↓
+Timeline: ─────────────────────────────────────────────────────────────→
+                   ↑                                           ↑
+            Order created                        Webhook arrives (delayed!)
+                   │                                           │
+                   └───────── 3 minute delay ──────────────────┘
+```
+
+Without the fix, the webhook "wins" and re-applies the hold even though the user already did everything right.
+
+### KEY LESSONS
+
+1. **Webhooks are NOT real-time**: They can be delayed by seconds or minutes
+2. **Always check current state**: Don't assume webhook is "first" - user may have acted before it arrived
+3. **Idempotent operations**: Code should handle receiving the same event multiple times
+4. **Log the scenario**: Log "delayed webhook" cases to track how often this happens
+
+---
+
+## 20. Acknowledgment Checkbox Persistence - THE DATA TRANSFORMATION BUG
+
+### THE PROBLEM
+
+**Symptom**: User acknowledges all notes, fulfills order, leaves page, comes back. The acknowledgment checkboxes are now UNCHECKED even though the database has the acknowledgment records!
+
+**What User Saw**:
+- Checkboxes were empty (not checked)
+- No "Acknowledged at..." timestamp shown
+- But the "FULFILLMENT BLOCKED" banner was NOT showing (correct)
+- Confusing mixed signals!
+
+### ROOT CAUSE: MISSING DATA TRANSFORMATION
+
+When loading acknowledgments from the API, the raw database records look like this:
+```javascript
+// Raw data from database
+{
+  noteId: "abc123",
+  orderId: "gid://shopify/Order/123",
+  acknowledgedAt: "2026-01-10T15:30:00Z"
+}
+```
+
+But the UI expected this format:
+```javascript
+// What UI expected
+{
+  acknowledged: true,  // <-- This field doesn't exist in database!
+  acknowledgedAt: "2026-01-10T15:30:00Z"
+}
+```
+
+**The Bug**: We were passing raw database records directly to the UI. The UI checked `ack.acknowledged` which was `undefined`, so checkboxes showed as unchecked.
+
+**The Correct Logic**: If an acknowledgment record EXISTS in the database, it means it's acknowledged. The existence of the record IS the "acknowledged: true".
+
+### THE SOLUTION: TRANSFORM DATA WHEN LOADING
+
+```typescript
+// OrderDetailsBlock.tsx - when loading notes and acknowledgments
+const acks: Record<string, any> = {};
+(responseData.notes || []).forEach((note: any) => {
+  const existingAck = (responseData.acknowledgments || []).find((ack: any) =>
+    ack.noteId === note.id && ack.orderId === orderId
+  );
+
+  if (existingAck) {
+    // Acknowledgment exists in database = it IS acknowledged
+    // Transform to the format the UI expects
+    acks[note.id] = {
+      acknowledged: true,  // <-- ADD THIS FIELD
+      acknowledgedAt: existingAck.acknowledgedAt,
+    };
+  } else {
+    acks[note.id] = { acknowledged: false };
+  }
+});
+setAcknowledgments(acks);
+```
+
+### WHY THE ORIGINAL CODE WORKED FOR NEW ACKNOWLEDGMENTS
+
+When the user clicks a checkbox to acknowledge in the current session, we set the state directly:
+```typescript
+setAcknowledgments(prev => ({
+  ...prev,
+  [noteId]: {
+    acknowledged: true,  // Set explicitly
+    acknowledgedAt: new Date().toISOString(),
+  },
+}));
+```
+
+So new acknowledgments had the `acknowledged: true` field. But when LOADING from the database, we weren't adding it.
+
+### KEY LESSONS
+
+1. **Data shapes between DB and UI often differ**: Don't assume DB format matches UI expectations
+2. **Transform data at the boundary**: When loading from API, transform to UI format immediately
+3. **Existence can imply boolean**: A record existing in DB often means "true" for some boolean concept
+4. **Test the reload scenario**: Always test: do action → reload page → verify state persists correctly
+
+---
+
+## 21. Extension Deployment - THE NULL SESSION ID BUG
+
+### THE PROBLEM
+
+**Symptom**: Railway logs showed `sessionId: null` even though the code clearly set it.
+
+```
+[CHECK-HOLD] Checking order: gid://shopify/Order/123 sessionId: null
+```
+
+### ROOT CAUSE: EXTENSION NOT DEPLOYED
+
+The extension code (which generates the sessionId) was changed locally, but:
+- **Railway** was deployed (backend code updated) ✓
+- **Shopify extension** was NOT deployed (frontend code still old) ✗
+
+The old extension code didn't have the sessionId logic, so it sent null.
+
+### THE SOLUTION: DEPLOY TO SHOPIFY
+
+```bash
+npx shopify app deploy --force
+```
+
+### THE CRITICAL DISTINCTION
+
+| What | Deployment Command | What It Updates |
+|------|-------------------|-----------------|
+| Backend (API routes, server code) | `git push` → Railway auto-deploys | Server-side code on Railway |
+| Frontend (UI Extension) | `npx shopify app deploy --force` | Extension code on Shopify's servers |
+
+**You MUST do BOTH when changing extension code!**
+
+1. `git add . && git commit -m "message" && git push` → Updates Railway backend
+2. `npx shopify app deploy --force` → Updates Shopify extension
+
+### HOW TO TELL WHICH NEEDS UPDATING
+
+| If you changed... | You need to deploy to... |
+|-------------------|-------------------------|
+| `app/routes/*.tsx` | Railway (git push) |
+| `app/utils/*.ts` | Railway (git push) |
+| `server.js` | Railway (git push) |
+| `extensions/*/src/*.tsx` | **Shopify** (npx shopify app deploy) |
+| `extensions/*/shopify.extension.toml` | **Shopify** (npx shopify app deploy) |
+
+### KEY LESSONS
+
+1. **Extension and backend are separate deploys**: Don't forget the extension!
+2. **Check logs for "null" values**: Often means code isn't deployed
+3. **Force deploy extensions**: `--force` ensures latest code is pushed
+4. **Both deploys needed for full-stack changes**: Backend + extension changes need both commands
+
+---
+
+## Summary: Session 16 Issues (January 10, 2026)
+
+| Issue | Root Cause | Solution |
+|-------|------------|----------|
+| Timer-based authorization | Wrong mental model (time vs session) | Session tokens (UUID) instead of timers |
+| One-note releases hold | Unique constraint on productId not noteId | Changed to per-note tracking |
+| Hold on fulfilled orders | No fulfilled status check | Check fulfillment status before any action |
+| Delayed webhook re-applies hold | ORDERS_CREATE webhook can be minutes late | Check acknowledgments before applying hold |
+| Checkboxes not checked on reload | Missing data transformation | Transform DB records to add `acknowledged: true` |
+| SessionId showing as null | Extension not deployed to Shopify | Run `npx shopify app deploy --force` |
+
+---
+
+*Last Updated: January 10, 2026*
+*Based on 80+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
