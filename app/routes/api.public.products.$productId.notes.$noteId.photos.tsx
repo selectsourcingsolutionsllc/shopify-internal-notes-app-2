@@ -3,18 +3,13 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import { createAuditLog } from "../utils/audit.server";
 import { uploadFile, deleteFile } from "../utils/storage.server";
-
-// CORS headers for extension access
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { validateShopInstalled } from "../utils/shop-validation.server";
+import { addCorsHeaders, createCorsResponse } from "../utils/cors.server";
 
 export async function loader({ request, params }: ActionFunctionArgs) {
   // Handle preflight
   if (request.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return createCorsResponse(request);
   }
 
   const { noteId } = params;
@@ -22,7 +17,13 @@ export async function loader({ request, params }: ActionFunctionArgs) {
   const shop = url.searchParams.get("shop");
 
   if (!shop) {
-    return json({ error: "Shop parameter required" }, { status: 400, headers: corsHeaders });
+    return addCorsHeaders(json({ error: "Shop parameter required" }, { status: 400 }), request);
+  }
+
+  // SECURITY: Validate that this shop has installed the app
+  const isValidShop = await validateShopInstalled(shop);
+  if (!isValidShop) {
+    return addCorsHeaders(json({ error: "Unauthorized" }, { status: 403 }), request);
   }
 
   // Get photos for this note
@@ -31,13 +32,13 @@ export async function loader({ request, params }: ActionFunctionArgs) {
     orderBy: { uploadedAt: "desc" },
   });
 
-  return json({ photos }, { headers: corsHeaders });
+  return addCorsHeaders(json({ photos }), request);
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
   // Handle CORS preflight
   if (request.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return createCorsResponse(request);
   }
 
   const { productId, noteId } = params;
@@ -45,7 +46,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const shop = url.searchParams.get("shop");
 
   if (!shop) {
-    return json({ error: "Shop parameter required" }, { status: 400, headers: corsHeaders });
+    return addCorsHeaders(json({ error: "Shop parameter required" }, { status: 400 }), request);
+  }
+
+  // SECURITY: Validate that this shop has installed the app
+  const isValidShop = await validateShopInstalled(shop);
+  if (!isValidShop) {
+    return addCorsHeaders(json({ error: "Unauthorized" }, { status: 403 }), request);
   }
 
   // Verify the note exists and belongs to this shop
@@ -54,7 +61,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   });
 
   if (!note || note.shopDomain !== shop) {
-    return json({ error: "Note not found" }, { status: 404, headers: corsHeaders });
+    return addCorsHeaders(json({ error: "Note not found" }, { status: 404 }), request);
   }
 
   if (request.method === "POST") {
@@ -63,7 +70,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const photo = formData.get("photo") as File;
 
       if (!photo) {
-        return json({ error: "No photo provided" }, { status: 400, headers: corsHeaders });
+        return addCorsHeaders(json({ error: "No photo provided" }, { status: 400 }), request);
       }
 
       // Upload the photo and create thumbnail
@@ -91,10 +98,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
         productNoteId: noteId,
       });
 
-      return json({ photo: photoRecord }, { headers: corsHeaders });
+      return addCorsHeaders(json({ photo: photoRecord }), request);
     } catch (error: any) {
       console.error("[Photo Upload] Error:", error);
-      return json({ error: error.message || "Upload failed" }, { status: 500, headers: corsHeaders });
+      return addCorsHeaders(json({ error: error.message || "Upload failed" }, { status: 500 }), request);
     }
   }
 
@@ -104,7 +111,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const photoId = formData.get("photoId") as string;
 
       if (!photoId) {
-        return json({ error: "Photo ID required" }, { status: 400, headers: corsHeaders });
+        return addCorsHeaders(json({ error: "Photo ID required" }, { status: 400 }), request);
       }
 
       // Find and delete the photo
@@ -113,7 +120,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
 
       if (!photo || photo.noteId !== noteId) {
-        return json({ error: "Photo not found" }, { status: 404, headers: corsHeaders });
+        return addCorsHeaders(json({ error: "Photo not found" }, { status: 404 }), request);
       }
 
       // Delete from storage (both original and thumbnail)
@@ -135,12 +142,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
         productNoteId: noteId,
       });
 
-      return json({ success: true }, { headers: corsHeaders });
+      return addCorsHeaders(json({ success: true }), request);
     } catch (error: any) {
       console.error("[Photo Delete] Error:", error);
-      return json({ error: error.message || "Delete failed" }, { status: 500, headers: corsHeaders });
+      return addCorsHeaders(json({ error: error.message || "Delete failed" }, { status: 500 }), request);
     }
   }
 
-  return json({ error: "Method not allowed" }, { status: 405, headers: corsHeaders });
+  return addCorsHeaders(json({ error: "Method not allowed" }, { status: 405 }), request);
 }

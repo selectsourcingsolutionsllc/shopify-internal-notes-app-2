@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
+import { validateShopInstalled } from "../utils/shop-validation.server";
 
 // Public endpoint for UI extensions - uses session token for auth
 // Session token contains shop domain in the 'dest' claim
@@ -45,6 +46,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     return json({ error: "Missing shop - provide token or shop param" }, { status: 400 });
   }
 
+  // SECURITY: Validate that this shop has installed the app
+  const isValidShop = await validateShopInstalled(shop);
+  if (!isValidShop) {
+    return json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   if (!productId) {
     return json({ error: "Missing productId" }, { status: 400 });
   }
@@ -81,6 +88,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (!shop || !productId) {
     return json({ error: "Missing required parameters" }, { status: 400 });
+  }
+
+  // SECURITY: Validate that this shop has installed the app
+  const isValidShop = await validateShopInstalled(shop);
+  if (!isValidShop) {
+    return json({ error: "Unauthorized" }, { status: 403 });
   }
 
   try {
