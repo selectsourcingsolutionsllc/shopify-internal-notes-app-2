@@ -3,6 +3,7 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import { unauthenticated } from "../shopify.server";
 import { applyHoldsToOrder } from "../utils/fulfillment-hold.server";
+import { addHoldNoteToOrder } from "./webhooks";
 
 // Public endpoint for UI extensions - check if hold needs to be re-applied
 // Called when the extension loads to ensure hold is in place if needed
@@ -29,67 +30,6 @@ function getShopFromToken(request: Request): string | null {
     console.error("[CHECK-HOLD] Error decoding token:", e);
     return null;
   }
-}
-
-// Constants for the hold warning note
-const HOLD_WARNING_START = "⚠️ FULFILLMENT BLOCKED⚠️:";
-const HOLD_WARNING_TEXT = "⚠️ FULFILLMENT BLOCKED⚠️:\n\nThere is an important product note(s) attached to this order that must be acknowledged before shipping. Please view the order details below and acknowledge all product notes before fulfilling.";
-const NOTE_SEPARATOR = "\n\n---\n\n";
-
-// Helper to get existing order note
-async function getOrderNote(admin: any, orderGid: string): Promise<string> {
-  try {
-    const response = await admin.graphql(`
-      query getOrder($id: ID!) {
-        order(id: $id) {
-          note
-        }
-      }
-    `, { variables: { id: orderGid } });
-    const data = await response.json();
-    return data.data?.order?.note || "";
-  } catch (error) {
-    console.error("[CHECK-HOLD] Failed to get order note:", error);
-    return "";
-  }
-}
-
-// Helper to add hold warning to order note
-async function addHoldNoteToOrder(admin: any, orderGid: string): Promise<void> {
-  const existingNote = await getOrderNote(admin, orderGid);
-
-  if (existingNote.includes(HOLD_WARNING_START)) {
-    console.log("[CHECK-HOLD] Hold warning already in note, skipping");
-    return;
-  }
-
-  let newNote = HOLD_WARNING_TEXT;
-  if (existingNote.trim()) {
-    newNote = HOLD_WARNING_TEXT + NOTE_SEPARATOR + existingNote;
-  }
-
-  await admin.graphql(`
-    mutation orderUpdate($input: OrderInput!) {
-      orderUpdate(input: $input) {
-        order {
-          id
-          note
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `, {
-    variables: {
-      input: {
-        id: orderGid,
-        note: newNote
-      }
-    }
-  });
-  console.log("[CHECK-HOLD] Added hold warning to order note");
 }
 
 export async function action({ request }: ActionFunctionArgs) {
