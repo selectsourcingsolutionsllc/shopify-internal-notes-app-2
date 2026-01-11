@@ -68,7 +68,8 @@
       "Bash(npx shopify app generate extension:*)",
       "Bash(npm run deploy:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx prisma migrate:*)"
+      "Bash(npx prisma migrate:*)",
+      "Bash(railway logs:*)"
     ],
     "deny": []
   }

@@ -62,11 +62,11 @@ model OrderAcknowledgment {
   acknowledgedAt  DateTime @default(now())
   proofPhotoUrl   String?
   proofPhotoName  String?
-  noteId          String?
+  noteId          String   // Required - each acknowledgment is for a specific note
   sessionId       String?  // Tracks which browser session created this acknowledgment
   auditLogs       AuditLog[]
 
-  @@unique([orderId, productId])
+  @@unique([orderId, noteId])
   @@index([orderId, shopDomain])
 }
 
