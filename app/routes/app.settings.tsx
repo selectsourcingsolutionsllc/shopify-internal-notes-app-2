@@ -203,7 +203,7 @@ export default function Settings() {
                     ? "Your Pro Plan subscription is active. Manage your billing settings below."
                     : isInTrial
                     ? "You're on a free trial. Subscribe to continue using all features."
-                    : "Start your 14-day free trial to access all features."}
+                    : "Start your 7-day free trial to access all features."}
                 </Text>
 
                 <Button url="/app/billing" variant="primary">

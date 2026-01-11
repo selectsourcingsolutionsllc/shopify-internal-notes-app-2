@@ -35,7 +35,7 @@ export default function TermsOfService() {
       <h2>4. Billing and Payments</h2>
       <ul>
         <li>The App is offered on a subscription basis at $19.99/month</li>
-        <li>A 14-day free trial is available for new users</li>
+        <li>A 7-day free trial is available for new users</li>
         <li>Billing is processed through Shopify's billing system</li>
         <li>Subscriptions automatically renew unless cancelled</li>
         <li>No refunds are provided for partial billing periods</li>
