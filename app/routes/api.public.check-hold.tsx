@@ -2,7 +2,7 @@ import { json } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import { unauthenticated } from "../shopify.server";
-import { applyHoldsToOrder } from "../utils/fulfillment-hold.server";
+import { applyHoldsToOrder, getFulfillmentOrders } from "../utils/fulfillment-hold.server";
 import { addHoldNoteToOrder } from "./webhooks";
 
 // Public endpoint for UI extensions - check if hold needs to be re-applied
@@ -80,6 +80,32 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ holdApplied: false, reason: "no notes" });
       }
 
+      // Get admin API client first - we need it to check fulfillment status
+      let admin;
+      try {
+        const result = await unauthenticated.admin(shop);
+        admin = result.admin;
+      } catch (sessionError) {
+        console.error("[CHECK-HOLD] Failed to get admin session:", sessionError);
+        return json({ error: "Failed to get admin session" }, { status: 500 });
+      }
+
+      // Extract numeric order ID from GID format
+      const orderIdMatch = orderId.match(/Order\/(\d+)/);
+      const numericOrderId = orderIdMatch ? orderIdMatch[1] : orderId;
+
+      // CHECK IF ORDER IS ALREADY FULFILLED
+      // If the order is fulfilled, closed, or cancelled - don't mess with it
+      const fulfillmentOrders = await getFulfillmentOrders(admin, numericOrderId);
+      const fulfillableStatuses = ["OPEN", "SCHEDULED", "ON_HOLD"];
+      const hasUnfulfilledItems = fulfillmentOrders.some(fo => fulfillableStatuses.includes(fo.status));
+
+      if (!hasUnfulfilledItems) {
+        console.log("[CHECK-HOLD] Order is already fulfilled/closed - no action needed");
+        console.log("[CHECK-HOLD] Fulfillment order statuses:", fulfillmentOrders.map(fo => fo.status));
+        return json({ holdApplied: false, reason: "order already fulfilled" });
+      }
+
       // SESSION-BASED LOGIC:
       // Check if acknowledgments exist for this order and compare session IDs
       const existingAcknowledgments = await prisma.orderAcknowledgment.findMany({
@@ -125,20 +151,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
       // Either no acknowledgments exist, or we just cleared stale ones
       // Need to apply hold
-
-      // Get admin API client
-      let admin;
-      try {
-        const result = await unauthenticated.admin(shop);
-        admin = result.admin;
-      } catch (sessionError) {
-        console.error("[CHECK-HOLD] Failed to get admin session:", sessionError);
-        return json({ error: "Failed to get admin session" }, { status: 500 });
-      }
-
-      // Extract numeric order ID from GID format
-      const orderIdMatch = orderId.match(/Order\/(\d+)/);
-      const numericOrderId = orderIdMatch ? orderIdMatch[1] : orderId;
 
       // Re-apply holds
       const holdResult = await applyHoldsToOrder(admin, numericOrderId);
