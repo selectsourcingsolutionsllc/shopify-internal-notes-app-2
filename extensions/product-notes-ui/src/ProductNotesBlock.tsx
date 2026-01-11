@@ -17,6 +17,9 @@ import { BASE_URL } from '../../shared/config';
 
 const TARGET = 'admin.product-details.block.render';
 
+// Maximum characters allowed per note - used for validation and display truncation
+const MAX_NOTE_LENGTH = 200;
+
 export default reactExtension(TARGET, () => <ProductNotesBlock />);
 
 function ProductNotesBlock() {
@@ -258,17 +261,17 @@ function ProductNotesBlock() {
                 onChange={setNewNote}
                 onInput={setNewNote}
               />
-              {newNote.length > 211 ? (
+              {newNote.length > MAX_NOTE_LENGTH ? (
                 <Banner tone="critical">
-                  <Text>{newNote.length - 211} characters over limit</Text>
+                  <Text>{newNote.length - MAX_NOTE_LENGTH} characters over limit</Text>
                 </Banner>
               ) : (
                 <Text emphasis="subdued">
-                  {211 - newNote.length} characters remaining
+                  {MAX_NOTE_LENGTH - newNote.length} characters remaining
                 </Text>
               )}
               <InlineStack gap="tight">
-                <Button variant="primary" onPress={handleSaveNote} disabled={newNote.length > 211 || !newNote.trim()}>
+                <Button variant="primary" onPress={handleSaveNote} disabled={newNote.length > MAX_NOTE_LENGTH || !newNote.trim()}>
                   Save
                 </Button>
                 <Button onPress={() => {
@@ -298,17 +301,17 @@ function ProductNotesBlock() {
                 onChange={setNewNote}
                 onInput={setNewNote}
               />
-              {newNote.length > 211 ? (
+              {newNote.length > MAX_NOTE_LENGTH ? (
                 <Banner tone="critical">
-                  <Text>{newNote.length - 211} characters over limit</Text>
+                  <Text>{newNote.length - MAX_NOTE_LENGTH} characters over limit</Text>
                 </Banner>
               ) : (
                 <Text emphasis="subdued">
-                  {211 - newNote.length} characters remaining
+                  {MAX_NOTE_LENGTH - newNote.length} characters remaining
                 </Text>
               )}
               <InlineStack gap="tight">
-                <Button variant="primary" onPress={handleSaveNote} disabled={newNote.length > 211 || !newNote.trim()}>
+                <Button variant="primary" onPress={handleSaveNote} disabled={newNote.length > MAX_NOTE_LENGTH || !newNote.trim()}>
                   Save
                 </Button>
                 <Button onPress={() => {
@@ -342,17 +345,17 @@ function ProductNotesBlock() {
                     onChange={setNewNote}
                     onInput={setNewNote}
                   />
-                  {newNote.length > 211 ? (
+                  {newNote.length > MAX_NOTE_LENGTH ? (
                     <Banner tone="critical">
-                      <Text>{newNote.length - 211} characters over limit</Text>
+                      <Text>{newNote.length - MAX_NOTE_LENGTH} characters over limit</Text>
                     </Banner>
                   ) : (
                     <Text emphasis="subdued">
-                      {211 - newNote.length} characters remaining
+                      {MAX_NOTE_LENGTH - newNote.length} characters remaining
                     </Text>
                   )}
                   <InlineStack gap="tight">
-                    <Button variant="primary" onPress={handleSaveNote} disabled={newNote.length > 211 || !newNote.trim()}>
+                    <Button variant="primary" onPress={handleSaveNote} disabled={newNote.length > MAX_NOTE_LENGTH || !newNote.trim()}>
                       Save
                     </Button>
                     <Button onPress={() => {
@@ -365,8 +368,8 @@ function ProductNotesBlock() {
                 </BlockStack>
               ) : (
                 <Text>
-                  {notes[currentNoteIndex].content.length > 211
-                    ? notes[currentNoteIndex].content.substring(0, 211) + '...'
+                  {notes[currentNoteIndex].content.length > MAX_NOTE_LENGTH
+                    ? notes[currentNoteIndex].content.substring(0, MAX_NOTE_LENGTH) + '...'
                     : notes[currentNoteIndex].content}
                 </Text>
               )}

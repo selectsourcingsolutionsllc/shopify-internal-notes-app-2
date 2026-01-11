@@ -69,19 +69,19 @@ This checklist contains issues found by CodeRabbit that should be fixed before g
 
 ## Low Priority (Nice to Have)
 
-- [ ] **Privacy Policy Date** - Shows today's date instead of when policy was actually updated.
-  - File: `app/routes/privacy-policy.tsx`
+- [x] **Privacy Policy Date** - FIXED: Changed from dynamic `new Date()` to static date "January 11, 2026".
+  - Files: `app/routes/privacy-policy.tsx`, `app/routes/terms-of-service.tsx`
 
-- [ ] **Placeholder Address** - `[Your Business Address]` still in privacy policy.
-  - File: `app/routes/privacy-policy.tsx`
+- [x] **Placeholder Address** - FIXED: Replaced with company name "Select Sourcing Solutions LLC". Updated governing law to "Delaware, USA".
+  - Files: `app/routes/privacy-policy.tsx`, `app/routes/terms-of-service.tsx`
 
-- [ ] **Character Limit 211** - Unusual number, should document why or use standard like 200 or 255.
+- [x] **Character Limit 211** - FIXED: Changed to 200 characters (standard number). Created `MAX_NOTE_LENGTH` constant for maintainability.
   - File: `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
 
-- [ ] **Sensitive Data in Logs** - Full payloads logged could leak customer info.
+- [x] **Sensitive Data in Logs** - FIXED: Removed all `console.log` statements that could leak customer data. Kept only `console.error` for error debugging.
   - File: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
 
-- [ ] **Native File Input** - May not work in Shopify extension sandbox.
+- [x] **Native File Input** - DOCUMENTED: Added comment noting potential sandbox limitations. Photo proof feature is currently disabled so impact is minimal. Test before enabling.
   - File: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
 
 ---

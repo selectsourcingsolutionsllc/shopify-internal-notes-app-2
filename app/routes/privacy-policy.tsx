@@ -2,7 +2,7 @@ export default function PrivacyPolicy() {
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "40px 20px", fontFamily: "system-ui, sans-serif" }}>
       <h1>Privacy Policy for Internal Notes App</h1>
-      <p><strong>Last updated:</strong> {new Date().toLocaleDateString()}</p>
+      <p><strong>Last updated:</strong> January 11, 2026</p>
       
       <h2>1. Information We Collect</h2>
       <p>
@@ -85,7 +85,7 @@ export default function PrivacyPolicy() {
       </p>
       <ul>
         <li>Email: privacy@selectsourcingsolutions.com</li>
-        <li>Address: [Your Business Address]</li>
+        <li>Select Sourcing Solutions LLC</li>
       </ul>
       
       <hr style={{ margin: "40px 0" }} />

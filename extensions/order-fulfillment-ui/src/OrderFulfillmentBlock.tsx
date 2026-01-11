@@ -47,16 +47,10 @@ function OrderFulfillmentBlock() {
       (api as any).extension?.shop ||
       (api as any).host?.shop ||
       '';
-    console.log('[Order Extension] Shop domain found:', possibleShop);
     return possibleShop;
   };
 
   useEffect(() => {
-    // Log API structure for debugging
-    console.log('[Order Extension] Full API keys:', Object.keys(api));
-    console.log('[Order Extension] Data:', JSON.stringify(data));
-    console.log('[Order Extension] Order ID:', orderId);
-
     const shop = getShopDomain();
     setDebugInfo(`Order: ${orderId || 'none'}, Shop: ${shop || 'none'}`);
 
@@ -83,7 +77,6 @@ function OrderFulfillmentBlock() {
   const fetchOrderNotes = async () => {
     try {
       setLoading(true);
-      console.log('[Order Extension] Starting fetchOrderNotes for order:', orderId);
 
       // Use GraphQL query to get order line items
       let productIds: string[] = [];
@@ -109,8 +102,6 @@ function OrderFulfillmentBlock() {
             }
           `, { variables: { id: orderId } });
 
-          console.log('[Order Extension] GraphQL result:', JSON.stringify(result));
-
           if (result?.data?.order?.lineItems?.edges) {
             productIds = result.data.order.lineItems.edges
               .map((edge: any) => edge.node?.product?.id)
@@ -118,13 +109,10 @@ function OrderFulfillmentBlock() {
           }
         }
       } catch (queryErr) {
-        console.log('[Order Extension] GraphQL query failed:', queryErr);
+        // GraphQL query failed - continue without product IDs
       }
 
-      console.log('[Order Extension] Product IDs found:', productIds);
-
       if (productIds.length === 0) {
-        console.log('[Order Extension] No product IDs found');
         setProductNotes([]);
         setLoading(false);
         return;
@@ -132,9 +120,6 @@ function OrderFulfillmentBlock() {
 
       const shop = getShopDomain();
       const url = `${BASE_URL}/api/public/orders/${encodeURIComponent(orderId)}/notes${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
-
-      console.log('[Order Extension] Fetching order notes:', url);
-      console.log('[Order Extension] With productIds:', productIds);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -144,15 +129,12 @@ function OrderFulfillmentBlock() {
         body: JSON.stringify({ productIds }),
       });
 
-      console.log('[Order Extension] Response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to fetch notes');
       }
 
       const responseData = await response.json();
-      console.log('[Order Extension] Response data:', JSON.stringify(responseData));
 
       setProductNotes(responseData.notes || []);
 
@@ -198,7 +180,6 @@ function OrderFulfillmentBlock() {
   const resetAndFetchNotes = async () => {
     try {
       setLoading(true);
-      console.log('[Order Extension] Starting resetAndFetchNotes for order:', orderId);
 
       // First, get product IDs via GraphQL
       let productIds: string[] = [];
@@ -224,8 +205,6 @@ function OrderFulfillmentBlock() {
             }
           `, { variables: { id: orderId } });
 
-          console.log('[Order Extension] GraphQL result:', JSON.stringify(result));
-
           if (result?.data?.order?.lineItems?.edges) {
             productIds = result.data.order.lineItems.edges
               .map((edge: any) => edge.node?.product?.id)
@@ -233,13 +212,10 @@ function OrderFulfillmentBlock() {
           }
         }
       } catch (queryErr) {
-        console.log('[Order Extension] GraphQL query failed:', queryErr);
+        // GraphQL query failed - continue without product IDs
       }
 
-      console.log('[Order Extension] Product IDs found:', productIds);
-
       if (productIds.length === 0) {
-        console.log('[Order Extension] No product IDs found');
         setProductNotes([]);
         setLoading(false);
         return;
@@ -251,8 +227,6 @@ function OrderFulfillmentBlock() {
       // Reset acknowledgments and re-apply hold
       const shop = getShopDomain();
       const resetUrl = `${BASE_URL}/api/public/reset-acknowledgments${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
-
-      console.log('[Order Extension] Resetting acknowledgments for order:', orderId);
 
       try {
         const resetResponse = await fetch(resetUrl, {
@@ -268,27 +242,21 @@ function OrderFulfillmentBlock() {
 
         if (resetResponse.ok) {
           const resetData = await resetResponse.json();
-          console.log('[Order Extension] Reset result:', resetData);
           // Mark hold as secured once the API confirms it was applied
           if (resetData.holdApplied || resetData.success) {
             setHoldSecured(true);
-            console.log('[Order Extension] Hold secured - fulfillment blocked');
           }
         } else {
-          console.log('[Order Extension] Reset failed:', resetResponse.status);
           // Still mark as secured to show notes - the hold may already be in place
           setHoldSecured(true);
         }
       } catch (resetErr) {
-        console.log('[Order Extension] Reset error:', resetErr);
         // Still mark as secured to allow viewing notes
         setHoldSecured(true);
       }
 
       // Now fetch notes (acknowledgments will be empty after reset)
       const url = `${BASE_URL}/api/public/orders/${encodeURIComponent(orderId)}/notes${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
-
-      console.log('[Order Extension] Fetching order notes:', url);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -298,15 +266,12 @@ function OrderFulfillmentBlock() {
         body: JSON.stringify({ productIds }),
       });
 
-      console.log('[Order Extension] Response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to fetch notes');
       }
 
       const responseData = await response.json();
-      console.log('[Order Extension] Response data:', JSON.stringify(responseData));
 
       setProductNotes(responseData.notes || []);
 
@@ -371,7 +336,6 @@ function OrderFulfillmentBlock() {
       if (!response.ok) throw new Error('Failed to acknowledge note');
 
       const responseData = await response.json();
-      console.log('[Order Extension] Acknowledgment response:', responseData);
 
       // Update local state
       setAcknowledgments(prev => ({
@@ -385,12 +349,10 @@ function OrderFulfillmentBlock() {
 
       // Check if all notes are now acknowledged and hold was auto-released
       if (responseData.allAcknowledged) {
-        console.log('[Order Extension] All notes acknowledged!');
         setCanFulfill(true);
 
         // Check if hold was auto-released
         if (responseData.holdReleased) {
-          console.log('[Order Extension] Hold was auto-released!');
           setHoldReleased(true);
         }
       }
@@ -425,7 +387,6 @@ function OrderFulfillmentBlock() {
 
     try {
       setReleasingHold(true);
-      console.log('[Order Extension] User clicked Release Hold button');
 
       const shop = getShopDomain();
       const url = `${BASE_URL}/api/public/release-hold${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
@@ -442,16 +403,13 @@ function OrderFulfillmentBlock() {
       });
 
       const responseData = await response.json();
-      console.log('[Order Extension] Release hold response:', responseData);
 
       if (response.ok && responseData.success) {
         setHoldReleased(true);
-        console.log('[Order Extension] Hold released! User can now fulfill.');
       } else {
         setError(responseData.error || 'Failed to release hold');
       }
     } catch (err: any) {
-      console.error('[Order Extension] Error releasing hold:', err);
       setError(err.message);
     } finally {
       setReleasingHold(false);
@@ -620,6 +578,9 @@ function OrderFulfillmentBlock() {
         </BlockStack>
       </Box>
       
+      {/* Photo upload modal - Note: Native file input may have limited functionality
+          in Shopify's extension sandbox. Test thoroughly before enabling photo proof feature.
+          Consider using Shopify's admin APIs for file handling if issues occur. */}
       {showPhotoModal && (
         <Modal
           title="Upload Proof Photo"
@@ -641,7 +602,7 @@ function OrderFulfillmentBlock() {
               <Text>
                 Please upload a photo as proof of acknowledgment.
               </Text>
-              
+
               <input
                 type="file"
                 accept="image/*"
@@ -654,7 +615,7 @@ function OrderFulfillmentBlock() {
                   width: '100%',
                 }}
               />
-              
+
               <Text appearance="subdued" variant="bodySm">
                 This photo will be saved as part of the audit trail.
               </Text>

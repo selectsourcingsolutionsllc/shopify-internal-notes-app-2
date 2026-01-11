@@ -2726,6 +2726,115 @@ Replaced timer-based authorization with session-based tracking:
 - 4583604 - Tether acknowledgment and block fulfillment settings together
 
 =====================================
+SESSION: January 11, 2026 - Production Fixes & Pricing Page Redesign
+=====================================
+
+**MEDIUM PRIORITY FIXES (from PRODUCTION_CHECKLIST.md)**
+
+Fixed all 5 medium priority issues identified by CodeRabbit:
+
+1. **Hardcoded Production URLs** - FIXED
+   - Created `extensions/shared/config.ts` with `SHOPIFY_APP_URL` env var
+   - Both extensions now import BASE_URL from shared config
+
+2. **N+1 Query Pattern** - FIXED
+   - Changed from fetching product titles one-by-one to single batch query
+   - Uses GraphQL `nodes` field for efficiency
+   - File: `app/routes/api.orders.$orderId.notes.tsx`
+
+3. **Checkbox Always False** - FIXED
+   - Added `pendingAcknowledgments` state for immediate visual feedback
+   - Checkbox shows as checked while API call is in progress
+   - File: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
+
+4. **Unused trackUsage Function** - FIXED
+   - Deleted dead code file: `app/utils/analytics.server.ts`
+
+5. **Missing orderId Validation** - FIXED
+   - Added validation before submitting acknowledgments and releasing holds
+   - File: `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
+
+---
+
+**API VERSION UPDATE**
+
+Updated Shopify API from January24 to October24:
+- `app/shopify.server.ts` - Changed apiVersion and REST resources import
+- Keeps app on more recent supported API version
+
+---
+
+**BILLING PAGE NAVIGATION**
+
+Problem: User couldn't find the billing page (no navigation link existed)
+
+Solution: Added "Subscription & Billing" section to Settings page:
+- Shows subscription status (Active/Trial/Inactive) with badge
+- Button links to `/app/billing`
+- File: `app/routes/app.settings.tsx`
+
+---
+
+**PRICING PAGE REDESIGN (Shopify-Style)**
+
+Completely rebuilt the billing page using latest Polaris components:
+
+**Components Used:**
+- `Page` and `Layout` - Main containers
+- `RangeSlider` - Product volume selector
+- `InlineGrid` - 5-column responsive grid (xs:1, sm:2, md:3, lg:5)
+- `Card` with `BlockStack` - Each pricing tier
+- `Badge` - "Most Popular" on Pro tier
+- `Icon` (CheckIcon) - Feature list checkmarks
+- `Button` - Primary (dark) for Pro, outline for others
+
+**New Pricing Tiers (based on product count):**
+| Plan | Price | Products |
+|------|-------|----------|
+| Starter | $9.99/mo | 0-50 |
+| Basic | $14.99/mo | 50-300 |
+| Pro ⭐ | $19.99/mo | 300-3,000 |
+| Titan | $24.99/mo | 3,000-10,000 |
+| Enterprise | $29.99/mo | 10,000+ |
+
+**Other Changes:**
+- Removed free tier
+- Changed trial from 14 days to 7 days
+- Volume slider asks "How many products do you have?"
+- Added FAQ section
+- Updated all trial references across the app
+
+**Files Modified:**
+- `app/routes/app.billing.tsx` - Complete rewrite
+- `app/shopify.server.ts` - Changed trialDays from 14 to 7
+- `app/routes/app.settings.tsx` - Updated trial text
+- `app/routes/app._index.tsx` - Updated trial text
+- `app/routes/terms-of-service.tsx` - Updated trial text
+
+---
+
+**RESEARCH: Shopify Billing Best Practices**
+
+Reviewed these repositories for patterns:
+- https://github.com/aaronarrays/shopify-vercel-app (Vercel template)
+- https://github.com/Shopify/shopify-app-js (Official SDK)
+- https://github.com/marktiddy/Shopify-Remix-Billing-Demo (Billing demo)
+
+Key findings:
+- APP_SUBSCRIPTIONS_UPDATE webhook (not implemented - optional)
+- Subscription metafield pattern for conditional extensions
+- Your billing implementation is more complete than the demos
+
+---
+
+**Commits This Session:**
+- 1d3c0f2 - Fix all 5 medium priority issues from PRODUCTION_CHECKLIST
+- 293030e - Update Shopify API version from January24 to October24
+- b9bf8f8 - Add billing link to Settings page
+- 0462654 - Implement Shopify-style pricing page with Polaris components
+- 1ed0f64 - Update pricing tiers and change to 7-day trial
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 11, 2026
 STATUS: ✅ ALL WORKING - Session-based hold logic, multi-note support, fulfilled order handling
