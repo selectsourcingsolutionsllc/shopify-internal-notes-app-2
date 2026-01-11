@@ -12,6 +12,7 @@ import {
   Image,
   useApi,
 } from '@shopify/ui-extensions-react/admin';
+import { BASE_URL } from '../../shared/config';
 
 // Use block.render so it shows automatically on the order page
 const TARGET = 'admin.order-details.block.render';
@@ -34,9 +35,9 @@ function OrderFulfillmentBlock() {
   const [holdSecured, setHoldSecured] = useState(false); // Track if hold has been re-applied
   const [holdReleased, setHoldReleased] = useState(false); // Track if user has released the hold
   const [releasingHold, setReleasingHold] = useState(false); // Track if release is in progress
+  const [pendingAcknowledgments, setPendingAcknowledgments] = useState<Set<string>>(new Set()); // Track notes being acknowledged
 
   const orderId = data.selected?.[0]?.id;
-  const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
 
   // Try to get shop domain from multiple sources
   const getShopDomain = (): string => {
@@ -325,6 +326,9 @@ function OrderFulfillmentBlock() {
   };
   
   const handleAcknowledge = async (noteId: string, photoRequired = false) => {
+    // Mark as pending immediately for visual feedback
+    setPendingAcknowledgments(prev => new Set(prev).add(noteId));
+
     if (photoRequired || settings?.requirePhotoProof) {
       setCurrentNoteId(noteId);
       setShowPhotoModal(true);
@@ -334,6 +338,17 @@ function OrderFulfillmentBlock() {
   };
   
   const submitAcknowledgment = async (noteId: string, photoData: File | null = null) => {
+    // Validate orderId exists before submitting
+    if (!orderId) {
+      setError("Cannot acknowledge: Order ID is missing");
+      setPendingAcknowledgments(prev => {
+        const next = new Set(prev);
+        next.delete(noteId);
+        return next;
+      });
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append('noteId', noteId);
@@ -385,6 +400,12 @@ function OrderFulfillmentBlock() {
 
     } catch (err: any) {
       setError(err.message);
+      // Remove from pending on error so user can retry
+      setPendingAcknowledgments(prev => {
+        const next = new Set(prev);
+        next.delete(noteId);
+        return next;
+      });
     }
   };
   
@@ -397,6 +418,11 @@ function OrderFulfillmentBlock() {
 
   // Explicitly release the hold - user must click this button
   const releaseHoldAndFulfill = async () => {
+    if (!orderId) {
+      setError("Cannot release hold: Order ID is missing");
+      return;
+    }
+
     try {
       setReleasingHold(true);
       console.log('[Order Extension] User clicked Release Hold button');
@@ -557,10 +583,11 @@ function OrderFulfillmentBlock() {
                   {!isAcknowledged && settings?.requireAcknowledgment && (
                     <InlineStack>
                       <Checkbox
-                        label="I have read and understood this note"
-                        checked={false}
+                        label={pendingAcknowledgments.has(note.id) ? "Saving acknowledgment..." : "I have read and understood this note"}
+                        checked={pendingAcknowledgments.has(note.id)}
+                        disabled={pendingAcknowledgments.has(note.id)}
                         onChange={(checked) => {
-                          if (checked) {
+                          if (checked && !pendingAcknowledgments.has(note.id)) {
                             handleAcknowledge(note.id);
                           }
                         }}

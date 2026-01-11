@@ -41,26 +41,33 @@ export async function action({ request, params }: ActionFunctionArgs) {
       },
     });
     
-    // Get product titles from Shopify
+    // Get product titles from Shopify in a single batch query
     const productTitles: Record<string, string> = {};
-    for (const productId of productIds) {
+    if (productIds.length > 0) {
       try {
         const response = await admin.graphql(
           `#graphql
-          query getProduct($id: ID!) {
-            product(id: $id) {
-              title
+          query getProducts($ids: [ID!]!) {
+            nodes(ids: $ids) {
+              ... on Product {
+                id
+                title
+              }
             }
           }`,
-          { variables: { id: productId } }
+          { variables: { ids: productIds } }
         );
-        
+
         const data = await response.json();
-        if (data.data?.product?.title) {
-          productTitles[productId] = data.data.product.title;
+        if (data.data?.nodes) {
+          for (const product of data.data.nodes) {
+            if (product?.id && product?.title) {
+              productTitles[product.id] = product.title;
+            }
+          }
         }
       } catch (error) {
-        console.error(`Failed to fetch product title for ${productId}:`, error);
+        console.error("Failed to fetch product titles:", error);
       }
     }
     
