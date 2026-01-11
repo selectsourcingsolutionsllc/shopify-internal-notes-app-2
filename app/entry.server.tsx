@@ -16,11 +16,10 @@ export default function handleRequest(
   remixContext: EntryContext
 ) {
   addDocumentResponseHeaders(request, responseHeaders);
-  
-  // Add CORS headers
-  responseHeaders.set("Access-Control-Allow-Origin", "*");
-  responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Shopify-Access-Token");
+
+  // NOTE: CORS headers are handled by server.js and cors.server.ts
+  // Do NOT add wildcard "*" CORS here - it overrides our security restrictions
+
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
 
