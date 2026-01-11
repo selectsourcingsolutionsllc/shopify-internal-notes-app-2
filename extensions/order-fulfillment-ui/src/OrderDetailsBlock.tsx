@@ -240,11 +240,21 @@ function OrderDetailsBlock() {
       setProductNotes(responseData.notes || []);
 
       // Initialize acknowledgments state
+      // The database record existing = acknowledged. Transform it to include acknowledged: true
       const acks: Record<string, any> = {};
       (responseData.notes || []).forEach((note: any) => {
-        acks[note.id] = (responseData.acknowledgments || []).find((ack: any) =>
+        const existingAck = (responseData.acknowledgments || []).find((ack: any) =>
           ack.noteId === note.id && ack.orderId === orderId
-        ) || { acknowledged: false };
+        );
+        if (existingAck) {
+          // Acknowledgment exists in database = it's acknowledged
+          acks[note.id] = {
+            acknowledged: true,
+            acknowledgedAt: existingAck.acknowledgedAt,
+          };
+        } else {
+          acks[note.id] = { acknowledged: false };
+        }
       });
       setAcknowledgments(acks);
 
