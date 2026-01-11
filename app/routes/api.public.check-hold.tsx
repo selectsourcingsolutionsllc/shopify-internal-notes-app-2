@@ -53,7 +53,9 @@ export async function action({ request }: ActionFunctionArgs) {
       }
 
       const productIds = JSON.parse(productIdsJson) as string[];
-      console.log("[CHECK-HOLD] Checking order:", orderId, "products:", productIds);
+      const sessionId = formData.get("sessionId") as string;
+
+      console.log("[CHECK-HOLD] Checking order:", orderId, "products:", productIds, "sessionId:", sessionId);
 
       // Check if blockFulfillment is enabled
       const settings = await prisma.appSetting.findUnique({
@@ -78,44 +80,51 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ holdApplied: false, reason: "no notes" });
       }
 
-      // Check for valid authorization
-      // Accept if: not expired (expiresAt > now)
-      // The authorization expiresAt is set to now + 60 seconds during acknowledgment
-      // If it hasn't expired, the user legitimately released the hold recently
-      const now = new Date();
-
-      const authorization = await prisma.orderReleaseAuthorization.findUnique({
-        where: {
-          orderId_shopDomain: {
-            orderId,
-            shopDomain: shop,
-          },
-        },
-      });
-
-      console.log("[CHECK-HOLD] Authorization check:", authorization ? {
-        expiresAt: authorization.expiresAt,
-        consumed: authorization.consumed,
-        isValid: authorization.expiresAt > now
-      } : "none");
-
-      if (authorization && authorization.expiresAt > now) {
-        // Authorization exists and hasn't expired - user just released the hold legitimately
-        console.log("[CHECK-HOLD] Valid authorization exists (expires:", authorization.expiresAt, "), no hold needed");
-        return json({ holdApplied: false, reason: "valid authorization" });
-      }
-
-      // No valid authorization - need to re-apply hold
-      console.log("[CHECK-HOLD] No valid authorization, re-applying hold...");
-
-      // Clear any existing acknowledgments so user has to re-acknowledge
-      const deleteResult = await prisma.orderAcknowledgment.deleteMany({
+      // SESSION-BASED LOGIC:
+      // Check if acknowledgments exist for this order and compare session IDs
+      const existingAcknowledgments = await prisma.orderAcknowledgment.findMany({
         where: {
           shopDomain: shop,
           orderId,
         },
+        select: {
+          sessionId: true,
+          productId: true,
+        },
       });
-      console.log("[CHECK-HOLD] Cleared", deleteResult.count, "old acknowledgments");
+
+      console.log("[CHECK-HOLD] Existing acknowledgments:", existingAcknowledgments.length);
+
+      if (existingAcknowledgments.length > 0) {
+        // Check if any acknowledgment has the same sessionId (meaning same browser session)
+        const sameSession = existingAcknowledgments.some(ack => ack.sessionId === sessionId);
+
+        console.log("[CHECK-HOLD] Same session check:", sameSession,
+          "- current:", sessionId,
+          "- stored:", existingAcknowledgments[0]?.sessionId);
+
+        if (sameSession) {
+          // User is still on the same page session - don't re-apply hold
+          console.log("[CHECK-HOLD] Same session - user is still on page, no hold needed");
+          return json({ holdApplied: false, reason: "same session" });
+        }
+
+        // Different session - user left and came back
+        // Clear the old acknowledgments so user has to re-acknowledge
+        console.log("[CHECK-HOLD] Different session - user left and came back, clearing old acknowledgments");
+        const deleteResult = await prisma.orderAcknowledgment.deleteMany({
+          where: {
+            shopDomain: shop,
+            orderId,
+          },
+        });
+        console.log("[CHECK-HOLD] Cleared", deleteResult.count, "old acknowledgments");
+      } else {
+        console.log("[CHECK-HOLD] No acknowledgments exist - need to apply hold");
+      }
+
+      // Either no acknowledgments exist, or we just cleared stale ones
+      // Need to apply hold
 
       // Get admin API client
       let admin;

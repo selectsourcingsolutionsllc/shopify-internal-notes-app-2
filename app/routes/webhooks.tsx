@@ -316,21 +316,18 @@ async function handleFulfillmentCreated(shop: string, payload: any) {
       return;
     }
 
-    // Check for valid authorization FIRST
-    // If user released hold via our app, there should be a valid authorization
-    const authorization = await prisma.orderReleaseAuthorization.findUnique({
+    // Check for acknowledgments FIRST
+    // If user acknowledged notes via our app, there should be acknowledgments in the database
+    const acknowledgments = await prisma.orderAcknowledgment.findMany({
       where: {
-        orderId_shopDomain: {
-          orderId: orderGid,
-          shopDomain: shop,
-        },
+        orderId: orderGid,
+        shopDomain: shop,
       },
     });
 
-    const now = new Date();
-    if (authorization && !authorization.consumed && authorization.expiresAt > now) {
-      // Valid authorization exists - this fulfillment was done after proper release
-      console.log("[Webhook] Valid authorization found - fulfillment was done after proper release");
+    if (acknowledgments.length > 0) {
+      // Acknowledgments exist - this fulfillment was done after proper acknowledgment
+      console.log("[Webhook] Acknowledgments found - fulfillment was done after proper acknowledgment");
       return;
     }
 
@@ -492,44 +489,24 @@ async function handleHoldReleased(shop: string, payload: any) {
       return;
     }
 
-    // CHECK FOR VALID AUTHORIZATION FIRST
-    // If this release was done via our app, there will be a valid authorization
-    // Note: Shopify sometimes sends duplicate webhooks, so we also accept recently consumed authorizations
-    const authorization = await prisma.orderReleaseAuthorization.findUnique({
+    // CHECK FOR ACKNOWLEDGMENTS FIRST
+    // If this release was done via our app, there will be acknowledgments in the database
+    const acknowledgments = await prisma.orderAcknowledgment.findMany({
       where: {
-        orderId_shopDomain: {
-          orderId: orderGid,
-          shopDomain: shop,
-        },
+        orderId: orderGid,
+        shopDomain: shop,
       },
     });
 
-    const now = new Date();
-
-    // Accept authorization if it exists and hasn't expired
-    // This handles both fresh authorizations and duplicate webhooks
-    if (authorization && authorization.expiresAt > now) {
-      if (!authorization.consumed) {
-        // First webhook - consume the authorization
-        console.log("[Webhook] Valid authorization found - this is a legitimate release via our app");
-
-        await prisma.orderReleaseAuthorization.update({
-          where: { id: authorization.id },
-          data: { consumed: true },
-        });
-
-        console.log("[Webhook] Authorization consumed - hold will stay released");
-        return;
-      } else {
-        // Already consumed but not expired - this handles duplicate webhooks
-        // Since authorization only lasts 60 seconds, any non-expired consumed auth is recent
-        console.log("[Webhook] Authorization already consumed but not expired (duplicate webhook) - hold will stay released");
-        return;
-      }
+    if (acknowledgments.length > 0) {
+      // Acknowledgments exist - this is a legitimate release via our app
+      console.log("[Webhook] Acknowledgments found - this is a legitimate release via our app");
+      console.log("[Webhook] Hold will stay released");
+      return;
     }
 
-    // NO VALID AUTHORIZATION - This is an unauthorized release (someone clicked Shopify's Unhold button)
-    console.log("[Webhook] NO VALID AUTHORIZATION - This is an unauthorized release attempt!");
+    // NO ACKNOWLEDGMENTS - This is an unauthorized release (someone clicked Shopify's Unhold button)
+    console.log("[Webhook] NO ACKNOWLEDGMENTS - This is an unauthorized release attempt!");
 
     // Get product IDs from the order
     const productIds = await getOrderProductIds(admin, String(orderId));

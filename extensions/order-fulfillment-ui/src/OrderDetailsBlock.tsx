@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   reactExtension,
   BlockStack,
@@ -19,6 +19,15 @@ const TARGET = 'admin.order-details.block.render';
 
 export default reactExtension(TARGET, () => <OrderDetailsBlock />);
 
+// Generate a random session ID (simple UUID-like string)
+function generateSessionId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 function OrderDetailsBlock() {
   const api = useApi(TARGET);
   const { data } = api;
@@ -31,6 +40,10 @@ function OrderDetailsBlock() {
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [allProductIds, setAllProductIds] = useState<string[]>([]);
+
+  // Generate a unique session ID when component mounts
+  // This stays stable for the entire page session
+  const sessionId = useMemo(() => generateSessionId(), []);
 
   // Try different ways to get the order ID
   const orderId = (data as any)?.selected?.[0]?.id || (data as any)?.order?.id;
@@ -278,11 +291,12 @@ function OrderDetailsBlock() {
       const shop = shopDomain || await fetchShopDomain();
       if (!shop) return;
 
-      console.log('[Order Extension] Checking if hold needs to be re-applied...');
+      console.log('[Order Extension] Checking if hold needs to be re-applied... sessionId:', sessionId);
 
       const formData = new FormData();
       formData.append('orderId', orderId);
       formData.append('productIds', JSON.stringify(productIds));
+      formData.append('sessionId', sessionId);
 
       const url = `${BASE_URL}/api/public/check-hold?shop=${encodeURIComponent(shop)}`;
 
@@ -327,6 +341,8 @@ function OrderDetailsBlock() {
       // Pass all product IDs so the server can check if all notes are acknowledged
       // and release the fulfillment hold if so
       formData.append('allProductIds', JSON.stringify(allProductIds));
+      // Pass sessionId so server knows which session created this acknowledgment
+      formData.append('sessionId', sessionId);
 
       const url = `${BASE_URL}/api/public/acknowledgments?shop=${encodeURIComponent(shop)}`;
 

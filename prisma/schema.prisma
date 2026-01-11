@@ -63,8 +63,9 @@ model OrderAcknowledgment {
   proofPhotoUrl   String?
   proofPhotoName  String?
   noteId          String?
+  sessionId       String?  // Tracks which browser session created this acknowledgment
   auditLogs       AuditLog[]
-  
+
   @@unique([orderId, productId])
   @@index([orderId, shopDomain])
 }
