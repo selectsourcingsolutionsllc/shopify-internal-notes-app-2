@@ -2628,32 +2628,105 @@ The hold still gets re-applied after acknowledgment. The duplicate webhook fix d
 - 98acc68 - Fix duplicate webhook causing hold to be re-applied (not working)
 
 =====================================
-🔴 NEXT TODO WHEN RESUMING:
+SESSION: January 10-11, 2026 - Session-Based Hold Logic (FIXED!)
 =====================================
 
-1. **FIX: Hold being re-applied after acknowledgment**
-   - The duplicate webhook fix (checking createdAt > oneMinuteAgo) didn't work
-   - Need to investigate WHY the authorization isn't being found/accepted
-   - Possible issues:
-     a. Order ID format mismatch between acknowledgments API and webhook
-     b. Timing issue - webhook fires before authorization is created
-     c. Multiple webhooks with different orderId formats
-   - Request user to share Railway logs when they acknowledge notes
-   - Check if authorization is being created with correct orderId format
-   - Check if webhook is looking up with same orderId format
+**Problem:** Timer-based authorization system was flawed. Holds came back after a set time even if user was still on the page. User explicitly stated: "you can't put a timer that just puts the hold back on because the user took too long. the hold needs to come back ONLY if the user clicks off the page, reloads the page, or closes the window/tab"
 
-2. **Debug Steps:**
-   - Add more logging to see:
-     - What orderId format is used when creating authorization
-     - What orderGid format is used when looking up authorization
-     - Whether authorization is found at all
-     - What the authorization's consumed and createdAt values are
+**Solution: Session Token Approach**
+Replaced timer-based authorization with session-based tracking:
 
-3. **Alternative Fix if Format Mismatch:**
-   - Ensure both use consistent GID format: `gid://shopify/Order/XXXXXXX`
+1. **Extension generates sessionId on mount** (`useMemo`)
+   - Stable for entire page session
+   - New sessionId generated on page reload/navigation
+
+2. **Added sessionId to OrderAcknowledgment model**
+   - `prisma/schema.prisma` - Added `sessionId String?` field
+
+3. **Check-hold logic compares sessionIds:**
+   - Same sessionId = user still on page = don't re-apply hold
+   - Different sessionId = user left and came back = clear acknowledgments and re-apply hold
+
+**Files Modified:**
+- `prisma/schema.prisma` - Added sessionId field
+- `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx` - Generate and pass sessionId
+- `app/routes/api.public.acknowledgments.tsx` - Store sessionId with acknowledgments
+- `app/routes/api.public.check-hold.tsx` - Compare sessionIds
+
+---
+
+**Bug: Hold released after acknowledging only ONE note (multi-note orders)**
+
+**Problem:** Unique constraint was on `orderId_productId`, not `orderId_noteId`. If a product had multiple notes, only one acknowledgment was tracked per product.
+
+**Fix:**
+1. Changed unique constraint from `@@unique([orderId, productId])` to `@@unique([orderId, noteId])`
+2. Made `noteId` required (no longer optional)
+3. Updated `checkAllNotesAcknowledged` to verify each NOTE has an acknowledgment
+4. Updated acknowledgments API to upsert by noteId
+
+**Files Modified:**
+- `prisma/schema.prisma` - Changed unique constraint
+- `app/utils/fulfillment-hold.server.ts` - Updated check function
+- `app/routes/api.public.acknowledgments.tsx` - Upsert by noteId
+
+---
+
+**Bug: Hold warning re-attached after fulfilling order and refreshing**
+
+**Problem:** Check-hold wasn't checking if order was already fulfilled before taking action.
+
+**Fix:** Added fulfillment status check at start of check-hold:
+- If no OPEN/SCHEDULED/ON_HOLD fulfillment orders exist → return early, don't touch anything
+
+**File Modified:**
+- `app/routes/api.public.check-hold.tsx` - Added fulfilled order check
+
+---
+
+**Bug: Hold comes back after acknowledging all notes (delayed webhook)**
+
+**Problem:** Shopify sends delayed `ORDERS_CREATE` webhooks. Even after user acknowledged all notes, a late webhook would arrive and blindly apply the hold.
+
+**Fix:** In ORDERS_CREATE handler, check if all notes are already acknowledged before applying hold.
+
+**File Modified:**
+- `app/routes/webhooks.tsx` - Added acknowledgment check in handleOrderCreated
+
+---
+
+**Bug: Acknowledgment checkboxes not showing as checked for fulfilled orders**
+
+**Problem:** When loading acknowledgments from database, the raw record doesn't have an `acknowledged: true` property. The UI was checking `ack.acknowledged` which was undefined.
+
+**Fix:** Transform acknowledgment data when loading - if record exists, set `acknowledged: true`.
+
+**File Modified:**
+- `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx` - Transform acknowledgment data
+
+---
+
+**Feature: Tether settings together**
+
+**Request:** The two settings (requireAcknowledgment and blockFulfillment) should be linked - unchecking one should uncheck both.
+
+**Fix:** Added handlers that update both settings together.
+
+**File Modified:**
+- `app/routes/app.settings.tsx` - Tethered settings together
+
+---
+
+**Commits This Session:**
+- a353a84 - Implement session-based hold re-application logic
+- 67470d9 - Track acknowledgments per note instead of per product
+- 05e1606 - Skip hold logic for already-fulfilled orders
+- 7277b22 - Check acknowledgments in ORDERS_CREATE webhook before applying hold
+- a0504dd - Fix acknowledgment checkbox display for fulfilled orders
+- 4583604 - Tether acknowledgment and block fulfillment settings together
 
 =====================================
 END OF CONVERSATION TRANSCRIPT
-LAST UPDATE: January 10, 2026
-STATUS: 🔴 BUG - Hold re-applied after acknowledgment despite authorization system
+LAST UPDATE: January 11, 2026
+STATUS: ✅ ALL WORKING - Session-based hold logic, multi-note support, fulfilled order handling
 =====================================
