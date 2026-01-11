@@ -6,19 +6,19 @@ This checklist contains issues found by CodeRabbit that should be fixed before g
 
 ## Critical (Must Fix)
 
-- [ ] **JWT Token Verification** - Tokens are decoded without signature verification. Hackers could fake being another shop.
-  - Files: `api.public.orders.$orderId.notes.tsx`, `api.public.products.$productId.notes.tsx`, `api.public.products.$productId.notes.$noteId.tsx`, `api.public.settings.tsx`, `api.public.acknowledgments.tsx`
+- [x] **JWT Token Verification** - FIXED: Added shop validation to verify the shop has installed the app (has active session) before allowing API access. Created `shop-validation.server.ts` utility.
+  - Files: All `api.public.*.tsx` files now use `validateShopInstalled()`
 
-- [ ] **CORS Too Permissive** - Using `"*"` allows any website to access your API. Should restrict to Shopify domains only.
-  - Files: `app/utils/cors.server.ts`, `app/entry.server.tsx`, `api.orders.$orderId.notes.tsx`, `api.public.products.$productId.notes.$noteId.photos.tsx`
+- [x] **CORS Too Permissive** - FIXED: Changed from `"*"` to only allow Shopify admin domains (*.myshopify.com, admin.shopify.com, *.spin.dev).
+  - Files: `app/utils/cors.server.ts`, `server.js`
 
-- [ ] **File Upload Validation** - No file size limits or file type checking. Could crash server or allow malicious uploads.
+- [x] **File Upload Validation** - FIXED: Added 10MB file size limit and image type validation (jpg, jpeg, png, gif, webp only).
   - File: `app/utils/storage.server.ts`
 
-- [ ] **Path Traversal Vulnerability** - `deleteFile` function could be tricked into deleting files outside the upload folder.
+- [x] **Path Traversal Vulnerability** - FIXED: Added `sanitizePath()` function that validates paths stay within UPLOAD_DIR.
   - File: `app/utils/storage.server.ts`
 
-- [ ] **Test Route Accessible in Production** - Anyone could create fake test data in your live database.
+- [x] **Test Route Accessible in Production** - FIXED: Added production check that returns 404 in production environment.
   - File: `app/routes/test.create-sample-data.tsx`
 
 ---

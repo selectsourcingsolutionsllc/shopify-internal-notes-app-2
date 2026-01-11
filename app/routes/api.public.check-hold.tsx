@@ -4,6 +4,7 @@ import prisma from "../db.server";
 import { unauthenticated } from "../shopify.server";
 import { applyHoldsToOrder, getFulfillmentOrders } from "../utils/fulfillment-hold.server";
 import { addHoldNoteToOrder } from "./webhooks";
+import { validateShopInstalled } from "../utils/shop-validation.server";
 
 // Public endpoint for UI extensions - check if hold needs to be re-applied
 // Called when the extension loads to ensure hold is in place if needed
@@ -40,6 +41,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (!shop) {
     return json({ error: "Missing shop parameter" }, { status: 400 });
+  }
+
+  // SECURITY: Validate that this shop has installed the app
+  const isValidShop = await validateShopInstalled(shop);
+  if (!isValidShop) {
+    return json({ error: "Unauthorized" }, { status: 403 });
   }
 
   if (request.method === "POST") {

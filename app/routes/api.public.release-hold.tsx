@@ -6,6 +6,7 @@ import {
   checkAllNotesAcknowledged,
   releaseHoldsFromOrder,
 } from "../utils/fulfillment-hold.server";
+import { validateShopInstalled } from "../utils/shop-validation.server";
 
 // Public endpoint for UI extensions - explicitly release hold after acknowledgment
 // This creates an authorization token so webhooks know this is a legitimate release
@@ -43,6 +44,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (!shop) {
     return json({ error: "Missing shop parameter" }, { status: 400 });
+  }
+
+  // SECURITY: Validate that this shop has installed the app
+  const isValidShop = await validateShopInstalled(shop);
+  if (!isValidShop) {
+    return json({ error: "Unauthorized" }, { status: 403 });
   }
 
   if (request.method === "POST") {

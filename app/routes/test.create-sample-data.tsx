@@ -3,14 +3,26 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import { createAuditLog } from "../utils/audit.server";
 
+// SECURITY: This route is disabled in production
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
 export async function loader({ request }: LoaderFunctionArgs) {
+  // Block in production
+  if (IS_PRODUCTION) {
+    throw new Response("Not Found", { status: 404 });
+  }
   return redirect("/test");
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  // Block in production - return 404 to not reveal route exists
+  if (IS_PRODUCTION) {
+    throw new Response("Not Found", { status: 404 });
+  }
+
   const testShop = "test-shop.myshopify.com";
   const testUser = "test-user@example.com";
-  
+
   try {
     // Create sample product notes
     const sampleNotes = [

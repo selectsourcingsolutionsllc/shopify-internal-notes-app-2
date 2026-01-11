@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
+import { validateShopInstalled } from "../utils/shop-validation.server";
 
 // Public endpoint for UI extensions - get settings
 // NOTE: CORS headers are handled by Express middleware in server.js
@@ -37,6 +38,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (!shop) {
     return json({ error: "Missing shop parameter" }, { status: 400 });
+  }
+
+  // SECURITY: Validate that this shop has installed the app
+  const isValidShop = await validateShopInstalled(shop);
+  if (!isValidShop) {
+    return json({ error: "Unauthorized" }, { status: 403 });
   }
 
   try {

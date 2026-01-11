@@ -6,6 +6,7 @@ import {
   checkOrderNeedsHold,
   applyHoldsToOrder,
 } from "../utils/fulfillment-hold.server";
+import { validateShopInstalled } from "../utils/shop-validation.server";
 
 // Public endpoint for UI extensions - reset acknowledgments when order page loads
 // This ensures every person viewing the order sees notes fresh
@@ -42,6 +43,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (!shop) {
     return json({ error: "Missing shop parameter" }, { status: 400 });
+  }
+
+  // SECURITY: Validate that this shop has installed the app
+  const isValidShop = await validateShopInstalled(shop);
+  if (!isValidShop) {
+    return json({ error: "Unauthorized" }, { status: 403 });
   }
 
   if (request.method === "POST") {

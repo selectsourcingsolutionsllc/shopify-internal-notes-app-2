@@ -4,10 +4,28 @@ const path = require("path");
 
 const app = express();
 
-// Enable CORS for Shopify UI extensions
+// Allowed origins for CORS - only Shopify admin domains
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^https:\/\/[a-zA-Z0-9-]+\.myshopify\.com$/,
+  /^https:\/\/admin\.shopify\.com$/,
+  /^https:\/\/[a-zA-Z0-9-]+\.spin\.dev$/,  // Shopify development
+];
+
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  return ALLOWED_ORIGIN_PATTERNS.some(pattern => pattern.test(origin));
+}
+
+// Enable CORS for Shopify UI extensions - RESTRICTED to Shopify domains only
 app.use((req, res, next) => {
-  // Allow requests from Shopify admin
-  res.header("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+
+  // Only allow Shopify domains
+  if (origin && isAllowedOrigin(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
+
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Shopify-Access-Token");
 
@@ -44,10 +62,13 @@ app.use("/build", express.static(path.join(__dirname, "public/build"), {
   immutable: true,
 }));
 
-// Serve uploaded files from Railway Volume with CORS headers
+// Serve uploaded files from Railway Volume with CORS headers (restricted to Shopify)
 const uploadDir = process.env.UPLOAD_DIR || "/data/uploads";
 app.use("/uploads", (req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+  if (origin && isAllowedOrigin(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
   res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.header("Cross-Origin-Resource-Policy", "cross-origin");
   next();
