@@ -34,7 +34,7 @@ async function getOrderNote(admin: any, orderGid: string): Promise<string> {
 }
 
 // Helper to add hold warning to order note (preserves existing notes)
-async function addHoldNoteToOrder(admin: any, orderGid: string): Promise<void> {
+export async function addHoldNoteToOrder(admin: any, orderGid: string): Promise<void> {
   const existingNote = await getOrderNote(admin, orderGid);
 
   // Check if warning already exists
