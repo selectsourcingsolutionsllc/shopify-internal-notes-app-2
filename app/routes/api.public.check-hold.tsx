@@ -79,10 +79,10 @@ export async function action({ request }: ActionFunctionArgs) {
       }
 
       // Check for valid authorization
-      // Accept if: not expired AND (not consumed OR consumed within last minute)
-      // The "consumed within last minute" handles the case where the webhook already consumed it
+      // Accept if: not expired (expiresAt > now)
+      // The authorization expiresAt is set to now + 60 seconds during acknowledgment
+      // If it hasn't expired, the user legitimately released the hold recently
       const now = new Date();
-      const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
 
       const authorization = await prisma.orderReleaseAuthorization.findUnique({
         where: {
@@ -93,16 +93,16 @@ export async function action({ request }: ActionFunctionArgs) {
         },
       });
 
+      console.log("[CHECK-HOLD] Authorization check:", authorization ? {
+        expiresAt: authorization.expiresAt,
+        consumed: authorization.consumed,
+        isValid: authorization.expiresAt > now
+      } : "none");
+
       if (authorization && authorization.expiresAt > now) {
-        // Authorization exists and hasn't expired
-        if (!authorization.consumed) {
-          console.log("[CHECK-HOLD] Valid unconsumed authorization exists, no hold needed");
-          return json({ holdApplied: false, reason: "valid authorization" });
-        } else if (authorization.createdAt > oneMinuteAgo) {
-          // Was consumed but created recently - this is from a legitimate release
-          console.log("[CHECK-HOLD] Recently consumed authorization exists, no hold needed");
-          return json({ holdApplied: false, reason: "recently consumed authorization" });
-        }
+        // Authorization exists and hasn't expired - user just released the hold legitimately
+        console.log("[CHECK-HOLD] Valid authorization exists (expires:", authorization.expiresAt, "), no hold needed");
+        return json({ holdApplied: false, reason: "valid authorization" });
       }
 
       // No valid authorization - need to re-apply hold
@@ -134,13 +134,24 @@ export async function action({ request }: ActionFunctionArgs) {
       // Re-apply holds
       const holdResult = await applyHoldsToOrder(admin, numericOrderId);
 
-      if (holdResult.success) {
-        console.log("[CHECK-HOLD] Successfully re-applied hold");
+      console.log("[CHECK-HOLD] Hold apply result:", holdResult);
+
+      if (holdResult.success && holdResult.results.length > 0) {
+        // Actually applied holds
+        console.log("[CHECK-HOLD] Successfully applied hold to", holdResult.results.length, "fulfillment orders");
 
         // Add warning note
         await addHoldNoteToOrder(admin, orderId);
 
         return json({ holdApplied: true, reason: "hold re-applied" });
+      } else if (holdResult.success && holdResult.results.length === 0) {
+        // Skipped all - order might already be on hold or in wrong state
+        console.log("[CHECK-HOLD] No holds applied - order may already be on hold");
+
+        // Still add warning note if not present
+        await addHoldNoteToOrder(admin, orderId);
+
+        return json({ holdApplied: false, reason: "order already on hold or not eligible" });
       } else {
         console.log("[CHECK-HOLD] Failed to apply hold:", holdResult.results);
         return json({ holdApplied: false, reason: "failed to apply hold" });

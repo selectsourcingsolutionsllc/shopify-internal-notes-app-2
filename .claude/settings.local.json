@@ -66,7 +66,8 @@
       "Bash(gh pr create --title \"TEST: Verify CodeRabbit Integration - DO NOT MERGE\" --body \"$\\(cat <<''EOF''\n## Purpose\nThis PR is **ONLY for testing** that CodeRabbit is properly installed and working.\n\n## What to look for\n- CodeRabbit should automatically comment on this PR within a few minutes\n- It might catch the intentional bug in the test file \\(using `-` instead of `+`\\)\n\n## After testing\n**Close this PR without merging** - just click \"Close pull request\" at the bottom.\n\n---\nThis file will be deleted after confirming CodeRabbit works.\nEOF\n\\)\")",
       "Bash(gh pr create --title \"FULL CODEBASE REVIEW - DO NOT MERGE\" --body \"$\\(cat <<''EOF''\n## Purpose\nThis PR triggers CodeRabbit to review ALL 48 source files in the project.\n\n## What happens\n- CodeRabbit will analyze every code file\n- This may take 10-15 minutes for a full review\n- You''ll get an email when it''s done\n\n## Files included \\(48 total\\)\n- All files in `app/` \\(routes, utils, server files\\)\n- All files in `extensions/` \\(Shopify UI extensions\\)\n- Config files \\(server.js, vite.config.ts, etc.\\)\n\n## After review\n**CLOSE THIS PR WITHOUT MERGING** - Click \"Close pull request\" at the bottom.\n\nThe review comments will stay visible even after closing.\nEOF\n\\)\")",
       "Bash(npx shopify app generate extension:*)",
-      "Bash(npm run deploy:*)"
+      "Bash(npm run deploy:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }
