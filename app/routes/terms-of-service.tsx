@@ -2,7 +2,7 @@ export default function TermsOfService() {
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "40px 20px", fontFamily: "system-ui, sans-serif" }}>
       <h1>Terms of Service for Internal Notes App</h1>
-      <p><strong>Last updated:</strong> {new Date().toLocaleDateString()}</p>
+      <p><strong>Last updated:</strong> January 11, 2026</p>
       
       <h2>1. Acceptance of Terms</h2>
       <p>
@@ -92,7 +92,7 @@ export default function TermsOfService() {
       
       <h2>13. Governing Law</h2>
       <p>
-        These Terms shall be governed by and construed in accordance with the laws of [Your State/Country], 
+        These Terms shall be governed by and construed in accordance with the laws of Delaware, USA,
         without regard to its conflict of law provisions.
       </p>
       
@@ -102,7 +102,7 @@ export default function TermsOfService() {
       </p>
       <ul>
         <li>Email: legal@selectsourcingsolutions.com</li>
-        <li>Address: [Your Business Address]</li>
+        <li>Select Sourcing Solutions LLC</li>
       </ul>
       
       <hr style={{ margin: "40px 0" }} />
