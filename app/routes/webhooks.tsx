@@ -251,6 +251,17 @@ async function handleOrderCreated(shop: string, payload: any) {
       return;
     }
 
+    // Check if all notes are already acknowledged (handles delayed webhook scenario)
+    // Shopify sometimes sends ORDERS_CREATE webhooks with a delay, AFTER the user
+    // has already viewed the order and acknowledged all notes
+    const orderGid = `gid://shopify/Order/${payload.id}`;
+    const allAcknowledged = await checkAllNotesAcknowledged(shop, orderGid, productIds);
+
+    if (allAcknowledged) {
+      console.log("[Webhook] All notes already acknowledged - skipping hold (delayed webhook scenario)");
+      return;
+    }
+
     console.log("[Webhook] Order needs hold, applying...");
 
     // Get admin API client for this shop
@@ -274,7 +285,6 @@ async function handleOrderCreated(shop: string, payload: any) {
       console.log("[Webhook] Successfully applied holds to order", payload.id);
 
       // Add a note to the order explaining why it's on hold (preserves existing notes)
-      const orderGid = `gid://shopify/Order/${payload.id}`;
       try {
         await addHoldNoteToOrder(admin, orderGid);
       } catch (noteError) {
