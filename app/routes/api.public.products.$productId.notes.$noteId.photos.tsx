@@ -3,7 +3,7 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import { createAuditLog } from "../utils/audit.server";
 import { uploadFile, deleteFile } from "../utils/storage.server";
-import { validateShopInstalled } from "../utils/shop-validation.server";
+import { getVerifiedShop } from "../utils/shop-validation.server";
 import { addCorsHeaders, createCorsResponse } from "../utils/cors.server";
 
 export async function loader({ request, params }: ActionFunctionArgs) {
@@ -13,17 +13,12 @@ export async function loader({ request, params }: ActionFunctionArgs) {
   }
 
   const { noteId } = params;
-  const url = new URL(request.url);
-  const shop = url.searchParams.get("shop");
+
+  // SECURITY: Verify the session token signature before trusting claims
+  const { shop, verified, error } = await getVerifiedShop(request);
 
   if (!shop) {
-    return addCorsHeaders(json({ error: "Shop parameter required" }, { status: 400 }), request);
-  }
-
-  // SECURITY: Validate that this shop has installed the app
-  const isValidShop = await validateShopInstalled(shop);
-  if (!isValidShop) {
-    return addCorsHeaders(json({ error: "Unauthorized" }, { status: 403 }), request);
+    return addCorsHeaders(json({ error: error || "Authentication required" }, { status: 403 }), request);
   }
 
   // Get photos for this note
@@ -42,17 +37,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   const { productId, noteId } = params;
-  const url = new URL(request.url);
-  const shop = url.searchParams.get("shop");
+
+  // SECURITY: Verify the session token signature before trusting claims
+  const { shop, verified, error } = await getVerifiedShop(request);
 
   if (!shop) {
-    return addCorsHeaders(json({ error: "Shop parameter required" }, { status: 400 }), request);
-  }
-
-  // SECURITY: Validate that this shop has installed the app
-  const isValidShop = await validateShopInstalled(shop);
-  if (!isValidShop) {
-    return addCorsHeaders(json({ error: "Unauthorized" }, { status: 403 }), request);
+    return addCorsHeaders(json({ error: error || "Authentication required" }, { status: 403 }), request);
   }
 
   // Verify the note exists and belongs to this shop

@@ -6,8 +6,8 @@ This checklist contains issues found by CodeRabbit that should be fixed before g
 
 ## Critical (Must Fix)
 
-- [x] **JWT Token Verification** - FIXED: Added shop validation to verify the shop has installed the app (has active session) before allowing API access. Created `shop-validation.server.ts` utility.
-  - Files: All `api.public.*.tsx` files now use `validateShopInstalled()`
+- [x] **JWT Token Verification** - FIXED: Proper JWT signature verification using HS256 algorithm and app's secret key. Verifies signature, audience (aud), expiration (exp), and not-before (nbf) claims before trusting token. Uses `jsonwebtoken` library.
+  - Files: `app/utils/shop-validation.server.ts` (new `verifySessionToken()` function), all `api.public.*.tsx` files now use `getVerifiedShop()`
 
 - [x] **CORS Too Permissive** - FIXED: Changed from `"*"` to only allow Shopify admin domains (*.myshopify.com, admin.shopify.com, *.spin.dev).
   - Files: `app/utils/cors.server.ts`, `server.js`
