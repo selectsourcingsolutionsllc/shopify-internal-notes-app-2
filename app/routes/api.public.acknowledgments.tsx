@@ -51,6 +51,9 @@ export async function action({ request }: ActionFunctionArgs) {
       const noteId = formData.get("noteId") as string;
       const orderId = formData.get("orderId") as string;
       const productId = formData.get("productId") as string;
+      const sessionId = formData.get("sessionId") as string;
+
+      console.log("[PUBLIC API] Acknowledgment - sessionId:", sessionId);
 
       // Get the product ID from the note if not provided
       let finalProductId = productId;
@@ -80,10 +83,12 @@ export async function action({ request }: ActionFunctionArgs) {
           shopDomain: shop,
           acknowledgedBy: "extension-user",
           noteId,
+          sessionId,
         },
         update: {
           acknowledgedBy: "extension-user",
           acknowledgedAt: new Date(),
+          sessionId,
         },
       });
 
@@ -108,30 +113,6 @@ export async function action({ request }: ActionFunctionArgs) {
           // If all notes are acknowledged, auto-release the hold
           if (allAcknowledged) {
             console.log("[PUBLIC API] All notes acknowledged - auto-releasing hold...");
-
-            // Create authorization token BEFORE releasing hold
-            const expiresAt = new Date(Date.now() + 60 * 1000); // 60 seconds
-
-            await prisma.orderReleaseAuthorization.upsert({
-              where: {
-                orderId_shopDomain: {
-                  orderId,
-                  shopDomain: shop,
-                },
-              },
-              create: {
-                orderId,
-                shopDomain: shop,
-                expiresAt,
-                consumed: false,
-              },
-              update: {
-                expiresAt,
-                consumed: false,
-              },
-            });
-
-            console.log("[PUBLIC API] Authorization created, releasing hold...");
 
             // Get admin API client to release the hold
             const { admin } = await unauthenticated.admin(shop);
