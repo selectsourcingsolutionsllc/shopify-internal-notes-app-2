@@ -63,7 +63,7 @@ export async function action({ request }: ActionFunctionArgs) {
       entityId: customer.id.toString(),
       newValue: {
         customer_id: customer.id,
-        orders_redacted: orders_to_redact.length,
+        orders_redacted: orders_to_redact?.length || 0,
         records_redacted: redactedCount,
       },
     },

@@ -75,11 +75,20 @@ export async function action({ request, params }: ActionFunctionArgs) {
   
   if (method === "PUT") {
     const { content, noteId } = await request.json();
-    
+
+    // SECURITY: Verify the note exists AND belongs to this shop before updating
     const oldNote = await prisma.productNote.findUnique({
       where: { id: noteId },
     });
-    
+
+    if (!oldNote) {
+      return json({ error: "Note not found" }, { status: 404 });
+    }
+
+    if (oldNote.shopDomain !== session.shop) {
+      return json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     const note = await prisma.productNote.update({
       where: { id: noteId },
       data: {

@@ -1,6 +1,6 @@
 import { json, redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useSearchParams } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -13,8 +13,7 @@ import {
 import { authenticate, MONTHLY_PLAN } from "../shopify.server";
 import prisma from "../db.server";
 import { format } from "date-fns";
-
-const MONTHLY_PLAN = "Pro Plan";
+// Note: MONTHLY_PLAN is imported from shopify.server - do not redeclare
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, billing } = await authenticate.admin(request);
@@ -95,9 +94,8 @@ export default function Billing() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
-  
-  const urlParams = new URLSearchParams(window.location.search);
-  const cancelled = urlParams.get("cancelled") === "true";
+  const [searchParams, setSearchParams] = useSearchParams();
+  const cancelled = searchParams.get("cancelled") === "true";
   
   const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
   const hasActiveSubscription = subscription?.status === "ACTIVE" || hasActivePayment;
@@ -128,7 +126,7 @@ export default function Billing() {
               title="Subscription cancelled"
               status="info"
               onDismiss={() => {
-                window.history.replaceState({}, "", "/app/billing");
+                setSearchParams({});
               }}
             >
               <p>Your subscription has been cancelled. You can resubscribe at any time.</p>

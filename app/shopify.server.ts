@@ -10,6 +10,9 @@ import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prism
 import { restResources } from "@shopify/shopify-api/rest/admin/2024-01";
 import prisma from "./db.server";
 
+// Billing plan constant - must match the key in billing config below
+export const MONTHLY_PLAN = "Pro Plan";
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY!,
   apiSecretKey: process.env.SHOPIFY_API_SECRET!,
@@ -44,7 +47,7 @@ const shopify = shopifyApp({
     },
   },
   billing: {
-    "Pro Plan": {
+    [MONTHLY_PLAN]: {
       amount: 19.99,
       currencyCode: "USD",
       interval: BillingInterval.Every30Days,
