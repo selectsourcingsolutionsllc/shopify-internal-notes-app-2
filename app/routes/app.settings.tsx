@@ -83,7 +83,18 @@ export default function Settings() {
   const [requireAcknowledgment, setRequireAcknowledgment] = useState(settings.requireAcknowledgment);
   const [requirePhotoProof, setRequirePhotoProof] = useState(settings.requirePhotoProof);
   const [blockFulfillment, setBlockFulfillment] = useState(settings.blockFulfillment);
-  
+
+  // Tether the two settings together - when one changes, the other follows
+  const handleRequireAcknowledgmentChange = useCallback((checked: boolean) => {
+    setRequireAcknowledgment(checked);
+    setBlockFulfillment(checked);
+  }, []);
+
+  const handleBlockFulfillmentChange = useCallback((checked: boolean) => {
+    setBlockFulfillment(checked);
+    setRequireAcknowledgment(checked);
+  }, []);
+
   const handleSubmit = useCallback(() => {
     const formData = new FormData();
     formData.append("requireAcknowledgment", String(requireAcknowledgment));
@@ -123,7 +134,7 @@ export default function Settings() {
                   label="Require acknowledgment of product notes"
                   helpText="Staff must acknowledge all product notes before fulfilling orders"
                   checked={requireAcknowledgment}
-                  onChange={setRequireAcknowledgment}
+                  onChange={handleRequireAcknowledgmentChange}
                 />
                 
 {/* HIDDEN: Require photo proof setting - set to true to show */}
@@ -141,8 +152,7 @@ export default function Settings() {
                   label="Block order fulfillment until acknowledged"
                   helpText="Prevent orders from being fulfilled until all product notes are acknowledged"
                   checked={blockFulfillment}
-                  onChange={setBlockFulfillment}
-                  disabled={!requireAcknowledgment}
+                  onChange={handleBlockFulfillmentChange}
                 />
               </FormLayout>
               
