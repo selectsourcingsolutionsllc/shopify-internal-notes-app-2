@@ -1,6 +1,6 @@
 import { json, redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useSearchParams } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -102,9 +102,9 @@ export default function Settings() {
     formData.append("blockFulfillment", String(blockFulfillment));
     submit(formData, { method: "post" });
   }, [requireAcknowledgment, requirePhotoProof, blockFulfillment, submit]);
-  
-  const urlParams = new URLSearchParams(window.location.search);
-  const saved = urlParams.get("saved") === "true";
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const saved = searchParams.get("saved") === "true";
   
   return (
     <Page
@@ -118,7 +118,7 @@ export default function Settings() {
               title="Settings saved"
               status="success"
               onDismiss={() => {
-                window.history.replaceState({}, "", "/app/settings");
+                setSearchParams({});
               }}
             />
           </Layout.Section>

@@ -25,25 +25,25 @@ This checklist contains issues found by CodeRabbit that should be fixed before g
 
 ## High Priority (Should Fix)
 
-- [ ] **Duplicate Variable Declaration** - `MONTHLY_PLAN` is declared twice, could cause errors.
-  - File: `app/routes/app.billing.tsx`
+- [x] **Duplicate Variable Declaration** - FIXED: Removed duplicate, now properly exported from `shopify.server.ts`.
+  - File: `app/routes/app.billing.tsx`, `app/shopify.server.ts`
 
-- [ ] **SSR Window Error** - Using `window.location.search` causes errors during server-side rendering.
+- [x] **SSR Window Error** - FIXED: Using `useSearchParams` hook from Remix instead of `window.location.search`.
   - Files: `app/routes/app.billing.tsx`, `app/routes/app.settings.tsx`
 
-- [ ] **Stack Traces Exposed** - Error details shown to users could reveal sensitive info to hackers.
+- [x] **Stack Traces Exposed** - FIXED: Stack traces only shown in development, hidden in production.
   - File: `app/root.tsx`
 
-- [ ] **Prisma Singleton Bug** - Creates two database connections instead of one in development.
+- [x] **Prisma Singleton Bug** - FIXED: Now reuses the same client instance in development.
   - File: `app/db.server.ts`
 
-- [ ] **Missing Validation Before Update** - Notes could potentially be updated by wrong shop.
+- [x] **Missing Validation Before Update** - FIXED: Added shop ownership check before updating notes.
   - File: `app/routes/api.products.$productId.notes.tsx`
 
-- [ ] **Undefined productId Bug** - Could cause database errors if productId is missing.
+- [x] **Undefined productId Bug** - FIXED: Added validation to return 400 error if productId is missing.
   - File: `app/routes/api.acknowledgments.tsx`
 
-- [ ] **Undefined orders_to_redact Bug** - Could crash when processing GDPR redact requests.
+- [x] **Undefined orders_to_redact Bug** - FIXED: Added optional chaining to handle undefined/null.
   - File: `app/routes/api.gdpr.customer-redact.tsx`
 
 ---

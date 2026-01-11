@@ -34,7 +34,12 @@ export async function action({ request }: ActionFunctionArgs) {
         finalProductId = note.productId;
       }
     }
-    
+
+    // Validate that we have a productId before proceeding
+    if (!finalProductId) {
+      return json({ error: "Missing productId - provide productId or valid noteId" }, { status: 400 });
+    }
+
     const acknowledgment = await prisma.orderAcknowledgment.upsert({
       where: {
         orderId_productId: {
