@@ -499,26 +499,7 @@ async function handleHoldReleased(shop: string, payload: any) {
       return;
     }
 
-    // CHECK FOR ACKNOWLEDGMENTS FIRST
-    // If this release was done via our app, there will be acknowledgments in the database
-    const acknowledgments = await prisma.orderAcknowledgment.findMany({
-      where: {
-        orderId: orderGid,
-        shopDomain: shop,
-      },
-    });
-
-    if (acknowledgments.length > 0) {
-      // Acknowledgments exist - this is a legitimate release via our app
-      console.log("[Webhook] Acknowledgments found - this is a legitimate release via our app");
-      console.log("[Webhook] Hold will stay released");
-      return;
-    }
-
-    // NO ACKNOWLEDGMENTS - This is an unauthorized release (someone clicked Shopify's Unhold button)
-    console.log("[Webhook] NO ACKNOWLEDGMENTS - This is an unauthorized release attempt!");
-
-    // Get product IDs from the order
+    // Get product IDs from the order FIRST - we need them for proper acknowledgment check
     const productIds = await getOrderProductIds(admin, String(orderId));
 
     if (productIds.length === 0) {
@@ -540,6 +521,20 @@ async function handleHoldReleased(shop: string, payload: any) {
       console.log("[Webhook] No notes for products in this order, hold can stay released");
       return;
     }
+
+    // CHECK IF ALL NOTES ARE ACKNOWLEDGED (not just if some acknowledgments exist)
+    // Only allow hold to stay released if ALL notes have been acknowledged
+    const allAcknowledged = await checkAllNotesAcknowledged(shop, orderGid, productIds);
+
+    if (allAcknowledged) {
+      // ALL notes are acknowledged - this is a legitimate release via our app
+      console.log("[Webhook] ALL notes acknowledged - this is a legitimate release via our app");
+      console.log("[Webhook] Hold will stay released");
+      return;
+    }
+
+    // NOT ALL NOTES ACKNOWLEDGED - This is an unauthorized release!
+    console.log("[Webhook] NOT ALL NOTES ACKNOWLEDGED - This is an unauthorized release attempt!");
 
     // Products have notes - RE-APPLY THE HOLD!
     console.log("[Webhook] Order has products with notes - RE-APPLYING HOLD!");
