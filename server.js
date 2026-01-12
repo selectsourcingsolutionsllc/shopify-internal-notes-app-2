@@ -8,6 +8,9 @@ const app = express();
 const ALLOWED_ORIGIN_PATTERNS = [
   /^https:\/\/[a-zA-Z0-9-]+\.myshopify\.com$/,
   /^https:\/\/admin\.shopify\.com$/,
+  /^https:\/\/[a-zA-Z0-9-]+\.shopify\.com$/,  // Any Shopify subdomain
+  /^https:\/\/extensions\.shopifycdn\.com$/,  // Extensions CDN
+  /^https:\/\/[a-zA-Z0-9-]+\.shopifycdn\.com$/,  // Any Shopify CDN
   /^https:\/\/[a-zA-Z0-9-]+\.spin\.dev$/,  // Shopify development
 ];
 
@@ -19,6 +22,11 @@ function isAllowedOrigin(origin) {
 // Enable CORS for Shopify UI extensions - RESTRICTED to Shopify domains only
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+
+  // Debug log to see incoming origins
+  if (origin) {
+    console.log(`[CORS] Origin: ${origin}, Allowed: ${isAllowedOrigin(origin)}`);
+  }
 
   // Only allow Shopify domains
   if (origin && isAllowedOrigin(origin)) {
