@@ -2904,6 +2904,62 @@ Shopify officially calls the public app page the "App Listing" (or "App Store li
 ❌ Marketing assets still needed (icon, screenshots, text, video)
 
 =====================================
+
+SESSION: January 11, 2026 (Continued)
+UI IMPROVEMENTS & CODE CLEANUP PLANNING
+=====================================
+
+**Changes Made:**
+
+1. **Added Side Navigation Panel** (`app/routes/app.tsx`)
+   - Added `ui-nav-menu` with Home, Subscription, Settings links
+   - Removed redundant billing section from Settings page
+
+2. **Simplified Pricing Tier Features** (`app/routes/app.billing.tsx`)
+   - All 5 tiers now show same 4 features:
+     - [qty] products on store
+     - Unlimited notes
+     - Photo attachments
+     - 7-day free trial
+
+3. **Removed Hardcoded URLs**
+   - `OrderDetailsBlock.tsx` - Now imports BASE_URL from shared config
+   - `storage.server.ts` - Uses SHOPIFY_APP_URL env var
+
+4. **Code Quality Checks Performed:**
+   - No placeholder functions found (no "Your logic goes here" comments)
+   - No undefined functions/variables (TypeScript errors are type mismatches, not bugs)
+
+=====================================
+🔴 TODO LIST - CODE CLEANUP (NOT YET DONE)
+=====================================
+
+**Deprecated Polaris Props to Update:**
+- [ ] `app/routes/app._index.tsx` - Banner `status` → `tone` (lines 90, 103)
+- [ ] `app/routes/app._index.tsx` - Badge `status` → `tone` (lines 171, 179, 186)
+- [ ] `app/routes/app.settings.tsx` - Banner `status` → `tone` (line 119)
+- [ ] `app/routes/app.settings.tsx` - Button `primary` → `variant="primary"` (line 161)
+- [ ] `app/routes/app.settings.tsx` - Page `breadcrumbs` → `backAction` (line 112)
+- [ ] `app/routes/app.notes.tsx` - Button `primary` → `variant="primary"` (line 150)
+- [ ] `app/routes/test.tsx` - Button `primary` → `variant="primary"` (line 119)
+
+**Console.log Statements to Remove (~50 total):**
+- [ ] `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx` - ~20 console statements
+- [ ] `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx` - ~8 console statements
+- [ ] `extensions/product-notes-ui/src/ProductNotesBlock.tsx` - ~3 console statements
+- [ ] `app/routes/app.tsx` - 3 console statements
+- [ ] `app/utils/storage.server.ts` - ~10 console statements (keep errors, remove info)
+
+**Unnecessary Fallback Logic:**
+- [ ] `app/routes/app.tsx` line 15 - Remove `|| ""` fallback for apiKey
+- [ ] `extensions/shared/config.ts` - Remove hardcoded Railway URL fallback
+
+**Dead Code to Delete:**
+- [ ] `app/routes/api.acknowledgments.tsx` - Never called, replaced by public API
+
+**Note:** The `{false && (...)}` hidden feature blocks should be KEPT (user wants to preserve for later).
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 11, 2026
 STATUS: ✅ TECHNICALLY READY FOR SHOPIFY APP STORE - Marketing assets needed
