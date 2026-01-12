@@ -122,8 +122,12 @@ export async function action({ request }: ActionFunctionArgs) {
           },
         });
         console.log("[CHECK-HOLD] Cleared", deleteResult.count, "old acknowledgments");
+
+        // Flag that we cleared acknowledgments - UI needs to know
+        var acknowledgementsCleared = true;
       } else {
         console.log("[CHECK-HOLD] No acknowledgments exist - need to apply hold");
+        var acknowledgementsCleared = false;
       }
 
       // Either no acknowledgments exist, or we just cleared stale ones
@@ -141,7 +145,7 @@ export async function action({ request }: ActionFunctionArgs) {
         // Add warning note
         await addHoldNoteToOrder(admin, orderId);
 
-        return json({ holdApplied: true, reason: "hold re-applied" });
+        return json({ holdApplied: true, acknowledgementsCleared: true, reason: "hold re-applied" });
       } else if (holdResult.success && holdResult.results.length === 0) {
         // Skipped all - order might already be on hold or in wrong state
         console.log("[CHECK-HOLD] No holds applied - order may already be on hold");
@@ -149,10 +153,10 @@ export async function action({ request }: ActionFunctionArgs) {
         // Still add warning note if not present
         await addHoldNoteToOrder(admin, orderId);
 
-        return json({ holdApplied: false, reason: "order already on hold or not eligible" });
+        return json({ holdApplied: false, acknowledgementsCleared, reason: "order already on hold or not eligible" });
       } else {
         console.log("[CHECK-HOLD] Failed to apply hold:", holdResult.results);
-        return json({ holdApplied: false, reason: "failed to apply hold" });
+        return json({ holdApplied: false, acknowledgementsCleared: false, reason: "failed to apply hold" });
       }
 
     } catch (error) {

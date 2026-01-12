@@ -325,9 +325,9 @@ function OrderDetailsBlock() {
       const result = await response.json();
       console.log('[Order Extension] Check-hold result:', result);
 
-      if (result.holdApplied) {
-        console.log('[Order Extension] Hold was re-applied, refreshing data...');
-        // Refresh the acknowledgments since they were cleared
+      // Clear UI acknowledgments if server cleared them (session changed)
+      if (result.holdApplied || result.acknowledgementsCleared) {
+        console.log('[Order Extension] Acknowledgements were cleared, resetting UI state...');
         setAcknowledgments({});
         setCanFulfill(false);
       }
