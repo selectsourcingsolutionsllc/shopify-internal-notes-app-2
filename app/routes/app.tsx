@@ -26,6 +26,11 @@ export default function App() {
   return (
     <PolarisAppProvider i18n={enTranslations}>
       <ShopifyAppProvider isEmbeddedApp apiKey={apiKey}>
+        <ui-nav-menu>
+          <a href="/app" rel="home">Home</a>
+          <a href="/app/billing">Subscription</a>
+          <a href="/app/settings">Settings</a>
+        </ui-nav-menu>
         <Outlet />
       </ShopifyAppProvider>
     </PolarisAppProvider>
