@@ -13,7 +13,9 @@ import {
   Link,
   useApi,
 } from '@shopify/ui-extensions-react/admin';
-import { BASE_URL } from '../../shared/config';
+
+// Hardcoded URL required for extensions (process.env not available in browser)
+const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
 
 // Use block.render so it shows automatically on the order page
 const TARGET = 'admin.order-details.block.render';
