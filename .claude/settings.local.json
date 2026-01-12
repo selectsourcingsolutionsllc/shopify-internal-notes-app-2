@@ -72,7 +72,8 @@
       "Bash(railway logs:*)",
       "Bash(xargs:*)",
       "Bash(npm outdated:*)",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(npx railway:*)"
     ],
     "deny": []
   }
