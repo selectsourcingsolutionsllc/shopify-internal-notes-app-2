@@ -13,6 +13,7 @@ import {
   Link,
   useApi,
 } from '@shopify/ui-extensions-react/admin';
+import { BASE_URL } from '../../shared/config';
 
 // Use block.render so it shows automatically on the order page
 const TARGET = 'admin.order-details.block.render';
@@ -47,7 +48,6 @@ function OrderDetailsBlock() {
 
   // Try different ways to get the order ID
   const orderId = (data as any)?.selected?.[0]?.id || (data as any)?.order?.id;
-  const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
 
   const [shopDomain, setShopDomain] = useState<string>('');
 

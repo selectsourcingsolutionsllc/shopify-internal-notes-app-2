@@ -7,7 +7,7 @@ import sharp from "sharp";
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "/data/uploads";
 const PUBLIC_URL = process.env.RAILWAY_PUBLIC_DOMAIN
   ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-  : process.env.PUBLIC_URL || "https://shopify-internal-notes-app-production.up.railway.app";
+  : process.env.SHOPIFY_APP_URL || process.env.PUBLIC_URL || "";
 
 // Thumbnail size in pixels
 const THUMBNAIL_SIZE = 50;
