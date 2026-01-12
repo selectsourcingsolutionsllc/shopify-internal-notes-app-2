@@ -9,17 +9,13 @@ import {
   Checkbox,
   Button,
   Banner,
-  Badge,
-  InlineStack,
-  Text,
-  BlockStack,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { useState, useCallback } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session, billing } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   let settings = await prisma.appSetting.findUnique({
     where: { shopDomain: session.shop },
@@ -37,20 +33,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   }
 
-  // Get subscription status
-  const subscription = await prisma.billingSubscription.findUnique({
-    where: { shopDomain: session.shop },
-  });
-
-  const { hasActivePayment } = await billing.check({
-    plans: ["Pro Plan"],
-    isTest: true,
-  });
-
-  const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
-  const hasActiveSubscription = subscription?.status === "ACTIVE" || hasActivePayment;
-
-  return json({ settings, hasActiveSubscription, isInTrial });
+  return json({ settings });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -92,7 +75,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Settings() {
-  const { settings, hasActiveSubscription, isInTrial } = useLoaderData<typeof loader>();
+  const { settings } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -187,33 +170,6 @@ export default function Settings() {
           </Card>
         </Layout.Section>
         
-        <Layout.Section>
-          <Card>
-            <div style={{ padding: "20px" }}>
-              <BlockStack gap="400">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="headingMd" as="h2">Subscription & Billing</Text>
-                  <Badge tone={hasActiveSubscription ? "success" : isInTrial ? "info" : "warning"}>
-                    {hasActiveSubscription ? "Active" : isInTrial ? "Trial" : "Inactive"}
-                  </Badge>
-                </InlineStack>
-
-                <Text as="p" tone="subdued">
-                  {hasActiveSubscription
-                    ? "Your Pro Plan subscription is active. Manage your billing settings below."
-                    : isInTrial
-                    ? "You're on a free trial. Subscribe to continue using all features."
-                    : "Start your 7-day free trial to access all features."}
-                </Text>
-
-                <Button url="/app/billing" variant="primary">
-                  {hasActiveSubscription ? "Manage Subscription" : "View Plans & Pricing"}
-                </Button>
-              </BlockStack>
-            </div>
-          </Card>
-        </Layout.Section>
-
         <Layout.Section>
           <Card>
             <div style={{ padding: "20px" }}>
