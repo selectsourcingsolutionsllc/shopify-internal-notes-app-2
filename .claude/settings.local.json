@@ -69,7 +69,10 @@
       "Bash(npm run deploy:*)",
       "Bash(npx tsc:*)",
       "Bash(npx prisma migrate:*)",
-      "Bash(railway logs:*)"
+      "Bash(railway logs:*)",
+      "Bash(xargs:*)",
+      "Bash(npm outdated:*)",
+      "Bash(npm audit:*)"
     ],
     "deny": []
   }
