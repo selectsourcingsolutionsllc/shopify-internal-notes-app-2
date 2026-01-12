@@ -239,30 +239,41 @@ function OrderDetailsBlock() {
       const responseData = await response.json();
       console.log('[Order Extension] Response data:', JSON.stringify(responseData));
 
+      // FIRST: Check if hold needs to be re-applied (clears stale acknowledgments if session changed)
+      // This must happen BEFORE we load acknowledgments into UI state
+      let acknowledgementsWereCleared = false;
+      if (productIds.length > 0) {
+        acknowledgementsWereCleared = await checkAndReapplyHold(productIds);
+      }
+
       setProductNotes(responseData.notes || []);
 
       // Initialize acknowledgments state
-      // The database record existing = acknowledged. Transform it to include acknowledged: true
-      const acks: Record<string, any> = {};
-      (responseData.notes || []).forEach((note: any) => {
-        const existingAck = (responseData.acknowledgments || []).find((ack: any) =>
-          ack.noteId === note.id && ack.orderId === orderId
-        );
-        if (existingAck) {
-          // Acknowledgment exists in database = it's acknowledged
-          acks[note.id] = {
-            acknowledged: true,
-            acknowledgedAt: existingAck.acknowledgedAt,
-          };
-        } else {
+      // If acknowledgments were just cleared by check-hold, start with empty state
+      if (acknowledgementsWereCleared) {
+        const acks: Record<string, any> = {};
+        (responseData.notes || []).forEach((note: any) => {
           acks[note.id] = { acknowledged: false };
-        }
-      });
-      setAcknowledgments(acks);
-
-      // Check if hold needs to be re-applied (e.g., if user left without fulfilling)
-      if (productIds.length > 0) {
-        await checkAndReapplyHold(productIds);
+        });
+        setAcknowledgments(acks);
+      } else {
+        // The database record existing = acknowledged. Transform it to include acknowledged: true
+        const acks: Record<string, any> = {};
+        (responseData.notes || []).forEach((note: any) => {
+          const existingAck = (responseData.acknowledgments || []).find((ack: any) =>
+            ack.noteId === note.id && ack.orderId === orderId
+          );
+          if (existingAck) {
+            // Acknowledgment exists in database = it's acknowledged
+            acks[note.id] = {
+              acknowledged: true,
+              acknowledgedAt: existingAck.acknowledgedAt,
+            };
+          } else {
+            acks[note.id] = { acknowledged: false };
+          }
+        });
+        setAcknowledgments(acks);
       }
 
     } catch (err: any) {
@@ -296,12 +307,12 @@ function OrderDetailsBlock() {
   };
 
   // Check if hold needs to be re-applied (called when extension loads)
-  const checkAndReapplyHold = async (productIds: string[]) => {
+  const checkAndReapplyHold = async (productIds: string[]): Promise<boolean> => {
     try {
-      if (!orderId || productIds.length === 0) return;
+      if (!orderId || productIds.length === 0) return false;
 
       const shop = shopDomain || await fetchShopDomain();
-      if (!shop) return;
+      if (!shop) return false;
 
       console.log('[Order Extension] Checking if hold needs to be re-applied... sessionId:', sessionId);
 
@@ -319,20 +330,22 @@ function OrderDetailsBlock() {
 
       if (!response.ok) {
         console.error('[Order Extension] Check-hold request failed:', response.status);
-        return;
+        return false;
       }
 
       const result = await response.json();
       console.log('[Order Extension] Check-hold result:', result);
 
-      // Clear UI acknowledgments if server cleared them (session changed)
+      // Return whether acknowledgments were cleared so caller can handle it
       if (result.holdApplied || result.acknowledgementsCleared) {
-        console.log('[Order Extension] Acknowledgements were cleared, resetting UI state...');
-        setAcknowledgments({});
+        console.log('[Order Extension] Acknowledgements were cleared');
         setCanFulfill(false);
+        return true;
       }
+      return false;
     } catch (err: any) {
       console.error('[Order Extension] Error checking hold:', err);
+      return false;
     }
   };
 
