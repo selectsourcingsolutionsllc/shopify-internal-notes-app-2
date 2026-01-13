@@ -3748,6 +3748,27 @@ const getSessionToken = async (): Promise<string | null> => {
 
 ---
 
+**OrderDetailsBlock Extension - APPROVED by Shopify Agent (with 1 fix)**
+
+The Shopify agent reviewed OrderDetailsBlock.tsx and shopify.extension.toml.
+
+**Required fix made:**
+- Added `: boolean` type to Checkbox `onChange` parameter (line 467)
+- BEFORE: `onChange={(checked) => {`
+- AFTER: `onChange={(checked: boolean) => {`
+- WHY: The onChange callback parameter was implicitly `any`, needs explicit `boolean` type
+
+**Optional cleanup made:**
+- Removed unused `getShopDomain` function (was at lines 109-111)
+- WHY: Function was defined but never called anywhere in OrderDetailsBlock.tsx
+- VERIFIED: Checked conversation transcript and codebase - no history of why it existed
+- SAFE: The code uses `shopDomain` state directly or `fetchShopDomain()` instead
+- NOTE: The same function in OrderFulfillmentBlock.tsx IS used (7 places) - don't remove from there!
+
+**Config file:** No changes needed - already correct.
+
+---
+
 =====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 13, 2026
@@ -3771,7 +3792,7 @@ Submit each section ONE BY ONE to the Shopify agent until approved:
 [x] 1. Re-verify Webhooks code with Shopify agent - APPROVED (added try/catch)
 [x] 2. Re-verify Auth/Session code with Shopify agent - APPROVED (fixed IS_TEST_BILLING)
 [x] 3. Re-verify ProductNotesBlock extension with Shopify agent - APPROVED (no changes needed)
-[ ] 4. Re-verify OrderDetailsBlock extension with Shopify agent
+[x] 4. Re-verify OrderDetailsBlock extension with Shopify agent - APPROVED (added boolean type, removed unused func)
 [ ] 5. Re-verify Polaris UI components with Shopify agent
 [ ] 6. Re-verify GraphQL API usage with Shopify agent
 [ ] 7. Re-verify GDPR webhook handlers with Shopify agent

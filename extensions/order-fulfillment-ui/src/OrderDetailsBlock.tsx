@@ -105,11 +105,6 @@ function OrderDetailsBlock() {
     return '';
   };
 
-  // Sync getter for shop domain (uses cached value)
-  const getShopDomain = (): string => {
-    return shopDomain;
-  };
-
   useEffect(() => {
     const init = async () => {
       // Log API structure for debugging
@@ -469,7 +464,7 @@ function OrderDetailsBlock() {
                 label={currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}
                 checked={isAcknowledged}
                 disabled={isAcknowledged}
-                onChange={(checked) => {
+                onChange={(checked: boolean) => {
                   if (checked) {
                     handleAcknowledge(currentNote.id);
                   }
