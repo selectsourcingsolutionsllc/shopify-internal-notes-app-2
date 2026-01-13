@@ -3552,7 +3552,7 @@ This process must be repeated for EVERY code review, not just billing!
 =====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 13, 2026
-STATUS: ✅ ROUND 1 COMPLETE (8/8) | ROUND 2 IN PROGRESS (2/5)
+STATUS: RE-VERIFICATION IN PROGRESS
 
 ⚠️⚠️⚠️ CRITICAL REMINDER ⚠️⚠️⚠️
 ALWAYS RESUBMIT CODE TO SHOPIFY AGENT MULTIPLE TIMES!
@@ -3562,9 +3562,29 @@ ALWAYS RESUBMIT CODE TO SHOPIFY AGENT MULTIPLE TIMES!
 - DO NOT trust that Claude implemented all feedback correctly
 ⚠️⚠️⚠️ CRITICAL REMINDER ⚠️⚠️⚠️
 
-NEXT STEPS:
-1. Ask 3 remaining questions to Shopify agent (App Bridge, App Store Listing, Error Monitoring)
-2. FOR EACH QUESTION: Resubmit code MULTIPLE TIMES until agent fully approves
-3. Update privacy policy for GDPR compliance
-4. Implement remaining code quality action items before App Store submission
+=====================================
+PRIORITY TODO LIST - RE-VERIFY ALL CODE WITH SHOPIFY AGENT
+=====================================
+
+Submit each section ONE BY ONE to the Shopify agent until approved:
+
+**CODE RE-VERIFICATION (do these first):**
+[ ] 1. Re-verify Webhooks code with Shopify agent
+[ ] 2. Re-verify Auth/Session code with Shopify agent
+[ ] 3. Re-verify ProductNotesBlock extension with Shopify agent
+[ ] 4. Re-verify OrderDetailsBlock extension with Shopify agent
+[ ] 5. Re-verify Polaris UI components with Shopify agent
+[ ] 6. Re-verify GraphQL API usage with Shopify agent
+[ ] 7. Re-verify GDPR webhook handlers with Shopify agent
+[ ] 8. Re-verify Billing code with Shopify agent (final check)
+
+**NEW QUESTIONS (after re-verification complete):**
+[ ] 9. Ask Shopify agent about App Bridge patterns
+[ ] 10. Ask Shopify agent about App Store listing requirements
+[ ] 11. Ask Shopify agent about Error monitoring in production
+
+**AFTER ALL ABOVE COMPLETE:**
+[ ] 12. Update privacy policy for GDPR compliance
+[ ] 13. Implement remaining code quality action items before App Store submission
+
 =====================================
