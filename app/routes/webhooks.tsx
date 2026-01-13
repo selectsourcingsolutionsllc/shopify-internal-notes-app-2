@@ -143,48 +143,53 @@ export async function removeHoldNoteFromOrder(admin: any, orderGid: string): Pro
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { topic, shop, session, payload } = await authenticate.webhook(request);
+  try {
+    const { topic, shop, session, payload } = await authenticate.webhook(request);
 
-  // Log ALL incoming webhooks to help debug
-  console.log(`[Webhook] ======== INCOMING WEBHOOK ========`);
-  console.log(`[Webhook] Topic: ${topic}`);
-  console.log(`[Webhook] Shop: ${shop}`);
-  console.log(`[Webhook] ===================================`);
+    // Log ALL incoming webhooks to help debug
+    console.log(`[Webhook] ======== INCOMING WEBHOOK ========`);
+    console.log(`[Webhook] Topic: ${topic}`);
+    console.log(`[Webhook] Shop: ${shop}`);
+    console.log(`[Webhook] ===================================`);
 
-  if (!shop) {
-    throw new Response("No shop provided", { status: 400 });
+    if (!shop) {
+      throw new Response("No shop provided", { status: 400 });
+    }
+
+    // payload is already parsed by authenticate.webhook
+
+    switch (topic) {
+      case "APP_UNINSTALLED":
+        await handleAppUninstalled(shop);
+        break;
+      case "ORDERS_CREATE":
+        await handleOrderCreated(shop, payload);
+        break;
+      case "FULFILLMENT_ORDERS_HOLD_RELEASED":
+        await handleHoldReleased(shop, payload);
+        break;
+      case "FULFILLMENTS_CREATE":
+        await handleFulfillmentCreated(shop, payload);
+        break;
+      case "CUSTOMERS_DATA_REQUEST":
+        await handleCustomerDataRequest(shop);
+        break;
+      case "CUSTOMERS_REDACT":
+        await handleCustomerRedact(shop);
+        break;
+      case "SHOP_REDACT":
+        await handleShopRedact(shop);
+        break;
+      default:
+        console.log(`[Webhook] Unhandled topic: ${topic}`);
+        break;
+    }
+
+    return new Response();
+  } catch (error) {
+    console.error("[Webhook] Error authenticating or handling webhook:", error);
+    return new Response("Webhook error", { status: 400 });
   }
-
-  // payload is already parsed by authenticate.webhook
-
-  switch (topic) {
-    case "APP_UNINSTALLED":
-      await handleAppUninstalled(shop);
-      break;
-    case "ORDERS_CREATE":
-      await handleOrderCreated(shop, payload);
-      break;
-    case "FULFILLMENT_ORDERS_HOLD_RELEASED":
-      await handleHoldReleased(shop, payload);
-      break;
-    case "FULFILLMENTS_CREATE":
-      await handleFulfillmentCreated(shop, payload);
-      break;
-    case "CUSTOMERS_DATA_REQUEST":
-      await handleCustomerDataRequest(shop);
-      break;
-    case "CUSTOMERS_REDACT":
-      await handleCustomerRedact(shop);
-      break;
-    case "SHOP_REDACT":
-      await handleShopRedact(shop);
-      break;
-    default:
-      console.log(`[Webhook] Unhandled topic: ${topic}`);
-      break;
-  }
-
-  return new Response();
 }
 
 async function handleAppUninstalled(shop: string) {
