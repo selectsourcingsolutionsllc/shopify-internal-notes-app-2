@@ -18,12 +18,23 @@ import {
   Icon,
 } from "@shopify/polaris";
 import { CheckIcon } from "@shopify/polaris-icons";
-import { authenticate, MONTHLY_PLAN } from "../shopify.server";
+import {
+  authenticate,
+  STARTER_PLAN,
+  BASIC_PLAN,
+  PRO_PLAN,
+  TITAN_PLAN,
+  ENTERPRISE_PLAN,
+} from "../shopify.server";
 import prisma from "../db.server";
+
 import { format } from "date-fns";
 import { useState, useCallback } from "react";
 
-// Pricing tiers configuration
+// All billing plans for checking subscription status
+const ALL_PLANS = [STARTER_PLAN, BASIC_PLAN, PRO_PLAN, TITAN_PLAN, ENTERPRISE_PLAN];
+
+// Pricing tiers configuration - planKey must match billing config in shopify.server.ts
 const PRICING_TIERS = [
   {
     id: "starter",
@@ -39,7 +50,7 @@ const PRICING_TIERS = [
       "7-day free trial",
     ],
     recommended: false,
-    planKey: "Starter Plan",
+    planKey: STARTER_PLAN,
   },
   {
     id: "basic",
@@ -55,7 +66,7 @@ const PRICING_TIERS = [
       "7-day free trial",
     ],
     recommended: false,
-    planKey: "Basic Plan",
+    planKey: BASIC_PLAN,
   },
   {
     id: "pro",
@@ -71,7 +82,7 @@ const PRICING_TIERS = [
       "7-day free trial",
     ],
     recommended: true,
-    planKey: MONTHLY_PLAN,
+    planKey: PRO_PLAN,
   },
   {
     id: "titan",
@@ -87,7 +98,7 @@ const PRICING_TIERS = [
       "7-day free trial",
     ],
     recommended: false,
-    planKey: "Titan Plan",
+    planKey: TITAN_PLAN,
   },
   {
     id: "enterprise",
@@ -103,7 +114,7 @@ const PRICING_TIERS = [
       "7-day free trial",
     ],
     recommended: false,
-    planKey: "Enterprise Plan",
+    planKey: ENTERPRISE_PLAN,
   },
 ];
 
@@ -114,15 +125,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
     where: { shopDomain: session.shop },
   });
 
+  // Check all plans to see if the shop has any active subscription
   const { hasActivePayment, appSubscriptions } = await billing.check({
-    plans: [MONTHLY_PLAN],
+    plans: ALL_PLANS,
     isTest: true,
   });
+
+  // Find which plan they're currently on
+  const currentPlan = appSubscriptions?.[0]?.name || subscription?.planName || null;
 
   return json({
     subscription,
     hasActivePayment,
     appSubscriptions,
+    currentPlan,
     shop: session.shop,
   });
 }
@@ -131,28 +147,36 @@ export async function action({ request }: ActionFunctionArgs) {
   const { session, billing } = await authenticate.admin(request);
   const formData = await request.formData();
   const action = formData.get("action");
-  const plan = formData.get("plan") as string;
 
   if (action === "subscribe") {
-    // For now, all paid plans use the Pro Plan billing
-    // In production, you'd have separate billing configs for each tier
+    // Get the selected tier from the form
+    const tierId = formData.get("tierId") as string | null;
+    const tier = PRICING_TIERS.find((t) => t.id === tierId);
+
+    if (!tier) {
+      throw new Response("Invalid pricing tier selected", { status: 400 });
+    }
+
+    // Request billing for the specific plan matching the selected tier
     const billingResponse = await billing.request({
-      plan: MONTHLY_PLAN,
+      plan: tier.planKey,
       isTest: true,
       returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_APP_HANDLE}/app/billing`,
     });
 
-    // Store subscription info
+    // Store subscription info with the plan name
     await prisma.billingSubscription.upsert({
       where: { shopDomain: session.shop },
       create: {
         shopDomain: session.shop,
         subscriptionId: billingResponse.appSubscription.id,
+        planName: tier.planKey,
         status: "PENDING",
         trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       },
       update: {
         subscriptionId: billingResponse.appSubscription.id,
+        planName: tier.planKey,
         status: "PENDING",
       },
     });
@@ -185,7 +209,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Billing() {
-  const { subscription, hasActivePayment } = useLoaderData<typeof loader>();
+  const { subscription, hasActivePayment, currentPlan } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -202,11 +226,10 @@ export default function Billing() {
   const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
   const hasActiveSubscription = subscription?.status === "ACTIVE" || hasActivePayment;
 
-  const handleSubscribe = (planKey: string | null) => {
-    if (!planKey) return; // Free tier
+  const handleSubscribe = (tierId: string) => {
     const formData = new FormData();
     formData.append("action", "subscribe");
-    formData.append("plan", planKey);
+    formData.append("tierId", tierId);
     submit(formData, { method: "post" });
   };
 
@@ -355,7 +378,7 @@ export default function Billing() {
 
                   {/* CTA Button */}
                   <Box paddingBlockStart="200">
-                    {tier.planKey === MONTHLY_PLAN && hasActiveSubscription ? (
+                    {tier.planKey === currentPlan ? (
                       <Button
                         fullWidth
                         variant="primary"
@@ -363,13 +386,23 @@ export default function Billing() {
                       >
                         Current Plan
                       </Button>
+                    ) : hasActiveSubscription ? (
+                      <Button
+                        fullWidth
+                        variant={tier.recommended ? "primary" : undefined}
+                        onClick={() => handleSubscribe(tier.id)}
+                        loading={isSubmitting}
+                        disabled={isSubmitting}
+                      >
+                        Switch to {tier.name}
+                      </Button>
                     ) : (
                       <Button
                         fullWidth
                         variant={tier.recommended ? "primary" : undefined}
-                        onClick={() => handleSubscribe(tier.planKey)}
+                        onClick={() => handleSubscribe(tier.id)}
                         loading={isSubmitting}
-                        disabled={isSubmitting || hasActiveSubscription}
+                        disabled={isSubmitting}
                       >
                         {tier.recommended ? "Start 7-Day Trial" : "Start Trial"}
                       </Button>
