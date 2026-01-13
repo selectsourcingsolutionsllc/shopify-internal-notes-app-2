@@ -3907,3 +3907,97 @@ Submit each section ONE BY ONE to the Shopify agent until approved:
 [ ] 13. Implement remaining code quality action items before App Store submission
 
 =====================================
+
+SESSION: January 13, 2026 (Continued)
+POLARIS UI COMPONENTS RE-VERIFICATION - COMPLETED
+=====================================
+
+**Goal:** Re-verify Polaris UI components with Shopify agent (Item #5)
+
+**Files Submitted to Shopify Agent:**
+1. app/routes/app._index.tsx (Dashboard)
+2. app/routes/app.settings.tsx (Settings)
+3. app/routes/app.billing.tsx (Billing/Pricing)
+
+**Shopify Agent Response - APPROVED with fixes needed:**
+
+✅ **APPROVED OVERALL:**
+- Multi-tenant safety (shopDomain scoping) - correct
+- Billing API usage - correct
+- Cancellation flow - correct
+- Data handling - correct
+
+⚠️ **FIXES NEEDED:**
+
+1. **Banner/Badge prop inconsistency** - mixing deprecated `status` with new `tone`
+2. **Button prop** - using deprecated `primary` instead of `variant="primary"`
+3. **Page prop** - using deprecated `breadcrumbs` instead of `backAction`
+4. **Verify 7-day trial** - ensure billing configs match UI text
+
+**Before Making Changes:**
+Searched conversation history to verify `status` wasn't used for a specific reason.
+- Found: NO reason to keep `status` - it was just outdated code
+- Found: TODO items already existed saying to change `status` → `tone`
+- Found: Extensions already using `Badge tone="success"` successfully
+
+**CHANGES MADE:**
+
+**File: app/routes/app._index.tsx**
+- Line 90: Banner `status="warning"` → `tone="warning"`
+- Line 103: Banner `status="info"` → `tone="info"`
+- Line 171: Badge `status={...}` → `tone={...}` (changed "neutral" to undefined)
+- Line 179: Badge `status={...}` → `tone={...}` (hidden section)
+- Line 186: Badge `status={...}` → `tone={...}`
+
+**File: app/routes/app.settings.tsx**
+- Line 112: Page `breadcrumbs={[...]}` → `backAction={{ content: "Dashboard", url: "/app" }}`
+- Line 119: Banner `status="success"` → `tone="success"`
+- Line 161: Button `primary` → `variant="primary"`
+
+**Verification:**
+- Checked shopify.server.ts - all 5 billing plans have `trialDays: 7` ✅
+- UI text "7-day free trial" matches actual billing config ✅
+
+**Commit:** fb33f9e - Fix deprecated Polaris props for App Store compliance
+
+**Current Status:**
+[x] 5. Re-verify Polaris UI components with Shopify agent - APPROVED & FIXED
+
+=====================================
+🔴 NEXT PRIORITY WHEN RESUMING
+=====================================
+
+[ ] 6. Re-verify GraphQL API usage with Shopify agent
+
+**Files to gather for GraphQL review:**
+- app/routes/api.*.tsx (all API routes using GraphQL)
+- app/utils/fulfillment-hold.server.ts (GraphQL mutations)
+- Any other files with `admin.graphql()` calls
+
+=====================================
+UPDATED PRIORITY TODO LIST
+=====================================
+
+**CODE RE-VERIFICATION:**
+[x] 1. Re-verify Webhooks code - APPROVED
+[x] 2. Re-verify Auth/Session code - APPROVED
+[x] 3. Re-verify ProductNotesBlock extension - APPROVED
+[x] 4. Re-verify OrderDetailsBlock extension - APPROVED
+[x] 5. Re-verify Polaris UI components - APPROVED & FIXED
+[ ] 6. Re-verify GraphQL API usage - **NEXT PRIORITY**
+[ ] 7. Re-verify GDPR webhook handlers
+[ ] 8. Re-verify Billing code (final check)
+
+**NEW QUESTIONS:**
+[ ] 9. App Bridge patterns
+[ ] 10. App Store listing requirements
+[ ] 11. Error monitoring in production
+
+**AFTER RE-VERIFICATION:**
+[ ] 12. Update privacy policy for GDPR
+[ ] 13. Implement remaining code quality items
+
+=====================================
+END OF SESSION - January 13, 2026
+STATUS: Item 5 complete, Item 6 is NEXT PRIORITY
+=====================================
