@@ -228,6 +228,7 @@ export default function Billing() {
 
   const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
   const hasActiveSubscription = subscription?.status === "ACTIVE" || hasActivePayment;
+  const currentTier = PRICING_TIERS.find((t) => t.planKey === currentPlan);
 
   const handleSubscribe = (tierId: string) => {
     const formData = new FormData();
@@ -273,7 +274,9 @@ export default function Billing() {
             >
               <BlockStack gap="200">
                 <Text as="p">
-                  Thank you for being a Pro subscriber! You have access to all features.
+                  {currentTier
+                    ? `Thank you for being a ${currentTier.name} subscriber! You have access to all features.`
+                    : "Thank you for subscribing! You have access to all features."}
                 </Text>
                 {subscription?.trialEndsAt && isInTrial && (
                   <Text as="p" tone="subdued">
