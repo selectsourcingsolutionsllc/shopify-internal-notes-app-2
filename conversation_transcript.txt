@@ -3405,8 +3405,91 @@ Based on the app's architecture (Admin UI Extensions, webhooks, GraphQL, Polaris
 - [ ] Check for userErrors in all GraphQL mutations
 
 =====================================
+
+## ADDITIONAL QUESTIONS TO ASK SHOPIFY AGENT (Round 2)
+
+These are additional topics not covered in the first 8 questions:
+
+### Question 9: GDPR Compliance ⚠️ REQUIRED FOR APP STORE
+**Status:** [ ] Not started
+
+**What to ask:**
+"Can you review my GDPR webhook handling? I need to make sure I handle `customers/data_request`, `customers/redact`, and `shop/redact` webhooks correctly for App Store approval."
+
+**Why it matters:**
+- Shopify REQUIRES these webhooks for App Store approval
+- You must respond to data deletion requests
+- Need a privacy policy URL
+
+**Files to share:** app/routes/webhooks.tsx
+
+---
+
+### Question 10: Billing/Subscriptions Setup
+**Status:** [ ] Not started
+
+**What to ask:**
+"Can you review my billing setup? I want to make sure the subscription flow, free trials, and upgrade/downgrade paths are implemented correctly."
+
+**Why it matters:**
+- Proper billing flow prevents revenue loss
+- Free trial handling
+- Handling failed payments gracefully
+
+**Files to share:** app/routes/app.billing.tsx, shopify.server.ts (billing config)
+
+---
+
+### Question 11: App Bridge Patterns
+**Status:** [ ] Not started
+
+**What to ask:**
+"Can you review how I'm using App Bridge? I want to make sure I'm following best practices for navigation, Toast notifications, modals, and ResourcePickers."
+
+**Why it matters:**
+- App Bridge handles communication with Shopify admin
+- Navigation should use App Bridge, not window.location
+- Toast/Modal patterns for user feedback
+
+**Files to share:** app/root.tsx, any files using useNavigate or modals
+
+---
+
+### Question 12: App Store Listing Requirements
+**Status:** [ ] Not started
+
+**What to ask:**
+"What are the key things Shopify reviewers look for when reviewing an app? What are common rejection reasons I should avoid?"
+
+**Why it matters:**
+- Avoid rejection delays
+- Know what screenshots/description to prepare
+- Understand testing process
+
+**No files needed** - general guidance question
+
+---
+
+### Question 13: Error Monitoring in Production
+**Status:** [ ] Not started
+
+**What to ask:**
+"What's the best way to monitor errors and performance in production for a Shopify app? Should I use Sentry, LogRocket, or something else?"
+
+**Why it matters:**
+- Catch errors before merchants report them
+- Monitor API performance
+- Track webhook failures
+
+**No files needed** - general guidance question
+
+---
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 13, 2026
-STATUS: ✅ SHOPIFY AGENT CONSULTATION COMPLETE (8/8 questions answered)
-NEXT STEPS: Implement 23 pending action items before App Store submission
+STATUS: ✅ ROUND 1 COMPLETE (8/8) | ROUND 2 PENDING (0/5)
+NEXT STEPS:
+1. Ask 5 additional questions to Shopify agent
+2. Implement 23+ pending action items before App Store submission
 =====================================
