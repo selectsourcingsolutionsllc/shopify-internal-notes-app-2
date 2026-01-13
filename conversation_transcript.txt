@@ -3177,24 +3177,153 @@ Based on the app's architecture (Admin UI Extensions, webhooks, GraphQL, Polaris
 
 =====================================
 
+### Question 4: Best practices for testing and deploying extensions
+✅ COMPLETED
+
+**Key Points:**
+- Use dedicated dev store for extension testing
+- Use `shopify app dev` for live reload
+- Manual testing checklist: empty states, error handling, performance, uninstall/reinstall
+- Backend route tests for extension APIs (valid JWT, invalid JWT, etc.)
+- Deployment flow: Local dev → Staging → Production via `shopify app deploy`
+- Watch logs after deployment for webhook errors and API spikes
+
+**Action Items:**
+- None required - current workflow is correct
+- Nice to have: Staging environment, CI/CD with GitHub Actions
+
+---
+
+### Question 5: Best practices for Polaris design in embedded apps
+✅ COMPLETED
+
+**Key Points:**
+- Use `<Page>` as top-level wrapper with title, breadcrumbs, actions
+- Use `<Layout>` + `<Layout.Section>` for page structure (main + secondary)
+- Use `<Card>` for content blocks
+- Use `<Banner>` for alerts (success, error, warning, info)
+- Use `<Badge>` with appropriate tones for status
+- Use `<EmptyState>` when no data exists
+- Use `<SkeletonPage>` for loading states
+- Keep first paint light, paginate tables
+
+**Action Items:**
+1. Replace "Loading..." text with SkeletonPage components
+   - Files: app._index.tsx, app.settings.tsx, app.billing.tsx
+   - Why: Polaris pattern for loading states, better UX
+
+2. Use EmptyState component properly
+   - File: app._index.tsx
+   - Why: Clear message + action button when no data
+
+3. Fix deprecated Polaris props
+   - `status` → `tone` on Banner and Badge
+   - `primary` → `variant="primary"` on Button
+   - `breadcrumbs` → `backAction` on Page
+   - Why: Deprecated props will be removed in future Polaris versions
+
+4. Add Contextual Save Bar to settings page
+   - File: app.settings.tsx
+   - Why: Shows save bar when settings changed but not saved
+
+5. Add pagination controls to notes list
+   - File: app._index.tsx
+   - Why: Currently takes 10 notes with no controls
+
+6. Add success/error Banners after save actions
+   - Why: Merchants need feedback after actions
+
+---
+
+### Question 6: Best practices for app UX in Shopify admin
+✅ COMPLETED
+
+**Key Points:**
+- App should feel like natural part of Shopify admin
+- Respect merchant workflow, time, and attention
+- Use Shopify patterns, don't invent your own
+- App home should explain what app does at a glance
+- Keep navigation shallow (few levels deep)
+- Use merchant-centric language, not technical jargon
+- Explain what's happening and why (especially for holds)
+- Group settings logically
+- Extensions should be focused and minimal (<600px)
+- Use locale-sensitive date formatting
+
+**Action Items:**
+
+1. Add subtitle to app home explaining value
+   - File: app._index.tsx
+   - Change: Add `subtitle="Coordinate your team with product and order notes"`
+   - Why: Merchants should understand app value immediately
+
+2. Replace technical labels with merchant-friendly text
+   - Files: app._index.tsx, app.settings.tsx
+   - Examples:
+     - "Require Acknowledgment" → "Require staff to acknowledge notes"
+     - "Block Fulfillment" → "Hold orders until notes are acknowledged"
+   - Why: Technical jargon confuses merchants
+
+3. Explain WHY orders are on hold in extension banner
+   - File: OrderDetailsBlock.tsx
+   - Current: "Order On Hold" banner
+   - Better: "This order is on hold until all required notes are acknowledged. Check each box below to release."
+   - Why: Merchants need to understand what action to take
+
+4. Add "View in app" links to extensions
+   - Files: ProductNotesBlock.tsx, OrderDetailsBlock.tsx
+   - Why: When many notes exist, link to full app page for better experience
+
+5. Group settings logically with section headings
+   - File: app.settings.tsx
+   - Groups: "Fulfillment Settings", "Photo Settings"
+   - Why: Related settings should be visually grouped
+
+6. Use locale-sensitive date formatting
+   - Files: app._index.tsx, extensions
+   - Change: `format(date, "MMM dd, yyyy")` → `date.toLocaleDateString()`
+   - Why: Respects merchant's locale/region preferences
+
+---
+
+### Questions Remaining:
+- [ ] Best practices for using the Admin GraphQL API
+- [ ] Best practices for rate limits, pagination, and retries
+
+=====================================
+
 **CONSOLIDATED ACTION ITEMS FROM SHOPIFY AGENT:**
 
-### HIGH PRIORITY (Security)
-- [ ] Backend: Derive shop from JWT, not ?shop= query param
+### COMPLETED ✅
+- [x] Backend: Derive shop from JWT, not ?shop= query param (dev-gated fallback)
 
-### MEDIUM PRIORITY (Code Quality)
+### HIGH PRIORITY (Affects App Review)
+- [ ] Add subtitle to app home explaining value
+- [ ] Replace technical labels with merchant-friendly text
+- [ ] Explain WHY orders are on hold in extension banner
+
+### MEDIUM PRIORITY (Code Quality & UX)
 - [ ] Remove unused restResources import from shopify.server.ts
 - [ ] Add createdAt/updatedAt to Session model
 - [ ] Add TypeScript interfaces for extension data (replace any[])
 - [ ] Simplify getSessionToken in ProductNotesBlock.tsx
 - [ ] Add empty state banners to both extensions
+- [ ] Replace Loading text with SkeletonPage components
+- [ ] Use EmptyState component properly in app._index.tsx
+- [ ] Fix deprecated Polaris props (status→tone, primary→variant)
+- [ ] Add Contextual Save Bar to settings page
+- [ ] Add pagination controls to notes list
+- [ ] Add success/error Banners after save actions
+- [ ] Add "View in app" links to extensions
+- [ ] Group settings logically with section headings
 
 ### LOW PRIORITY (Nice to have)
 - [ ] Enforce MAX_NOTE_LENGTH on backend
 - [ ] Handle GraphQL errors gracefully in extensions
+- [ ] Use locale-sensitive date formatting
 
 =====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 12, 2026
-STATUS: ✅ TECHNICALLY READY - Shopify agent consultation in progress (3/8 complete)
+STATUS: ✅ TECHNICALLY READY - Shopify agent consultation in progress (6/8 complete)
 =====================================
