@@ -87,7 +87,7 @@ export default function AppIndex() {
       {!hasActiveSubscription && !isInTrial && (
         <Banner
           title="Start your free trial"
-          status="warning"
+          tone="warning"
           action={{
             content: "Start 7-day trial",
             url: "/app/billing",
@@ -100,7 +100,7 @@ export default function AppIndex() {
       {isInTrial && (
         <Banner
           title="Free trial active"
-          status="info"
+          tone="info"
         >
           <p>Your trial ends on {format(new Date(subscription.trialEndsAt!), "MMMM dd, yyyy")}.</p>
         </Banner>
@@ -168,7 +168,7 @@ export default function AppIndex() {
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>Require Acknowledgment</span>
-                  <Badge status={settings?.requireAcknowledgment ? "success" : "neutral"}>
+                  <Badge tone={settings?.requireAcknowledgment ? "success" : undefined}>
                     {settings?.requireAcknowledgment ? "Enabled" : "Disabled"}
                   </Badge>
                 </div>
@@ -176,14 +176,14 @@ export default function AppIndex() {
                 {false && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>Require Photo Proof</span>
-                  <Badge status={settings?.requirePhotoProof ? "success" : "neutral"}>
+                  <Badge tone={settings?.requirePhotoProof ? "success" : undefined}>
                     {settings?.requirePhotoProof ? "Enabled" : "Disabled"}
                   </Badge>
                 </div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>Block Fulfillment</span>
-                  <Badge status={settings?.blockFulfillment ? "warning" : "neutral"}>
+                  <Badge tone={settings?.blockFulfillment ? "warning" : undefined}>
                     {settings?.blockFulfillment ? "Enabled" : "Disabled"}
                   </Badge>
                 </div>
