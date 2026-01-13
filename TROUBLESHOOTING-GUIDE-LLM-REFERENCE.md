@@ -117,6 +117,7 @@ cat extensions/*/shopify.extension.toml | grep module
 19. [Delayed Webhook Handling - THE RACE CONDITION BUG](#19-delayed-webhook-handling---the-race-condition-bug)
 20. [Acknowledgment Checkbox Persistence - THE DATA TRANSFORMATION BUG](#20-acknowledgment-checkbox-persistence---the-data-transformation-bug)
 21. [Extension Deployment - THE NULL SESSION ID BUG](#21-extension-deployment---the-null-session-id-bug)
+22. [App Store Approval Preparation - API VERSION & BILLING FIXES](#22-app-store-approval-preparation---api-version--billing-fixes-january-13-2026)
 
 ---
 
@@ -1323,6 +1324,9 @@ The app's webhooks and scopes are registered during OAuth. Changes only take eff
 18. **Assuming webhooks are real-time** - Shopify webhooks can be delayed by minutes! Always check current state before acting.
 19. **Raw DB records missing UI fields** - Transform data at API boundary to add fields UI expects (like `acknowledged: true`)
 20. **Extension code not deployed** - Changed extension code? Must run `npx shopify app deploy --force` - git push only updates backend!
+21. **Using future API versions** - api_version = "2025-07" will get rejected! Always use current released versions like "2024-10"
+22. **Using NODE_ENV for billing test mode** - If NODE_ENV is misconfigured, production uses test billing (no real charges)! Use explicit IS_TEST_BILLING env var instead.
+23. **Missing try/catch in webhooks** - Webhook errors should be caught and logged, not crash silently!
 
 ---
 
@@ -1351,6 +1355,9 @@ Here's the order we encountered and solved issues:
 19. **Delayed Webhook Race Condition** - ORDERS_CREATE webhook arrived 3 minutes late and re-applied hold after user acknowledged notes. Added acknowledgment check in webhook handler.
 20. **Checkbox Persistence Bug** - Checkboxes showed unchecked after reload even though DB had records. Raw DB records don't have `acknowledged: true` field - added data transformation on load.
 21. **Null SessionId Bug** - SessionId was null in logs. Extension code wasn't deployed! Must run `npx shopify app deploy --force` after changing extension code.
+22. **Future API Version (2025-07)** - Multiple TOML files had unreleased api_version. Would cause App Store rejection. Changed to "2024-10".
+23. **NODE_ENV for Billing Test Mode** - IS_TEST_BILLING was based on NODE_ENV which is fragile. Changed to explicit env var.
+24. **Webhooks Missing try/catch** - No error handling in webhook route. Added try/catch with logging.
 
 ---
 
@@ -1871,6 +1878,120 @@ npx shopify app deploy --force
 
 ---
 
-*Last Updated: January 10, 2026*
+## 22. App Store Approval Preparation - API VERSION & BILLING FIXES (January 13, 2026)
+
+### OVERVIEW
+
+While preparing code for Shopify App Store submission, a Shopify agent reviewed the code and found several issues that could cause rejection.
+
+### ISSUE 1: FUTURE API VERSION (2025-07)
+
+**Problem**: Multiple config files were using `api_version = "2025-07"` which is a FUTURE/UNRELEASED API version.
+
+**Why It Was Set Wrong**:
+- Commit 3eab6c9 tried switching to a newer webhook (`fulfillment_holds/released`) that required API 2025-01+
+- It didn't work, so commit 3c71613 reverted to the old webhook (`fulfillment_orders/hold_released`)
+- But the api_version was forgotten and NOT reverted back
+
+**Files Affected**:
+1. `shopify.app.toml` (line 13)
+2. `extensions/product-notes-ui/shopify.extension.toml` (line 1)
+3. `extensions/order-fulfillment-ui/shopify.extension.toml` (line 1)
+
+**The Fix**:
+```toml
+# BEFORE (wrong - future version)
+api_version = "2025-07"
+
+# AFTER (correct - current released version)
+api_version = "2024-10"
+```
+
+**Why This Matters**: Shopify will REJECT apps using unreleased API versions. The code uses `ApiVersion.October24` which corresponds to "2024-10".
+
+### ISSUE 2: BILLING TEST MODE USING NODE_ENV (HIGH RISK)
+
+**Problem**: The billing code determined test mode based on NODE_ENV:
+```typescript
+// BEFORE (dangerous)
+const IS_TEST_BILLING = process.env.NODE_ENV !== "production";
+```
+
+**Why This Is Dangerous**:
+- Railway (and most hosts) set `NODE_ENV=production` automatically
+- BUT if `NODE_ENV` is ever misconfigured, production could silently use TEST billing
+- Test charges don't collect real money = lost revenue
+- Relying on NODE_ENV for billing is fragile and error-prone
+
+**The Fix**:
+```typescript
+// AFTER (explicit and safe)
+const IS_TEST_BILLING = process.env.IS_TEST_BILLING === "true";
+```
+
+**Files Changed**:
+- `app/routes/app.billing.tsx` (line 41)
+- `.env.example` (added documentation)
+
+**How It Works Now**:
+- Local development: Set `IS_TEST_BILLING=true` in .env → test charges
+- Production (Railway): Do NOT set IS_TEST_BILLING → defaults to `false` → REAL charges
+- More explicit and less error-prone than relying on NODE_ENV
+
+**To Revert (if needed)**:
+Change line 41 in `app/routes/app.billing.tsx` back to:
+```typescript
+const IS_TEST_BILLING = process.env.NODE_ENV !== "production";
+```
+
+### ISSUE 3: WEBHOOKS MISSING TRY/CATCH
+
+**Problem**: The webhooks handler didn't have proper error handling. If authentication or processing failed, errors weren't caught gracefully.
+
+**The Fix**: Added try/catch wrapper to `app/routes/webhooks.tsx`:
+```typescript
+export async function action({ request }: ActionFunctionArgs) {
+  try {
+    const { topic, shop, session, payload } = await authenticate.webhook(request);
+    // ... switch statement handling topics
+    return new Response();
+  } catch (error) {
+    console.error("[Webhook] Error authenticating or handling webhook:", error);
+    return new Response("Webhook error", { status: 400 });
+  }
+}
+```
+
+### KEY LESSONS FROM APP STORE PREPARATION
+
+| Issue | Why It's a Problem | Solution |
+|-------|-------------------|----------|
+| Future API version | Shopify rejects apps using unreleased versions | Use current released version (2024-10) |
+| NODE_ENV for billing | Fragile, can silently break in production | Explicit IS_TEST_BILLING env var |
+| Missing error handling | Webhook failures not caught properly | Add try/catch with logging |
+
+### HOW TO CHECK FOR API VERSION ISSUES
+
+Before submitting to App Store, search for any hardcoded API versions:
+```bash
+# Find all api_version declarations
+grep -r "api_version" --include="*.toml" --include="*.ts" --include="*.tsx"
+
+# Make sure none say "2025" (future versions)
+grep -r "2025" --include="*.toml"
+```
+
+### THE APP STORE VERIFICATION PROCESS
+
+We submitted each code section to a Shopify agent (external AI) for review:
+1. Webhooks code → Approved with try/catch addition
+2. Auth/Session + Billing → Found IS_TEST_BILLING issue (HIGH RISK) → Fixed
+3. ProductNotesBlock extension → Found api_version issue → Fixed all files
+
+**Important**: Always verify code with fresh eyes before App Store submission. Self-review misses things!
+
+---
+
+*Last Updated: January 13, 2026*
 *Based on 80+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
