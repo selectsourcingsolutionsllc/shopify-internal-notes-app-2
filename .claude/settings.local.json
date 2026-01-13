@@ -73,7 +73,8 @@
       "Bash(xargs:*)",
       "Bash(npm outdated:*)",
       "Bash(npm audit:*)",
-      "Bash(npx railway:*)"
+      "Bash(npx railway:*)",
+      "WebFetch(domain:gadget.dev)"
     ],
     "deny": []
   }

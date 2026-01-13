@@ -3443,17 +3443,35 @@ Current GDPR implementation is **sufficient for App Store approval**.
 ---
 
 ### Question 10: Billing/Subscriptions Setup
-**Status:** [ ] Not started
+**Status:** [x] COMPLETED ✅
 
-**What to ask:**
-"Can you review my billing setup? I want to make sure the subscription flow, free trials, and upgrade/downgrade paths are implemented correctly."
+**Agent Response Summary:**
 
-**Why it matters:**
-- Proper billing flow prevents revenue loss
-- Free trial handling
-- Handling failed payments gracefully
+The original setup was **NOT acceptable for App Store** - showing 5 different prices in UI but charging everyone $19.99 would cause rejection.
 
-**Files to share:** app/routes/app.billing.tsx, shopify.server.ts (billing config)
+**Key Issue Found:**
+- UI showed 5 tiers ($9.99, $14.99, $19.99, $24.99, $29.99)
+- But only 1 billing config existed (Pro Plan at $19.99)
+- All tiers would charge $19.99 regardless of what was selected
+- This is a mismatch that reviewers will catch
+
+**Action Items Completed:**
+- [x] Added billing configs for all 5 tiers in shopify.server.ts
+- [x] Updated PRICING_TIERS to use correct plan constants
+- [x] Updated action to read tierId and use correct plan
+- [x] Added planName column to BillingSubscription model
+- [x] Updated UI to show "Current Plan" and "Switch to X" buttons
+- [x] Updated loader to return currentPlan for UI display
+- [x] Ran Prisma db push to sync schema
+
+**Upgrade/Downgrade Behavior:**
+- Shopify handles proration automatically when billing.request() is called for a new plan
+- Just call billing.request({ plan: newPlanKey }) and Shopify shows confirmation with proration
+
+**Files Modified:**
+- app/shopify.server.ts - Added 5 billing configs, removed unused restResources import
+- app/routes/app.billing.tsx - Fixed tier selection logic
+- prisma/schema.prisma - Added planName column
 
 ---
 
@@ -3505,9 +3523,9 @@ Current GDPR implementation is **sufficient for App Store approval**.
 =====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 13, 2026
-STATUS: ✅ ROUND 1 COMPLETE (8/8) | ROUND 2 IN PROGRESS (1/5)
+STATUS: ✅ ROUND 1 COMPLETE (8/8) | ROUND 2 IN PROGRESS (2/5)
 NEXT STEPS:
-1. Ask 4 remaining questions to Shopify agent (Billing, App Bridge, App Store Listing, Error Monitoring)
+1. Ask 3 remaining questions to Shopify agent (App Bridge, App Store Listing, Error Monitoring)
 2. Update privacy policy for GDPR compliance
-3. Implement 23+ pending action items before App Store submission
+3. Implement remaining code quality action items before App Store submission
 =====================================

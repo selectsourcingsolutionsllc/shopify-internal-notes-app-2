@@ -7,11 +7,17 @@ import {
   BillingInterval,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-import { restResources } from "@shopify/shopify-api/rest/admin/2024-10";
 import prisma from "./db.server";
 
-// Billing plan constant - must match the key in billing config below
-export const MONTHLY_PLAN = "Pro Plan";
+// Billing plan constants - must match keys in billing config below
+export const STARTER_PLAN = "Starter Plan";
+export const BASIC_PLAN = "Basic Plan";
+export const PRO_PLAN = "Pro Plan";
+export const TITAN_PLAN = "Titan Plan";
+export const ENTERPRISE_PLAN = "Enterprise Plan";
+
+// For backwards compatibility
+export const MONTHLY_PLAN = PRO_PLAN;
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY!,
@@ -47,8 +53,32 @@ const shopify = shopifyApp({
     },
   },
   billing: {
-    [MONTHLY_PLAN]: {
+    [STARTER_PLAN]: {
+      amount: 9.99,
+      currencyCode: "USD",
+      interval: BillingInterval.Every30Days,
+      trialDays: 7,
+    },
+    [BASIC_PLAN]: {
+      amount: 14.99,
+      currencyCode: "USD",
+      interval: BillingInterval.Every30Days,
+      trialDays: 7,
+    },
+    [PRO_PLAN]: {
       amount: 19.99,
+      currencyCode: "USD",
+      interval: BillingInterval.Every30Days,
+      trialDays: 7,
+    },
+    [TITAN_PLAN]: {
+      amount: 24.99,
+      currencyCode: "USD",
+      interval: BillingInterval.Every30Days,
+      trialDays: 7,
+    },
+    [ENTERPRISE_PLAN]: {
+      amount: 29.99,
       currencyCode: "USD",
       interval: BillingInterval.Every30Days,
       trialDays: 7,

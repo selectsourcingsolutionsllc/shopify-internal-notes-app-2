@@ -104,6 +104,7 @@ model BillingSubscription {
   id                String   @id @default(cuid())
   shopDomain        String   @unique
   subscriptionId    String   @unique
+  planName          String?  // e.g., "Starter Plan", "Pro Plan", etc.
   status            String   // ACTIVE, CANCELLED, EXPIRED, PENDING
   trialEndsAt       DateTime?
   currentPeriodEnd  DateTime?
