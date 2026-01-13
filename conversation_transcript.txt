@@ -3646,6 +3646,53 @@ Change line 13 in shopify.app.toml back to:
 
 ---
 
+**ADDITIONAL api_version FIXES (found during ProductNotesBlock review):**
+
+The Shopify agent flagged that ALL extension TOML files should use "2024-10" instead of "2025-07".
+Searched entire codebase for "2025-07" and found more instances to fix:
+
+**CHANGE #1 - extensions/product-notes-ui/shopify.extension.toml (Line 1):**
+```
+BEFORE (old value):
+api_version = "2025-07"
+
+AFTER (new value):
+api_version = "2024-10"
+```
+
+**CHANGE #2 - extensions/order-fulfillment-ui/shopify.extension.toml (Line 1):**
+```
+BEFORE (old value):
+api_version = "2025-07"
+
+AFTER (new value):
+api_version = "2024-10"
+```
+
+**CHANGE #3 - SHOPIFY_APPROVAL_CHECKLIST.md (Line 28):**
+```
+BEFORE (old value):
+| Webhooks use API version | ✅ Pass | Using `2025-07` in shopify.app.toml |
+
+AFTER (new value):
+| Webhooks use API version | ✅ Pass | Using `2024-10` in shopify.app.toml |
+```
+
+**WHY WE CHANGED IT:**
+1. "2025-07" is a future/unreleased API version - will cause App Store rejection
+2. All Shopify extensions must use currently released API versions
+3. "2024-10" (October 2024) is the current stable version used throughout the app
+
+**TO REVERT (if needed):**
+Change line 1 in each extension TOML back to: `api_version = "2025-07"`
+
+**Files Changed:**
+- extensions/product-notes-ui/shopify.extension.toml - Fixed api_version
+- extensions/order-fulfillment-ui/shopify.extension.toml - Fixed api_version
+- SHOPIFY_APPROVAL_CHECKLIST.md - Updated documentation
+
+---
+
 =====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 13, 2026

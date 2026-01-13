@@ -25,7 +25,7 @@
 |------------|--------|-------|
 | GraphQL API (not REST) | ✅ Pass | All API calls use GraphQL mutations/queries |
 | API version current | ✅ Pass | Using `2024-10` (October24) |
-| Webhooks use API version | ✅ Pass | Using `2025-07` in shopify.app.toml |
+| Webhooks use API version | ✅ Pass | Using `2024-10` in shopify.app.toml |
 
 ### Billing
 
