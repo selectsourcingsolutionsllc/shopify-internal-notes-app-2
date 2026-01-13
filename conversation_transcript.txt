@@ -3550,6 +3550,70 @@ This process must be repeated for EVERY code review, not just billing!
 ---
 
 =====================================
+SESSION: January 13, 2026
+RE-VERIFICATION WITH SHOPIFY AGENT - WEBHOOKS & AUTH/SESSION
+=====================================
+
+**Completed Re-verification #1: Webhooks**
+
+Submitted webhook code to Shopify agent. Result: APPROVED with one suggestion.
+
+**Agent Feedback:**
+- ✅ Using `authenticate.webhook(request)` - correct
+- ✅ GDPR webhooks properly handled - correct
+- ✅ Data deletion on uninstall - correct
+- ⚠️ Suggested removing duplicate webhook registrations from TOML
+
+**Decision:** Keep webhooks in BOTH shopify.server.ts AND shopify.app.toml
+- **WHY:** We tried having them in only one place before and webhooks didn't fire
+- See transcript lines 2361-2367: "Both places need the webhook subscription"
+- Agent suggestion was theoretical; our real-world experience showed both are needed
+
+**Change Made:** Added try/catch error handling to webhooks.tsx (defensive coding)
+
+---
+
+**Completed Re-verification #2: Auth/Session**
+
+Submitted auth/session code to Shopify agent. Result: Found HIGH RISK issue.
+
+**Agent Feedback - HIGH RISK Issue:**
+- `IS_TEST_BILLING` was using `process.env.NODE_ENV !== "production"`
+- If NODE_ENV is misconfigured, app creates TEST charges instead of real ones
+- Shopify reviewers would see this as broken billing
+
+**CHANGE MADE TO app/routes/app.billing.tsx (Line 38):**
+
+```
+BEFORE (old value):
+const IS_TEST_BILLING = process.env.NODE_ENV !== "production";
+
+AFTER (new value):
+const IS_TEST_BILLING = process.env.IS_TEST_BILLING === "true";
+```
+
+**WHY WE CHANGED IT:**
+1. Relying on NODE_ENV is risky - if Railway doesn't set it, billing breaks
+2. Explicit environment variable is safer and clearer
+3. Shopify agent flagged this as HIGH RISK for App Store rejection
+4. Previous fix (removing hardcoded `isTest: true`) was correct but not explicit enough
+
+**HOW IT WORKS NOW:**
+- Local development: Set `IS_TEST_BILLING=true` in .env file → creates test charges
+- Production (Railway): Do NOT set IS_TEST_BILLING → defaults to `false` → creates REAL charges
+- More explicit and less error-prone than relying on NODE_ENV
+
+**TO REVERT (if needed):**
+Change line 41 in app/routes/app.billing.tsx back to:
+`const IS_TEST_BILLING = process.env.NODE_ENV !== "production";`
+
+**Files Changed:**
+- app/routes/app.billing.tsx - Changed IS_TEST_BILLING logic
+- .env.example - Added IS_TEST_BILLING documentation
+
+---
+
+=====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 13, 2026
 STATUS: RE-VERIFICATION IN PROGRESS
