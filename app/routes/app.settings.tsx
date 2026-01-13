@@ -109,14 +109,14 @@ export default function Settings() {
   return (
     <Page
       title="Settings"
-      breadcrumbs={[{ content: "Dashboard", url: "/app" }]}
+      backAction={{ content: "Dashboard", url: "/app" }}
     >
       <Layout>
         {saved && (
           <Layout.Section>
             <Banner
               title="Settings saved"
-              status="success"
+              tone="success"
               onDismiss={() => {
                 setSearchParams({});
               }}
@@ -158,7 +158,7 @@ export default function Settings() {
               
               <div style={{ marginTop: "24px" }}>
                 <Button
-                  primary
+                  variant="primary"
                   onClick={handleSubmit}
                   loading={isSubmitting}
                   disabled={isSubmitting}
