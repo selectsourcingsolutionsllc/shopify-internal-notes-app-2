@@ -3286,9 +3286,87 @@ Based on the app's architecture (Admin UI Extensions, webhooks, GraphQL, Polaris
 
 ---
 
-### Questions Remaining:
-- [ ] Best practices for using the Admin GraphQL API
-- [ ] Best practices for rate limits, pagination, and retries
+### Question 7: Best practices for using the Admin GraphQL API
+✅ COMPLETED
+
+**Key Points:**
+- Always use cursor-based pagination with `first` and `after` arguments
+- Check for both `errors` (transport/parse errors) and `userErrors` (domain errors) in responses
+- Use fragment-based queries to keep them DRY and manageable
+- Prefer mutations over REST for consistency
+- Cost-based rate limiting: each query has a calculated cost
+
+**Action Items:**
+
+1. Check for errors in all GraphQL responses
+   - Files: All routes using GraphQL
+   - Why: Missing error checks causes silent failures
+   ```typescript
+   const { data, errors } = await admin.graphql(query);
+   if (errors) {
+     console.error('[GraphQL] Errors:', errors);
+     throw new Error('GraphQL query failed');
+   }
+   ```
+
+2. Check for userErrors in all GraphQL mutations
+   - Files: All mutation routes
+   - Why: userErrors contain domain-level validation failures
+   ```typescript
+   if (data?.mutationName?.userErrors?.length) {
+     throw new Error(data.mutationName.userErrors[0].message);
+   }
+   ```
+
+---
+
+### Question 8: Best practices for rate limits, pagination, and retries
+✅ COMPLETED
+
+**Key Points:**
+- Shopify uses cost-based rate limiting (bucket fills at 50 points/second)
+- Simple queries cost 1 point; nested queries with multiple connections cost more
+- Exponential backoff with jitter is the right retry pattern
+- Use `first: 50` as reasonable default batch size
+- Watch `extensions.cost` in GraphQL responses during development
+
+**Action Items:**
+
+1. Create withRetry utility with exponential backoff
+   - Files: New utility file (e.g., app/utils/retry.server.ts)
+   - Why: Handle 429 errors gracefully with automatic retry
+   ```typescript
+   async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+     let attempt = 0;
+     while (true) {
+       try {
+         return await fn();
+       } catch (error: any) {
+         const isThrottle =
+           error?.status === 429 ||
+           error?.response?.status === 429 ||
+           error?.extensions?.code === "THROTTLED";
+         if (!isThrottle || attempt >= maxRetries) {
+           throw error;
+         }
+         const delayMs = Math.pow(2, attempt) * 500 + Math.random() * 250;
+         await new Promise((resolve) => setTimeout(resolve, delayMs));
+         attempt += 1;
+       }
+     }
+   }
+   ```
+
+2. Inspect extensions.cost during development
+   - Why: Understand query costs to avoid hitting rate limits
+   - Example response shows:
+     - `requestedQueryCost`: Calculated before execution
+     - `actualQueryCost`: Actual after execution (may be lower)
+     - `throttleStatus`: Shows remaining points in bucket
+
+---
+
+### All Questions Complete! ✅
 
 =====================================
 
@@ -3321,9 +3399,14 @@ Based on the app's architecture (Admin UI Extensions, webhooks, GraphQL, Polaris
 - [ ] Enforce MAX_NOTE_LENGTH on backend
 - [ ] Handle GraphQL errors gracefully in extensions
 - [ ] Use locale-sensitive date formatting
+- [ ] Create withRetry utility with exponential backoff
+- [ ] Inspect extensions.cost during dev to optimize queries
+- [ ] Check for errors in all GraphQL responses
+- [ ] Check for userErrors in all GraphQL mutations
 
 =====================================
 END OF CONVERSATION TRANSCRIPT
-LAST UPDATE: January 12, 2026
-STATUS: ✅ TECHNICALLY READY - Shopify agent consultation in progress (6/8 complete)
+LAST UPDATE: January 13, 2026
+STATUS: ✅ SHOPIFY AGENT CONSULTATION COMPLETE (8/8 questions answered)
+NEXT STEPS: Implement 23 pending action items before App Store submission
 =====================================
