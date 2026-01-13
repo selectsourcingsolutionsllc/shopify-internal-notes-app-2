@@ -3693,6 +3693,61 @@ Change line 1 in each extension TOML back to: `api_version = "2025-07"`
 
 ---
 
+**ProductNotesBlock Extension - APPROVED by Shopify Agent**
+
+The Shopify agent reviewed ProductNotesBlock.tsx and shopify.extension.toml and **APPROVED** both.
+
+Agent suggested 2 optional changes:
+1. Simplify session token getter to canonical pattern
+2. Remove unused `getNumericProductId` function
+
+**⚠️ DO NOT CHANGE THE SESSION TOKEN FALLBACK PATTERN! ⚠️**
+
+The agent suggested simplifying `getSessionToken()` from:
+```typescript
+// Current (multiple fallbacks)
+const getSessionToken = async (): Promise<string | null> => {
+  const attempts = [
+    () => (api as any).sessionToken?.get?.(),
+    () => (api as any).extension?.sessionToken?.get?.(),
+    () => (api as any).getSessionToken?.(),
+  ];
+  for (const attempt of attempts) {
+    try {
+      const token = await attempt();
+      if (token) return token;
+    } catch (e) {}
+  }
+  return null;
+};
+```
+
+To:
+```typescript
+// Suggested (simpler)
+const getSessionToken = async (): Promise<string | null> => {
+  try {
+    const token = await api.sessionToken.get();
+    return token ?? null;
+  } catch {
+    return null;
+  }
+};
+```
+
+**WHY WE DON'T CHANGE THIS:**
+- We tried the simpler approach before and IT BROKE THE APP FUNCTIONALITY
+- The multiple fallback pattern exists because different Shopify API versions expose the session token differently
+- The extension may run in different contexts where the token is accessed differently
+- The current pattern is MORE ROBUST even if it looks more complex
+- "If it ain't broke, don't fix it" - the current code WORKS
+
+**DECISION:** Keep the fallback pattern as-is. The agent said it's "not a review blocker" anyway.
+
+**Unused function `getNumericProductId`:** Can be removed later if desired, but leaving it doesn't hurt anything.
+
+---
+
 =====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 13, 2026
@@ -3713,9 +3768,9 @@ PRIORITY TODO LIST - RE-VERIFY ALL CODE WITH SHOPIFY AGENT
 Submit each section ONE BY ONE to the Shopify agent until approved:
 
 **CODE RE-VERIFICATION (do these first):**
-[ ] 1. Re-verify Webhooks code with Shopify agent
-[ ] 2. Re-verify Auth/Session code with Shopify agent
-[ ] 3. Re-verify ProductNotesBlock extension with Shopify agent
+[x] 1. Re-verify Webhooks code with Shopify agent - APPROVED (added try/catch)
+[x] 2. Re-verify Auth/Session code with Shopify agent - APPROVED (fixed IS_TEST_BILLING)
+[x] 3. Re-verify ProductNotesBlock extension with Shopify agent - APPROVED (no changes needed)
 [ ] 4. Re-verify OrderDetailsBlock extension with Shopify agent
 [ ] 5. Re-verify Polaris UI components with Shopify agent
 [ ] 6. Re-verify GraphQL API usage with Shopify agent
