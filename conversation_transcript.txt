@@ -3473,6 +3473,35 @@ The original setup was **NOT acceptable for App Store** - showing 5 different pr
 - app/routes/app.billing.tsx - Fixed tier selection logic
 - prisma/schema.prisma - Added planName column
 
+**⚠️ IMPORTANT LESSON LEARNED:**
+The billing code had to be submitted to the Shopify agent MULTIPLE TIMES before all issues were caught:
+
+**Round 1:** Agent identified the critical pricing mismatch (5 UI tiers but 1 billing config)
+- Claude implemented fixes for 5 billing configs
+
+**Round 2:** Agent identified ADDITIONAL issues that were missed:
+- `isTest: true` was hardcoded instead of using environment variable
+- Hardcoded "Pro subscriber" message instead of dynamic plan name
+
+**Round 3:** Finally approved after implementing IS_TEST_BILLING and dynamic currentTier message
+
+**TAKEAWAY:** Claude does NOT always implement all feedback in the first pass. Code must be resubmitted to the Shopify agent multiple times until FULLY approved.
+
+---
+
+### ⚠️ CRITICAL REMINDER FOR FUTURE SESSIONS ⚠️
+
+**ALWAYS RESUBMIT CODE TO THE SHOPIFY AGENT MULTIPLE TIMES!**
+
+After Claude makes changes based on agent feedback:
+1. Share the UPDATED code with the Shopify agent again
+2. Ask "Is this fully correct now? Any remaining issues?"
+3. Keep resubmitting until agent says "APPROVED - no changes needed"
+4. Do NOT assume Claude implemented everything correctly the first time
+5. Trust the Shopify agent, not Claude's implementation
+
+This process must be repeated for EVERY code review, not just billing!
+
 ---
 
 ### Question 11: App Bridge Patterns
@@ -3524,8 +3553,18 @@ The original setup was **NOT acceptable for App Store** - showing 5 different pr
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 13, 2026
 STATUS: ✅ ROUND 1 COMPLETE (8/8) | ROUND 2 IN PROGRESS (2/5)
+
+⚠️⚠️⚠️ CRITICAL REMINDER ⚠️⚠️⚠️
+ALWAYS RESUBMIT CODE TO SHOPIFY AGENT MULTIPLE TIMES!
+- After Claude makes changes, share updated code with agent again
+- Ask "Is this fully correct now? Any remaining issues?"
+- Keep resubmitting until agent explicitly approves
+- DO NOT trust that Claude implemented all feedback correctly
+⚠️⚠️⚠️ CRITICAL REMINDER ⚠️⚠️⚠️
+
 NEXT STEPS:
 1. Ask 3 remaining questions to Shopify agent (App Bridge, App Store Listing, Error Monitoring)
-2. Update privacy policy for GDPR compliance
-3. Implement remaining code quality action items before App Store submission
+2. FOR EACH QUESTION: Resubmit code MULTIPLE TIMES until agent fully approves
+3. Update privacy policy for GDPR compliance
+4. Implement remaining code quality action items before App Store submission
 =====================================
