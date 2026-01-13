@@ -74,7 +74,8 @@
       "Bash(npm outdated:*)",
       "Bash(npm audit:*)",
       "Bash(npx railway:*)",
-      "WebFetch(domain:gadget.dev)"
+      "WebFetch(domain:gadget.dev)",
+      "Bash(Remove-Item tmpclaude-* -Force -ErrorAction SilentlyContinue)"
     ],
     "deny": []
   }

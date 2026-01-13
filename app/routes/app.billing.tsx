@@ -34,8 +34,11 @@ import { useState, useCallback } from "react";
 // All billing plans for checking subscription status
 const ALL_PLANS = [STARTER_PLAN, BASIC_PLAN, PRO_PLAN, TITAN_PLAN, ENTERPRISE_PLAN];
 
-// Use test billing in development, real billing in production
-const IS_TEST_BILLING = process.env.NODE_ENV !== "production";
+// Use explicit environment variable for test billing mode
+// Set IS_TEST_BILLING=true in .env for local development
+// Do NOT set IS_TEST_BILLING in Railway (defaults to real billing)
+// PREVIOUS VALUE: process.env.NODE_ENV !== "production"
+const IS_TEST_BILLING = process.env.IS_TEST_BILLING === "true";
 
 // Pricing tiers configuration - planKey must match billing config in shopify.server.ts
 const PRICING_TIERS = [
