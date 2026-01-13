@@ -91,8 +91,10 @@ export async function verifySessionToken(request: Request): Promise<Verification
 }
 
 /**
- * Get shop from request - tries JWT first, falls back to URL param
- * This is for backward compatibility during transition
+ * Get shop from request - verifies JWT session token
+ *
+ * SECURITY: In production, ONLY accepts JWT-verified requests.
+ * URL param fallback is only available in development for testing.
  *
  * @returns shop domain and whether it was verified via JWT
  */
@@ -107,20 +109,22 @@ export async function getVerifiedShop(request: Request): Promise<{
     return { shop: jwtResult.shop, verified: true };
   }
 
-  // Fall back to URL parameter (legacy, less secure)
-  // Log a warning so we know this happened
-  const url = new URL(request.url);
-  const shopParam = url.searchParams.get("shop");
+  // DEV ONLY: Fall back to URL parameter for local testing
+  // This is disabled in production to prevent security bypass
+  if (process.env.NODE_ENV === "development") {
+    const url = new URL(request.url);
+    const shopParam = url.searchParams.get("shop");
 
-  if (shopParam) {
-    console.warn("[SECURITY] Request using URL shop param instead of JWT:", shopParam);
+    if (shopParam) {
+      console.warn("[SECURITY] DEV-ONLY: Using URL shop param instead of JWT:", shopParam);
 
-    // Still validate the shop has installed the app
-    const isValid = await validateShopInstalled(shopParam);
-    if (isValid) {
-      return { shop: shopParam, verified: false };
+      // Still validate the shop has installed the app
+      const isValid = await validateShopInstalled(shopParam);
+      if (isValid) {
+        return { shop: shopParam, verified: false };
+      }
+      return { shop: null, verified: false, error: "Shop not installed" };
     }
-    return { shop: null, verified: false, error: "Shop not installed" };
   }
 
   return { shop: null, verified: false, error: jwtResult.error || "No authentication provided" };
