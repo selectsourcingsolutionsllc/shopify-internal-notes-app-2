@@ -3752,18 +3752,78 @@ const getSessionToken = async (): Promise<string | null> => {
 
 The Shopify agent reviewed OrderDetailsBlock.tsx and shopify.extension.toml.
 
-**Required fix made:**
-- Added `: boolean` type to Checkbox `onChange` parameter (line 467)
-- BEFORE: `onChange={(checked) => {`
-- AFTER: `onChange={(checked: boolean) => {`
-- WHY: The onChange callback parameter was implicitly `any`, needs explicit `boolean` type
+---
 
-**Optional cleanup made:**
-- Removed unused `getShopDomain` function (was at lines 109-111)
-- WHY: Function was defined but never called anywhere in OrderDetailsBlock.tsx
-- VERIFIED: Checked conversation transcript and codebase - no history of why it existed
-- SAFE: The code uses `shopDomain` state directly or `fetchShopDomain()` instead
-- NOTE: The same function in OrderFulfillmentBlock.tsx IS used (7 places) - don't remove from there!
+**CHANGE #1: Added boolean type to Checkbox onChange (REQUIRED FIX)**
+
+**File:** `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx`
+**Location:** Line 467 (was line 472 before removing getShopDomain)
+
+```typescript
+BEFORE (old value):
+onChange={(checked) => {
+  if (checked) {
+    handleAcknowledge(currentNote.id);
+  }
+}}
+
+AFTER (new value):
+onChange={(checked: boolean) => {
+  if (checked) {
+    handleAcknowledge(currentNote.id);
+  }
+}}
+```
+
+**WHY WE CHANGED IT:**
+1. The Shopify UI framework validator complained about implicit `any` type
+2. The Checkbox component's onChange callback expects a `boolean` parameter
+3. TypeScript best practice: explicitly type callback parameters
+4. This was a REQUIRED fix from the Shopify agent - not optional
+
+**TO REVERT (if needed):**
+Change line 467 back to: `onChange={(checked) => {`
+
+---
+
+**CHANGE #2: Removed unused getShopDomain function (OPTIONAL CLEANUP)**
+
+**File:** `extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx`
+**Location:** Was at lines 109-111
+
+```typescript
+BEFORE (old value - this code was REMOVED):
+  // Sync getter for shop domain (uses cached value)
+  const getShopDomain = (): string => {
+    return shopDomain;
+  };
+
+AFTER (new value):
+(function completely removed)
+```
+
+**WHY WE CHANGED IT:**
+1. The Shopify agent flagged it as unused dead code
+2. We searched the ENTIRE file - the function was NEVER called anywhere
+3. We searched conversation_transcript.txt - no history of why it was added
+4. We searched TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md - no mention of it
+5. The code uses `shopDomain` state directly OR `fetchShopDomain()` async function instead
+6. Removing dead code is good practice and won't break anything
+
+**IMPORTANT WARNING:**
+The SAME function `getShopDomain` exists in `OrderFulfillmentBlock.tsx` and IS USED there (7 places)!
+DO NOT remove it from OrderFulfillmentBlock.tsx - only removed from OrderDetailsBlock.tsx!
+
+**TO REVERT (if needed):**
+Add this code back after line 106 (after the fetchShopDomain function):
+```typescript
+  // Sync getter for shop domain (uses cached value)
+  const getShopDomain = (): string => {
+    return shopDomain;
+  };
+```
+
+---
 
 **Config file:** No changes needed - already correct.
 
