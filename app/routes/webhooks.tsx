@@ -203,20 +203,28 @@ async function handleAppUninstalled(shop: string) {
 }
 
 async function handleCustomerDataRequest(shop: string) {
-  // Log the data request for compliance
-  console.log(`Customer data requested for shop: ${shop}`);
-  // In a real app, you would notify the merchant about this request
+  // This webhook is sent when a customer requests their data.
+  // This app does not store any customer-identifiable data
+  // (no customer names, emails, addresses, or IDs),
+  // only product IDs, order IDs, and internal notes.
+  // Therefore, there is no customer data to return.
+  console.log(`[GDPR] CUSTOMERS_DATA_REQUEST received for shop: ${shop} (no customer data stored)`);
 }
 
 async function handleCustomerRedact(shop: string) {
-  // Since we don't store customer data, just log for compliance
-  console.log(`Customer data redaction requested for shop: ${shop}`);
+  // This webhook is sent when a customer requests erasure.
+  // Since this app does not store customer-identifiable data,
+  // there is no customer data to redact.
+  console.log(`[GDPR] CUSTOMERS_REDACT received for shop: ${shop} (no customer data stored)`);
 }
 
 async function handleShopRedact(shop: string) {
-  // This is called 48 hours after app uninstall
-  // Ensure all shop data is removed
+  // This webhook is sent 48 hours after app uninstall.
+  // Deletes ALL shop data: notes, photos, acknowledgments,
+  // settings, billing info, sessions, and audit logs.
+  console.log(`[GDPR] SHOP_REDACT received for shop: ${shop} (deleting all shop data)`);
   await handleAppUninstalled(shop);
+  console.log(`[GDPR] SHOP_REDACT completed for shop: ${shop}`);
 }
 
 async function handleOrderCreated(shop: string, payload: any) {

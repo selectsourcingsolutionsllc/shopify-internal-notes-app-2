@@ -3411,17 +3411,34 @@ Based on the app's architecture (Admin UI Extensions, webhooks, GraphQL, Polaris
 These are additional topics not covered in the first 8 questions:
 
 ### Question 9: GDPR Compliance ⚠️ REQUIRED FOR APP STORE
-**Status:** [ ] Not started
+**Status:** [x] COMPLETED ✅
 
-**What to ask:**
-"Can you review my GDPR webhook handling? I need to make sure I handle `customers/data_request`, `customers/redact`, and `shop/redact` webhooks correctly for App Store approval."
+**Agent Response Summary:**
 
-**Why it matters:**
-- Shopify REQUIRES these webhooks for App Store approval
-- You must respond to data deletion requests
-- Need a privacy policy URL
+Current GDPR implementation is **sufficient for App Store approval**.
 
-**Files to share:** app/routes/webhooks.tsx
+**What's Good:**
+- SHOP_REDACT properly deletes ALL shop data (notes, photos, acknowledgments, settings, billing, sessions, audit logs)
+- CUSTOMERS_DATA_REQUEST and CUSTOMERS_REDACT correctly no-op + log (since app doesn't store customer PII)
+- handleAppUninstalled uses transaction to delete all related data
+- Returns 200 quickly without blocking
+
+**Important Caveats Noted:**
+1. AuditLog stores userEmail (staff email, not customer) - this is fine for GDPR purposes
+2. ProductNote.content is free-form text - merchants could put customer info there
+   - Shopify doesn't expect you to parse free-form text for customer names
+   - Shop-level erasure (SHOP_REDACT) handles this adequately
+
+**Action Items Completed:**
+- [x] Updated comments in handleCustomerDataRequest to explicitly state no customer data stored
+- [x] Updated comments in handleCustomerRedact to explicitly state no customer data stored
+- [x] Updated handleShopRedact with explicit logging
+
+**Action Items Remaining:**
+- [ ] Update privacy policy to explicitly state:
+  - App stores product IDs, order IDs, internal notes, staff IDs/emails
+  - App does NOT store customer PII (names, emails, addresses)
+  - All shop data deleted on uninstall / SHOP_REDACT
 
 ---
 
@@ -3488,8 +3505,9 @@ These are additional topics not covered in the first 8 questions:
 =====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 13, 2026
-STATUS: ✅ ROUND 1 COMPLETE (8/8) | ROUND 2 PENDING (0/5)
+STATUS: ✅ ROUND 1 COMPLETE (8/8) | ROUND 2 IN PROGRESS (1/5)
 NEXT STEPS:
-1. Ask 5 additional questions to Shopify agent
-2. Implement 23+ pending action items before App Store submission
+1. Ask 4 remaining questions to Shopify agent (Billing, App Bridge, App Store Listing, Error Monitoring)
+2. Update privacy policy for GDPR compliance
+3. Implement 23+ pending action items before App Store submission
 =====================================
