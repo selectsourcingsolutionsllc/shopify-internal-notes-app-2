@@ -34,6 +34,9 @@ import { useState, useCallback } from "react";
 // All billing plans for checking subscription status
 const ALL_PLANS = [STARTER_PLAN, BASIC_PLAN, PRO_PLAN, TITAN_PLAN, ENTERPRISE_PLAN];
 
+// Use test billing in development, real billing in production
+const IS_TEST_BILLING = process.env.NODE_ENV !== "production";
+
 // Pricing tiers configuration - planKey must match billing config in shopify.server.ts
 const PRICING_TIERS = [
   {
@@ -128,7 +131,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Check all plans to see if the shop has any active subscription
   const { hasActivePayment, appSubscriptions } = await billing.check({
     plans: ALL_PLANS,
-    isTest: true,
+    isTest: IS_TEST_BILLING,
   });
 
   // Find which plan they're currently on
@@ -160,7 +163,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // Request billing for the specific plan matching the selected tier
     const billingResponse = await billing.request({
       plan: tier.planKey,
-      isTest: true,
+      isTest: IS_TEST_BILLING,
       returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_APP_HANDLE}/app/billing`,
     });
 
@@ -192,7 +195,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (subscription) {
       await billing.cancel({
         subscriptionId: subscription.subscriptionId,
-        isTest: true,
+        isTest: IS_TEST_BILLING,
         prorate: true,
       });
 
