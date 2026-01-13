@@ -3613,6 +3613,39 @@ Change line 41 in app/routes/app.billing.tsx back to:
 
 ---
 
+**Re-submitted Webhooks to Shopify Agent (Round 2)**
+
+Agent found ONE issue: api_version mismatch in shopify.app.toml
+
+**CHANGE MADE TO shopify.app.toml (Line 13):**
+
+```
+BEFORE (old value):
+api_version = "2025-07"
+
+AFTER (new value):
+api_version = "2024-10"
+```
+
+**WHY WE CHANGED IT:**
+1. "2025-07" is a FUTURE API version that doesn't exist yet
+2. Code uses ApiVersion.October24 which is "2024-10"
+3. The mismatch could cause issues during App Store review
+
+**WHY IT WAS SET TO 2025-07 ORIGINALLY:**
+- Commit 3eab6c9 tried switching to a newer webhook (fulfillment_holds/released) that required API 2025-01+
+- But it didn't work, so commit 3c71613 reverted to the old webhook (fulfillment_orders/hold_released)
+- The api_version was forgotten and not reverted back
+
+**TO REVERT (if needed):**
+Change line 13 in shopify.app.toml back to:
+`api_version = "2025-07"`
+
+**Files Changed:**
+- shopify.app.toml - Fixed api_version to match code
+
+---
+
 =====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 13, 2026
