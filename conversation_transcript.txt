@@ -3076,10 +3076,125 @@ Based on the app's architecture (Admin UI Extensions, webhooks, GraphQL, Polaris
 - Themes & Liquid - App doesn't touch themes
 - Storefronts & Hydrogen - App is admin-side only
 
-**Status:** ⏳ Awaiting responses from Shopify agent
+**Status:** ⏳ In progress - 3 of 8 questions completed
+
+=====================================
+
+**SHOPIFY AGENT RESPONSES:**
+
+### Question 1: Best practices for handling webhooks
+✅ COMPLETED
+
+**What's Good:**
+- Using `authenticate.webhook(request)` - correct pattern
+- Webhooks defined at shopifyApp level and registered in afterAuth
+- `handleAppUninstalled` cleanup is correct
+- Using `unauthenticated.admin(shop)` for webhook API calls
+
+**Action Items:**
+- None - webhook handling is correct
+
+---
+
+### Question 2: Best practices for app authentication and session storage
+✅ COMPLETED
+
+**Agent reviewed:** shopify.server.ts, schema.prisma, server.js
+
+**What's Good:**
+- Using @shopify/shopify-app-remix as central auth layer
+- PrismaSessionStorage + PostgreSQL - good production storage
+- useOnlineTokens: false - correct for webhooks
+- authenticate.admin(request) in loaders - correct pattern
+- Using session.shop as key for all data - correct
+
+**Action Items:**
+1. Remove unused `restResources` import from shopify.server.ts
+2. Add `createdAt` and `updatedAt` timestamps to Session model in schema.prisma
+
+**Clarifications:**
+- Agent initially thought webhooks weren't handled in Express, but they ARE handled via Remix route (webhooks.tsx) - this is correct
+- No need to add /webhooks route in Express - Remix handles it
+
+---
+
+### Question 3: Best practices for building Admin UI extensions
+✅ COMPLETED
+
+**Agent reviewed:** ProductNotesBlock.tsx, OrderDetailsBlock.tsx
+
+**What's Good:**
+- Using `reactExtension` from @shopify/ui-extensions-react/admin - correct
+- Direct API Access via `fetch('shopify:admin/api/graphql.json')` - correct pattern
+- Using `useApi(TARGET)` to get selected resource ID - correct
+- Extensions are focused and contextual - correct architecture
+- Session token sent via `Authorization: Bearer` header - correct
+
+**Action Items (Prioritized):**
+
+1. **HIGH PRIORITY - SECURITY:** Backend should derive shop from JWT, not from ?shop= query param
+   - Currently using `?shop=${shop}` in URL which can be spoofed
+   - Backend should extract shop from session token and ignore/verify query param
+   - Files: All `/api/public/*` routes
+
+2. **MEDIUM:** Add TypeScript interfaces instead of `any`
+   ```typescript
+   interface ProductNote {
+     id: string;
+     content: string;
+     createdAt: string;
+     updatedAt: string;
+     photos: Array<{ id: string; url: string; thumbnailUrl?: string; filename: string }>;
+   }
+   ```
+   - Files: ProductNotesBlock.tsx, OrderDetailsBlock.tsx
+
+3. **MEDIUM:** Simplify getSessionToken function
+   - Replace multi-attempt fallback with direct `api.sessionToken.get()`
+   - File: ProductNotesBlock.tsx
+
+4. **MEDIUM:** Add empty state banners
+   - Product block: "No internal notes yet" with explanation
+   - Order block: "No fulfillment notes required for this order"
+
+5. **LOW:** Enforce MAX_NOTE_LENGTH on backend too
+   - Currently only validated in UI
+   - File: /api/public/products/*/notes route
+
+6. **LOW:** Handle GraphQL errors gracefully
+   - Show Banner tone="critical" if Direct API Access fails
+
+**Note:** Agent suggested using process.env for BASE_URL, but we already know this doesn't work in extensions (browser runtime). Hardcoded URL is correct.
+
+---
+
+### Questions Remaining:
+- [ ] Best practices for testing and deploying extensions
+- [ ] Best practices for Polaris design in embedded apps
+- [ ] Best practices for app UX in Shopify admin
+- [ ] Best practices for using the Admin GraphQL API
+- [ ] Best practices for rate limits, pagination, and retries
+
+=====================================
+
+**CONSOLIDATED ACTION ITEMS FROM SHOPIFY AGENT:**
+
+### HIGH PRIORITY (Security)
+- [ ] Backend: Derive shop from JWT, not ?shop= query param
+
+### MEDIUM PRIORITY (Code Quality)
+- [ ] Remove unused restResources import from shopify.server.ts
+- [ ] Add createdAt/updatedAt to Session model
+- [ ] Add TypeScript interfaces for extension data (replace any[])
+- [ ] Simplify getSessionToken in ProductNotesBlock.tsx
+- [ ] Add empty state banners to both extensions
+
+### LOW PRIORITY (Nice to have)
+- [ ] Enforce MAX_NOTE_LENGTH on backend
+- [ ] Handle GraphQL errors gracefully in extensions
 
 =====================================
 END OF CONVERSATION TRANSCRIPT
 LAST UPDATE: January 12, 2026
-STATUS: ✅ TECHNICALLY READY - Gathering best practices from Shopify agent
+STATUS: ✅ TECHNICALLY READY - Shopify agent consultation in progress (3/8 complete)
 =====================================
