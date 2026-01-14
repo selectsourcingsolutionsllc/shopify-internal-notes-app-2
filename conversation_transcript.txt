@@ -4425,4 +4425,21 @@ await addHoldNoteToOrder(admin, orderId);
 
 ---
 
-STATUS: ✅ BUG FIXED - AWAITING DEPLOYMENT
+## ✅ FIX CONFIRMED WORKING - January 14, 2026
+
+User tested and confirmed the bug is fixed:
+- Warning note is now removed when acknowledging all notes
+- Warning note does NOT get re-added when navigating away and coming back
+- Hold still gets re-applied (as intended) but without the duplicate warning note
+
+**Final behavior:**
+1. Order created → Hold applied → Warning note added (ONCE)
+2. User acknowledges all notes → Hold released → Warning note removed
+3. User navigates away and comes back → Hold re-applied → Warning note stays removed ✅
+4. User re-acknowledges → Hold released again
+
+The extension UI still shows "Order On Hold" banner when needed, which is sufficient.
+
+---
+
+STATUS: ✅ BUG FIXED AND VERIFIED WORKING
