@@ -4194,3 +4194,91 @@ OrderFulfillmentBlock.tsx:456 - "Internal Notes"
 =====================================
 END OF SESSION UPDATE - January 13, 2026
 =====================================
+=====================================
+SESSION UPDATE - January 13, 2026
+APP RENAME COMPLETED SUCCESSFULLY
+=====================================
+
+## ✅ ALL RENAME STEPS COMPLETED
+
+### Files Updated:
+
+1. **shopify.app.toml**
+   - name = "Product Notes for Staff"
+   - handle = "product-notes-for-staff"
+   - application_url = "https://product-notes-for-staff.up.railway.app/"
+   - All redirect URLs updated
+   - App proxy URL updated
+   - api_version = "2025-01"
+
+2. **Extension TOMLs** (both product-notes-ui and order-fulfillment-ui)
+   - allowed_domains = ["product-notes-for-staff.up.railway.app"]
+   - api_version = "2025-01"
+
+3. **Extension Source Files**
+   - ProductNotesBlock.tsx: BASE_URL updated
+   - OrderDetailsBlock.tsx: BASE_URL updated
+   - OrderFulfillmentBlock.tsx: BASE_URL updated
+
+4. **Shared Config**
+   - extensions/shared/config.ts: Fallback URL updated
+
+5. **ProductNotesBlock.tsx Line ~406**
+   - App handle in Link updated to "product-notes-for-staff"
+
+6. **package.json**
+   - name = "product-notes-for-staff"
+
+7. **Legal Pages**
+   - privacy-policy.tsx: Updated app name
+   - terms-of-service.tsx: Updated app name
+   - data-processing-agreement.tsx: Updated app name and sub-processors
+
+8. **UI Text**
+   - app._index.tsx: Dashboard title updated
+   - test.tsx: Page title updated
+   - Extension headers updated
+
+9. **Documentation**
+   - render.yaml: Service name updated
+   - README.md: Updated
+   - DEPLOY_TO_RAILWAY.md: Updated
+   - SHOPIFY_APPROVAL_CHECKLIST.md: Updated
+
+10. **package-lock.json** - Regenerated
+
+### Railway Environment Variables Updated:
+- SHOPIFY_APP_URL = https://product-notes-for-staff.up.railway.app
+- HOST = product-notes-for-staff.up.railway.app
+
+### API Version Fix:
+- Error during deploy: "api_version: 2024-10 is not a valid API version"
+- Fixed by updating to "2025-01" in all TOML files
+
+### Intentionally NOT Changed:
+- fulfillment-hold.server.ts HOLD_HANDLE = "internal-notes-acknowledgment"
+  (Reason: Changing this would break existing fulfillment holds on orders)
+
+### Deploy Status:
+- Version: product-notes-for-staff-158
+- Status: ✅ SUCCESSFUL
+
+### Testing Notes:
+- "FULFILLMENT BLOCKED" note behavior: Working correctly (session-based design)
+- Photos showing 0: User recreating test products/notes with fresh data
+
+---
+
+## FINAL APP CONFIGURATION:
+
+| Setting | Value |
+|---------|-------|
+| App Name | Product Notes for Staff |
+| App Handle | product-notes-for-staff |
+| Production URL | https://product-notes-for-staff.up.railway.app |
+| API Version | 2025-01 |
+| Deploy Version | 158 |
+
+---
+
+STATUS: ✅ APP RENAME COMPLETE - USER TESTING WITH NEW DATA
