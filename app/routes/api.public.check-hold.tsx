@@ -3,7 +3,6 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import { unauthenticated } from "../shopify.server";
 import { applyHoldsToOrder, getFulfillmentOrders } from "../utils/fulfillment-hold.server";
-import { addHoldNoteToOrder } from "./webhooks";
 import { getVerifiedShop } from "../utils/shop-validation.server";
 
 // Public endpoint for UI extensions - check if hold needs to be re-applied
@@ -142,16 +141,18 @@ export async function action({ request }: ActionFunctionArgs) {
         // Actually applied holds
         console.log("[CHECK-HOLD] Successfully applied hold to", holdResult.results.length, "fulfillment orders");
 
-        // Add warning note
-        await addHoldNoteToOrder(admin, orderId);
+        // NOTE: We do NOT re-add the warning note here.
+        // The warning note is only added on ORDER_CREATE webhook.
+        // If user acknowledged and the note was removed, it stays removed.
+        // The extension UI still shows "Order On Hold" banner - that's enough.
 
         return json({ holdApplied: true, acknowledgementsCleared: true, reason: "hold re-applied" });
       } else if (holdResult.success && holdResult.results.length === 0) {
         // Skipped all - order might already be on hold or in wrong state
         console.log("[CHECK-HOLD] No holds applied - order may already be on hold");
 
-        // Still add warning note if not present
-        await addHoldNoteToOrder(admin, orderId);
+        // NOTE: We do NOT re-add the warning note here.
+        // Once removed by acknowledgment, it stays removed.
 
         return json({ holdApplied: false, acknowledgementsCleared, reason: "order already on hold or not eligible" });
       } else {
