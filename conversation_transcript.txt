@@ -4443,3 +4443,43 @@ The extension UI still shows "Order On Hold" banner when needed, which is suffic
 ---
 
 STATUS: ✅ BUG FIXED AND VERIFIED WORKING
+
+---
+
+## UX IMPROVEMENTS AND CLEANUP - January 14, 2026
+
+Completed HIGH PRIORITY UX improvements and code cleanup:
+
+### 1. App Home Improvements (app/routes/app._index.tsx)
+- Added subtitle explaining value proposition: "Add internal notes to products so your team never misses important details when fulfilling orders"
+- Changed page title from "Product Notes Dashboard" to "Product Notes for Staff"
+- Replaced technical labels with merchant-friendly text:
+  - "Total Notes" → "Product Notes"
+  - "Total Acknowledgments" → "Notes Reviewed"
+  - "Pending Acknowledgments" → "Awaiting Review"
+  - "Require Acknowledgment" → "Staff Must Review Notes"
+  - "Block Fulfillment" → "Hold Orders Until Reviewed"
+  - "Enabled/Disabled" → "On/Off"
+
+### 2. Extension Banner Improvements (extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx)
+- Loading state: Changed from aggressive "STOP - DO NOT FULFILL" to friendly "PLEASE WAIT - Checking for product notes..."
+- Hold banner: Now explains WHY order is on hold: "This order contains products with staff notes that must be reviewed before shipping. Please read and acknowledge each note below to release the hold."
+- All acknowledged banner: Changed to positive tone "All notes reviewed! Click the button below to release the hold and proceed with fulfillment."
+- Hold released banner: Changed to "Ready to ship! The hold has been released and you can now fulfill this order."
+
+### 3. Polaris Deprecation Fixes
+- app/routes/app.notes.tsx: Changed `primary` to `variant="primary"` on Button
+- app/routes/test.tsx: Changed `primary` to `variant="primary"` on Button
+
+### 4. Code Cleanup
+- Switched extension toml to use OrderFulfillmentBlock.tsx (better UX) instead of OrderDetailsBlock.tsx
+- DELETED: extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx (540 lines, 20+ console.log statements)
+- DELETED: app/routes/api.acknowledgments.tsx (dead code, replaced by api.public.acknowledgments.tsx)
+- Net change: -645 lines, +24 lines
+
+### COMMIT:
+- cdfb627 - Improve UX and remove dead code
+
+---
+
+STATUS: ✅ ALL HIGH PRIORITY UX IMPROVEMENTS COMPLETE
