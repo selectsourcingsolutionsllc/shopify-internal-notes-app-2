@@ -15,7 +15,7 @@ import {
 } from '@shopify/ui-extensions-react/admin';
 
 // Hardcoded URL required for extensions (process.env not available in browser)
-const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
+const BASE_URL = "https://product-notes-for-staff.up.railway.app";
 
 const TARGET = 'admin.product-details.block.render';
 
@@ -238,7 +238,7 @@ function ProductNotesBlock() {
     <BlockStack gap="tight">
       {/* Header */}
       <InlineStack gap="base" blockAlignment="center">
-        <Text fontWeight="bold">Internal Notes</Text>
+        <Text fontWeight="bold">Product Notes</Text>
         <Button
           variant="primary"
           onPress={() => {
@@ -403,7 +403,7 @@ function ProductNotesBlock() {
                   }}>
                     Delete
                   </Button>
-                  <Link href={`https://${shopDomain}/admin/apps/internal-notes-for-listings/app/photo-manager/${notes[currentNoteIndex].id}`} target="_blank">
+                  <Link href={`https://${shopDomain}/admin/apps/product-notes-for-staff/app/photo-manager/${notes[currentNoteIndex].id}`} target="_blank">
                     {notes[currentNoteIndex].photos && notes[currentNoteIndex].photos.length > 0 ? 'Edit Image' : 'Attach Image'}
                   </Link>
                 </InlineStack>

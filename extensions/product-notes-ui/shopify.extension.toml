@@ -13,7 +13,7 @@ target = "admin.product-details.block.render"
 module = "./src/ProductNotesBlock.tsx"
 
 [extensions.network_access]
-allowed_domains = ["shopify-internal-notes-app-production.up.railway.app"]
+allowed_domains = ["product-notes-for-staff.up.railway.app"]
 
 # Enable direct API mode for authenticated requests
 [extensions.capabilities]

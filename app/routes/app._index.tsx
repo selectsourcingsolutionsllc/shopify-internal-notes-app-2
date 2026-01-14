@@ -76,7 +76,7 @@ export default function AppIndex() {
 
   return (
     <Page
-      title="Internal Notes Dashboard"
+      title="Product Notes Dashboard"
       secondaryActions={[
         {
           content: "Settings",

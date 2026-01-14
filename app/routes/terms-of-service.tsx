@@ -1,18 +1,18 @@
 export default function TermsOfService() {
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "40px 20px", fontFamily: "system-ui, sans-serif" }}>
-      <h1>Terms of Service for Internal Notes App</h1>
+      <h1>Terms of Service for Product Notes for Staff</h1>
       <p><strong>Last updated:</strong> January 11, 2026</p>
       
       <h2>1. Acceptance of Terms</h2>
       <p>
-        By installing and using the Internal Notes App ("the App"), you agree to be bound by these 
+        By installing and using the Product Notes for Staff ("the App"), you agree to be bound by these 
         Terms of Service ("Terms"). If you do not agree to these Terms, do not use the App.
       </p>
       
       <h2>2. Description of Service</h2>
       <p>
-        The Internal Notes App is a Shopify application that allows merchants to:
+        The Product Notes for Staff is a Shopify application that allows merchants to:
       </p>
       <ul>
         <li>Create and manage internal product notes</li>

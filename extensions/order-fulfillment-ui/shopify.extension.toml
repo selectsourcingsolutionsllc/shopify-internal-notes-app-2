@@ -16,4 +16,4 @@ module = "./src/OrderDetailsBlock.tsx"
 api_access = true
 
 [extensions.network_access]
-allowed_domains = ["shopify-internal-notes-app-production.up.railway.app"]
+allowed_domains = ["product-notes-for-staff.up.railway.app"]

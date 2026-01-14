@@ -6,7 +6,7 @@ export default function DataProcessingAgreement() {
       
       <h2>1. Definitions</h2>
       <ul>
-        <li><strong>"Controller"</strong> means the Shopify merchant using the Internal Notes App</li>
+        <li><strong>"Controller"</strong> means the Shopify merchant using the Product Notes for Staff</li>
         <li><strong>"Processor"</strong> means Select Sourcing Solutions LLC</li>
         <li><strong>"Personal Data"</strong> has the meaning set forth in the GDPR</li>
         <li><strong>"Processing"</strong> has the meaning set forth in the GDPR</li>
@@ -15,7 +15,7 @@ export default function DataProcessingAgreement() {
       <h2>2. Scope and Purpose</h2>
       <p>
         This DPA governs the processing of Personal Data by the Processor on behalf of the Controller 
-        in connection with the Internal Notes App. The processing is limited to the following purposes:
+        in connection with the Product Notes for Staff. The processing is limited to the following purposes:
       </p>
       <ul>
         <li>Storing and managing product notes created by the Controller</li>
@@ -57,15 +57,14 @@ export default function DataProcessingAgreement() {
         <li>Encryption of data in transit and at rest</li>
         <li>Access controls and user authentication</li>
         <li>Regular security assessments and updates</li>
-        <li>Secure hosting infrastructure (AWS/Render.com)</li>
+        <li>Secure hosting infrastructure (Railway)</li>
         <li>Backup and disaster recovery procedures</li>
       </ul>
-      
+
       <h2>7. Sub-processors</h2>
       <p>The Controller authorizes the use of the following sub-processors:</p>
       <ul>
-        <li>Amazon Web Services (AWS) - Cloud hosting and storage</li>
-        <li>Render.com - Application hosting</li>
+        <li>Railway - Application hosting and PostgreSQL database</li>
         <li>Shopify Inc. - Authentication and billing services</li>
       </ul>
       

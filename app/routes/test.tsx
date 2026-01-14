@@ -71,7 +71,7 @@ export default function TestPage() {
   }
   
   return (
-    <Page title="Internal Notes App - Test Mode">
+    <Page title="Product Notes for Staff - Test Mode">
       <Layout>
         <Layout.Section>
           <Card>

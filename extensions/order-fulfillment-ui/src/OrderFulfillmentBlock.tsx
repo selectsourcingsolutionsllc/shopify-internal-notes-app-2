@@ -14,7 +14,7 @@ import {
 } from '@shopify/ui-extensions-react/admin';
 
 // Hardcoded URL required for extensions (process.env not available in browser)
-const BASE_URL = "https://shopify-internal-notes-app-production.up.railway.app";
+const BASE_URL = "https://product-notes-for-staff.up.railway.app";
 
 // Use block.render so it shows automatically on the order page
 const TARGET = 'admin.order-details.block.render';
@@ -438,7 +438,7 @@ function OrderFulfillmentBlock() {
     return (
       <Box padding="base">
         <BlockStack>
-          <Text fontWeight="bold">Internal Notes</Text>
+          <Text fontWeight="bold">Product Notes</Text>
           <Banner tone="critical">
             <Text>Error: {error}</Text>
           </Banner>
@@ -453,7 +453,7 @@ function OrderFulfillmentBlock() {
     return (
       <Box padding="base">
         <BlockStack>
-          <Text fontWeight="bold">Internal Notes</Text>
+          <Text fontWeight="bold">Product Notes</Text>
           <Text emphasis="subdued">No notes for products in this order.</Text>
           <Text emphasis="subdued">{debugInfo}</Text>
         </BlockStack>
