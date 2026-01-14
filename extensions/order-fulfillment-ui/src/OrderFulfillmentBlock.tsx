@@ -423,12 +423,11 @@ function OrderFulfillmentBlock() {
       <Box padding="base">
         <BlockStack>
           <Banner tone="critical">
-            <Text fontWeight="bold">STOP - DO NOT FULFILL THIS ORDER YET</Text>
+            <Text fontWeight="bold">PLEASE WAIT - Checking for product notes...</Text>
           </Banner>
           <Banner tone="warning">
-            <Text>Securing fulfillment hold... Please wait before creating shipping labels or fulfilling.</Text>
+            <Text>Do not create shipping labels or fulfill this order until this check completes.</Text>
           </Banner>
-          <Text emphasis="subdued">{debugInfo}</Text>
         </BlockStack>
       </Box>
     );
@@ -466,7 +465,10 @@ function OrderFulfillmentBlock() {
       {/* Show critical warning if notes need acknowledgment */}
       {settings?.blockFulfillment && !canFulfill && (
         <Banner tone="critical">
-          <Text fontWeight="bold">FULFILLMENT BLOCKED - Acknowledge all notes below before shipping</Text>
+          <BlockStack>
+            <Text fontWeight="bold">ORDER ON HOLD - Products Have Important Notes</Text>
+            <Text>This order contains products with staff notes that must be reviewed before shipping. Please read and acknowledge each note below to release the hold.</Text>
+          </BlockStack>
         </Banner>
       )}
 
@@ -474,8 +476,8 @@ function OrderFulfillmentBlock() {
       {settings?.blockFulfillment && canFulfill && !holdReleased && productNotes.length > 0 && (
         <Box padding="base">
           <BlockStack>
-            <Banner tone="warning">
-              <Text fontWeight="bold">All notes acknowledged - Click button below to unlock fulfillment</Text>
+            <Banner tone="success">
+              <Text fontWeight="bold">All notes reviewed! Click the button below to release the hold and proceed with fulfillment.</Text>
             </Banner>
             <Button
               variant="primary"
@@ -491,7 +493,7 @@ function OrderFulfillmentBlock() {
       {/* Show success when hold is released */}
       {holdReleased && (
         <Banner tone="success">
-          <Text fontWeight="bold">Hold released - You may now create shipping labels and fulfill this order</Text>
+          <Text fontWeight="bold">Ready to ship! The hold has been released and you can now fulfill this order.</Text>
         </Banner>
       )}
       

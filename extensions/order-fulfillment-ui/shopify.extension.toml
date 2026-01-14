@@ -10,7 +10,7 @@ handle = "order-fulfillment-notes"
 
 [[extensions.targeting]]
 target = "admin.order-details.block.render"
-module = "./src/OrderDetailsBlock.tsx"
+module = "./src/OrderFulfillmentBlock.tsx"
 
 [extensions.capabilities]
 api_access = true

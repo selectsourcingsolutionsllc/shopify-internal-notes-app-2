@@ -76,7 +76,8 @@ export default function AppIndex() {
 
   return (
     <Page
-      title="Product Notes Dashboard"
+      title="Product Notes for Staff"
+      subtitle="Add internal notes to products so your team never misses important details when fulfilling orders"
       secondaryActions={[
         {
           content: "Settings",
@@ -113,15 +114,15 @@ export default function AppIndex() {
               <h2 style={{ marginBottom: "20px" }}>Overview</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px" }}>
                 <div>
-                  <p style={{ fontSize: "14px", color: "#6d7175" }}>Total Notes</p>
+                  <p style={{ fontSize: "14px", color: "#6d7175" }}>Product Notes</p>
                   <p style={{ fontSize: "24px", fontWeight: "bold" }}>{stats.totalNotes}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: "14px", color: "#6d7175" }}>Total Acknowledgments</p>
+                  <p style={{ fontSize: "14px", color: "#6d7175" }}>Notes Reviewed</p>
                   <p style={{ fontSize: "24px", fontWeight: "bold" }}>{stats.totalAcknowledgments}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: "14px", color: "#6d7175" }}>Pending Acknowledgments</p>
+                  <p style={{ fontSize: "14px", color: "#6d7175" }}>Awaiting Review</p>
                   <p style={{ fontSize: "24px", fontWeight: "bold" }}>{stats.pendingAcknowledgments}</p>
                 </div>
               </div>
@@ -167,24 +168,24 @@ export default function AppIndex() {
               <h2 style={{ marginBottom: "20px" }}>Current Settings</h2>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Require Acknowledgment</span>
+                  <span>Staff Must Review Notes</span>
                   <Badge tone={settings?.requireAcknowledgment ? "success" : undefined}>
-                    {settings?.requireAcknowledgment ? "Enabled" : "Disabled"}
+                    {settings?.requireAcknowledgment ? "On" : "Off"}
                   </Badge>
                 </div>
 {/* HIDDEN: Require Photo Proof row - set to true to show */}
                 {false && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Require Photo Proof</span>
+                  <span>Photo Required Before Shipping</span>
                   <Badge tone={settings?.requirePhotoProof ? "success" : undefined}>
-                    {settings?.requirePhotoProof ? "Enabled" : "Disabled"}
+                    {settings?.requirePhotoProof ? "On" : "Off"}
                   </Badge>
                 </div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Block Fulfillment</span>
+                  <span>Hold Orders Until Reviewed</span>
                   <Badge tone={settings?.blockFulfillment ? "warning" : undefined}>
-                    {settings?.blockFulfillment ? "Enabled" : "Disabled"}
+                    {settings?.blockFulfillment ? "On" : "Off"}
                   </Badge>
                 </div>
               </div>
