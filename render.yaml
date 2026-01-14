@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: shopify-internal-notes-app
+    name: product-notes-for-staff
     env: node
     buildCommand: npm ci && npm run build
     startCommand: npm start
@@ -19,7 +19,7 @@ services:
         value: read_products,write_products,read_orders,write_orders
       - key: DATABASE_URL
         fromDatabase:
-          name: internal-notes-db
+          name: product-notes-db
           property: connectionString
       - key: SESSION_SECRET
         generateValue: true
@@ -33,7 +33,7 @@ services:
         sync: false
 
 databases:
-  - name: internal-notes-db
-    databaseName: internal_notes_app
-    user: internal_notes_user
+  - name: product-notes-db
+    databaseName: product_notes_app
+    user: product_notes_user
     plan: starter
