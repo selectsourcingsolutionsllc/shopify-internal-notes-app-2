@@ -2,7 +2,7 @@ export default function PrivacyPolicy() {
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "40px 20px", fontFamily: "system-ui, sans-serif" }}>
       <h1>Privacy Policy for Internal Notes App</h1>
-      <p><strong>Last updated:</strong> January 11, 2026</p>
+      <p><strong>Last updated:</strong> January 13, 2026</p>
       
       <h2>1. Information We Collect</h2>
       <p>
@@ -11,9 +11,19 @@ export default function PrivacyPolicy() {
       <ul>
         <li>Product notes and content you create</li>
         <li>Photos you upload as attachments to notes</li>
-        <li>User actions and audit trail information</li>
+        <li>Shopify product IDs and order IDs (for associating notes)</li>
+        <li>Staff user IDs and emails (for audit trail purposes)</li>
+        <li>Note acknowledgment records</li>
         <li>App configuration and settings</li>
       </ul>
+
+      <h3>Information We Do NOT Collect</h3>
+      <p>
+        <strong>We do not store customer personal information.</strong> This app does not collect, store,
+        or process customer names, email addresses, shipping addresses, phone numbers, or any other
+        customer-identifiable data. We only store Shopify resource identifiers (product IDs, order IDs)
+        and internal notes created by your staff.
+      </p>
       
       <h2>2. How We Use Your Information</h2>
       <p>We use the information we collect to:</p>
@@ -43,11 +53,24 @@ export default function PrivacyPolicy() {
         and at rest.
       </p>
       
-      <h2>5. Data Retention</h2>
+      <h2>5. Data Retention and Deletion</h2>
       <p>
-        We retain your information for as long as your account is active or as needed to provide 
-        services. We will delete your data upon app uninstallation or account closure, except as 
-        required by law.
+        We retain your information for as long as your account is active or as needed to provide
+        services.
+      </p>
+      <p>
+        <strong>Upon app uninstallation, ALL your data is automatically deleted</strong>, including:
+      </p>
+      <ul>
+        <li>All product notes and photo attachments</li>
+        <li>All acknowledgment records</li>
+        <li>All audit logs</li>
+        <li>App settings and billing information</li>
+        <li>Session data</li>
+      </ul>
+      <p>
+        We also respond to Shopify's GDPR webhooks (SHOP_REDACT) to ensure complete data removal
+        within 48 hours of uninstallation.
       </p>
       
       <h2>6. Your Rights</h2>
