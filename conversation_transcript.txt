@@ -4282,3 +4282,71 @@ APP RENAME COMPLETED SUCCESSFULLY
 ---
 
 STATUS: ✅ APP RENAME COMPLETE - USER TESTING WITH NEW DATA
+
+=====================================
+SESSION: January 14, 2026
+BUG: "FULFILLMENT BLOCKED" Order Note Not Being Removed
+=====================================
+
+## ISSUE REPORTED:
+After acknowledging all notes, the fulfillment hold IS released correctly,
+BUT the "⚠️ FULFILLMENT BLOCKED⚠️" order note is NOT being removed.
+
+## INVESTIGATION COMPLETED:
+
+### Changes Reviewed (None affect note removal):
+| Commit | File | Change | Affects Note Removal? |
+|--------|------|--------|----------------------|
+| 378265e | webhooks.tsx | try/catch on webhook action | NO |
+| 172cb4c | app.billing.tsx | IS_TEST_BILLING env var | NO |
+| d1def60 | TOML files | api_version changes | NO |
+| 6ef7b87 | TOML files | api_version 2024-10→2025-01 | NO |
+| f0c353a | OrderDetailsBlock.tsx | boolean type on checkbox | NO |
+| fb33f9e | app._index, app.settings | Polaris props | NO |
+| c695233 | Multiple | App rename/URLs | NO |
+
+### Key Finding:
+The `removeHoldNoteFromOrder` function in webhooks.tsx has NOT changed since
+January 10 (commit 037c254). The Shopify approval changes did NOT touch this code.
+
+### Code Flow (api.public.acknowledgments.tsx lines 102-125):
+1. checkAllNotesAcknowledged() returns true
+2. releaseHoldsFromOrder() releases the hold ✅ (this works)
+3. removeHoldNoteFromOrder() should remove the note ❌ (this fails silently?)
+
+---
+
+## TO-DO LIST - DEBUGGING REQUIRED:
+
+[ ] 1. Get Railway logs from when the LAST (5th) note is acknowledged
+[ ] 2. Look for these specific log lines:
+      - "[PUBLIC API] All notes acknowledged - auto-releasing hold..."
+      - "[PUBLIC API] Hold release result: ..."
+      - "[PUBLIC API] Attempting to remove hold warning for order: ..."
+      - "[Webhook] Attempting to remove hold warning from note"
+      - "[Webhook] Existing note: ..."
+[ ] 3. Diagnose based on which logs appear:
+      - If #3 missing → allAcknowledged not becoming true
+      - If #3 present but #4 missing → function crashing before logging
+      - If #4 and #5 present → check what "Existing note" shows (pattern mismatch?)
+[ ] 4. Fix the identified issue
+[ ] 5. Test the fix
+[ ] 6. Deploy and verify
+
+---
+
+## RELEVANT FILES:
+- app/routes/api.public.acknowledgments.tsx (calls removeHoldNoteFromOrder)
+- app/routes/webhooks.tsx (contains removeHoldNoteFromOrder function)
+- Function location: webhooks.tsx lines 77-143
+
+## CONSTANTS USED FOR NOTE DETECTION:
+```
+HOLD_WARNING_START = "⚠️ FULFILLMENT BLOCKED⚠️:"
+HOLD_WARNING_TEXT = "⚠️ FULFILLMENT BLOCKED⚠️:\n\nThere is an important..."
+NOTE_SEPARATOR = "\n\n---\n\n"
+```
+
+---
+
+STATUS: 🔍 AWAITING RAILWAY LOGS FROM USER
