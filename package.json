@@ -1,8 +1,8 @@
 {
-  "name": "shopify-internal-notes-app",
+  "name": "product-notes-for-staff",
   "private": true,
   "version": "1.0.3",
-  "description": "Shopify embedded admin app for internal product notes and order fulfillment tracking",
+  "description": "Shopify embedded admin app for product notes and order fulfillment tracking",
   "scripts": {
     "build": "remix build",
     "predev": "prisma generate && prisma migrate deploy",

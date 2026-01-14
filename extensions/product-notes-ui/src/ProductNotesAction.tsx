@@ -16,7 +16,7 @@ function ProductNotesAction() {
   
   return (
     <AdminAction
-      title="View Internal Notes"
+      title="View Product Notes"
       icon="NoteMajor"
       onAction={() => {
         // This will open the notes section or navigate to notes page

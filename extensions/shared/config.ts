@@ -9,4 +9,4 @@
 // Use environment variable at build time, fallback to production URL
 export const BASE_URL =
   process.env.SHOPIFY_APP_URL ||
-  "https://shopify-internal-notes-app-production.up.railway.app";
+  "https://product-notes-for-staff.up.railway.app";

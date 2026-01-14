@@ -3998,6 +3998,199 @@ UPDATED PRIORITY TODO LIST
 [ ] 13. Implement remaining code quality items
 
 =====================================
-END OF SESSION - January 13, 2026
-STATUS: Item 5 complete, Item 6 is NEXT PRIORITY
+
+SESSION: January 13, 2026 (Continued)
+COMPLETED ALL SHOPIFY AGENT REVIEWS + APP RENAME PLANNING
+=====================================
+
+**COMPLETED RE-VERIFICATIONS:**
+
+[x] 1. Webhooks - APPROVED
+[x] 2. Auth/Session - APPROVED
+[x] 3. ProductNotesBlock - APPROVED
+[x] 4. OrderDetailsBlock - APPROVED
+[x] 5. Polaris UI components - APPROVED
+[x] 6. GraphQL API usage - APPROVED
+[x] 7. GDPR webhook handlers - APPROVED (covered in GraphQL review)
+[x] 8. Billing code - APPROVED
+[x] 9. App Bridge patterns - APPROVED
+[x] 10. App Store listing requirements - COMPLETE (informational)
+[x] 11. Error monitoring guidance - COMPLETE (informational, Sentry recommended)
+[x] 12. Privacy policy GDPR update - APPROVED
+
+**Privacy Policy Updates Made:**
+- Added controller/processor role clarification
+- Added explicit list of service providers (Railway, PostgreSQL)
+- Clarified transient PII in logs vs persisted data
+- Added international data transfers section
+- Added legal bases for processing
+- Clarified billing handled by Shopify
+- Changed "compliant with" to "intended to comply with"
+
+**Commits:**
+- b2de9af - Update privacy policy for GDPR compliance (first pass)
+- 424e3b7 - Update privacy policy for Shopify App Store compliance (final)
+
+---
+
+**APP READY FOR SUBMISSION - BUT USER WANTS TO RENAME FIRST**
+
+=====================================
+APP RENAME PLAN: "Internal Notes for Listings" → "Product Listing Notes"
+=====================================
+
+**New App Name:** Product Listing Notes (21 characters)
+**New Handle:** product-listing-notes
+**New Railway URL:** product-listing-notes-production.up.railway.app (pending user action)
+
+---
+
+**ALL FILES THAT NEED TO CHANGE:**
+
+## 🔴 CRITICAL - FUNCTIONAL (will break app if not changed together)
+
+### 1. shopify.app.toml (MAIN CONFIG)
+```
+Line 4:  name = "Internal notes for listings" → "Product Listing Notes"
+Line 5:  handle = "internal-notes-for-listings" → "product-listing-notes"
+Line 6:  application_url = OLD_RAILWAY_URL → NEW_RAILWAY_URL
+Line 44: OLD_RAILWAY_URL/auth/callback → NEW_RAILWAY_URL/auth/callback
+Line 45: OLD_RAILWAY_URL/auth/shopify/callback → NEW_RAILWAY_URL/auth/shopify/callback
+Line 49: url = OLD_RAILWAY_URL → NEW_RAILWAY_URL
+Line 50: subpath = "internal-notes" → "product-listing-notes" (or keep same)
+```
+
+### 2. Extension Hardcoded URLs
+```
+extensions/product-notes-ui/src/ProductNotesBlock.tsx:18 - BASE_URL
+extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx:17 - BASE_URL
+extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx:18 - BASE_URL
+```
+
+### 3. Extension TOML - allowed_domains
+```
+extensions/product-notes-ui/shopify.extension.toml:16
+extensions/order-fulfillment-ui/shopify.extension.toml:19
+```
+
+### 4. Shared Config
+```
+extensions/shared/config.ts:12
+```
+
+### 5. Hardcoded App Handle Link
+```
+extensions/product-notes-ui/src/ProductNotesBlock.tsx:406
+  Link href contains "internal-notes-for-listings" → "product-listing-notes"
+```
+
+### 6. Billing Return URL
+```
+app/routes/app.billing.tsx:170
+  Uses process.env.SHOPIFY_APP_HANDLE - must update Railway env var
+```
+
+---
+
+## 🟡 IMPORTANT - CONFIGURATION FILES
+
+### 7. package.json
+```
+Line 2: "name": "shopify-internal-notes-app" → "product-listing-notes"
+```
+
+### 8. Extension Names (shopify.extension.toml)
+```
+extensions/product-notes-ui/shopify.extension.toml:8 - name = "Product Notes" (keep or change)
+extensions/order-fulfillment-ui/shopify.extension.toml:8 - name = "Order Fulfillment Notes" (keep or change)
+```
+
+---
+
+## 🟢 DISPLAY/UI TEXT (User-Facing)
+
+### 9. Dashboard Title
+```
+app/routes/app._index.tsx:79 - title="Internal Notes Dashboard"
+```
+
+### 10. Privacy Policy
+```
+app/routes/privacy-policy.tsx - Multiple "Internal Notes App" references
+```
+
+### 11. Terms of Service
+```
+app/routes/terms-of-service.tsx - Multiple "Internal Notes App" references
+```
+
+### 12. Data Processing Agreement
+```
+app/routes/data-processing-agreement.tsx - Multiple "Internal Notes App" references
+```
+
+### 13. Test Page
+```
+app/routes/test.tsx:74 - title="Internal Notes App - Test Mode"
+```
+
+### 14. Extension UI Headers
+```
+ProductNotesBlock.tsx:241 - "Internal Notes"
+OrderFulfillmentBlock.tsx:441 - "Internal Notes"
+OrderFulfillmentBlock.tsx:456 - "Internal Notes"
+```
+
+---
+
+## 🔵 DOCUMENTATION (Optional)
+
+- README.md
+- DEPLOY_TO_RAILWAY.md
+- SHOPIFY_APPROVAL_CHECKLIST.md
+- render.yaml
+- RAILWAY_DEPLOYMENT_SOLUTIONS.txt
+
+---
+
+## RAILWAY ENVIRONMENT VARIABLES TO UPDATE:
+
+1. SHOPIFY_APP_URL → new Railway URL (https://product-notes-for-staff.up.railway.app)
+2. SHOPIFY_APP_HANDLE → product-notes-for-staff
+
+---
+
+## FINAL APP NAME DECISION:
+
+**App Name:** Product Notes for Staff (23 characters)
+- Nav limit (20): 3 over — slight truncation to "Product Notes for S..."
+- App Store listing (30): ✓ Fits!
+
+**App Handle:** product-notes-for-staff
+
+**New Railway URL:** https://product-notes-for-staff.up.railway.app
+
+---
+
+## RENAME STEPS:
+
+1. [x] User renames Railway service → gets new URL ✅ DONE
+2. [ ] Update shopify.app.toml (name, handle, all URLs)
+3. [ ] Update extension TOML files (allowed_domains)
+4. [ ] Update extension source files (BASE_URL constants)
+5. [ ] Update shared config (extensions/shared/config.ts)
+6. [ ] Update hardcoded app handle in ProductNotesBlock.tsx link
+7. [ ] Update package.json name
+8. [ ] Update legal pages (privacy policy, terms, DPA)
+9. [ ] Update UI text (dashboard title, extension headers)
+10. [ ] Update Railway environment variables
+11. [ ] Run shopify app deploy to push changes
+12. [ ] Test app after rename
+
+---
+
+**STATUS: RAILWAY SERVICE RENAMED - PROCEEDING WITH FILE UPDATES**
+
+=====================================
+END OF SESSION UPDATE - January 13, 2026
 =====================================
