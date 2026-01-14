@@ -4349,4 +4349,80 @@ NOTE_SEPARATOR = "\n\n---\n\n"
 
 ---
 
-STATUS: 🔍 AWAITING RAILWAY LOGS FROM USER
+=====================================
+SESSION: January 14, 2026 (Continued)
+BUG FIX: Warning Note Being Re-Added - SOLVED!
+=====================================
+
+## ROOT CAUSE FOUND:
+
+After analyzing Railway logs, discovered the note WAS being removed when acknowledging,
+but then IMMEDIATELY re-added when user navigated away and came back.
+
+**The flow was:**
+1. User acknowledges all notes
+2. Hold released ✅
+3. Warning note removed ✅
+4. User navigates away
+5. User comes back (new session ID generated)
+6. `check-hold` runs and sees different session
+7. Clears old acknowledgments
+8. Re-applies hold
+9. **RE-ADDS the warning note** ← THE BUG!
+
+**Log evidence:**
+```
+[Webhook] Successfully removed hold warning from order note  ← Note removed at 03:02:00
+...
+[CHECK-HOLD] Different session - user left and came back
+[Webhook] Added hold warning to order note (preserved existing notes)  ← Note re-added at 03:02:09
+```
+
+## THE FIX:
+
+In `app/routes/api.public.check-hold.tsx`, removed the calls to `addHoldNoteToOrder()`.
+
+**Before (lines 146 and 154):**
+```typescript
+// Add warning note
+await addHoldNoteToOrder(admin, orderId);
+```
+
+**After:**
+```typescript
+// NOTE: We do NOT re-add the warning note here.
+// The warning note is only added on ORDER_CREATE webhook.
+// If user acknowledged and the note was removed, it stays removed.
+// The extension UI still shows "Order On Hold" banner - that's enough.
+```
+
+**Why this is correct:**
+- Warning note is added ONCE when order is created (ORDER_CREATE webhook)
+- When user acknowledges, note is removed permanently for that order
+- When user leaves and comes back, hold is re-applied BUT note is NOT re-added
+- The extension UI still shows "Order On Hold" banner - that's sufficient notification
+- User must re-acknowledge, but doesn't see duplicate warning notes
+
+## FILES CHANGED:
+- `app/routes/api.public.check-hold.tsx`:
+  - Removed line 6: `import { addHoldNoteToOrder } from "./webhooks";`
+  - Removed line 146: `await addHoldNoteToOrder(admin, orderId);`
+  - Removed line 154: `await addHoldNoteToOrder(admin, orderId);`
+  - Added explanatory comments
+
+## COMMIT:
+- 80a7d39 - Fix: Don't re-add warning note when hold is re-applied due to session change
+
+## STATUS: ✅ FIX PUSHED TO BRANCH
+- Branch: claude/read-conversation-transcript-Mypzw
+- Needs to be merged to main to deploy to Railway
+
+## NEXT STEPS FOR USER:
+1. Merge branch to main (or create PR)
+2. Railway will auto-deploy
+3. Test: Create order → Acknowledge all notes → Navigate away → Come back
+4. Expected: Hold should be re-applied, but warning note should NOT be in order notes
+
+---
+
+STATUS: ✅ BUG FIXED - AWAITING DEPLOYMENT
