@@ -1,9 +1,8 @@
 # Deploy Your Shopify App to Railway
 
-## Prerequisites Completed ✓
+## Prerequisites Completed
 - Removed ngrok files and configurations
-- Updated shopify.app.toml with placeholder URLs
-- Removed local .env file
+- Updated shopify.app.toml with production URLs
 - Updated vite.config.ts for production
 
 ## Step 1: Create Railway Account
@@ -13,7 +12,7 @@
 
 ## Step 2: Deploy from GitHub
 1. Click "Deploy from GitHub repo"
-2. Select your `shopify-internal-notes-app` repository
+2. Select your `product-notes-for-staff` repository
 3. Railway will detect it's a Node.js app automatically
 
 ## Step 3: Add PostgreSQL Database
@@ -25,30 +24,33 @@
 Click on your app service, go to "Variables" tab, and add:
 
 ```
-SHOPIFY_API_KEY=759aead17dfbcb721121009dacc43ce2
-SHOPIFY_API_SECRET=[Get from Partners Dashboard]
+SHOPIFY_API_KEY=your_api_key
+SHOPIFY_API_SECRET=your_api_secret
 SCOPES=read_orders,read_products,write_orders,write_products
-SHOPIFY_APP_URL=https://[your-app-name].up.railway.app
+SHOPIFY_APP_URL=https://product-notes-for-staff.up.railway.app
+HOST=product-notes-for-staff.up.railway.app
 NODE_ENV=production
 ```
 
 ## Step 5: Get Your Railway URL
 1. Go to Settings tab
 2. Under "Domains", click "Generate Domain"
-3. Copy your URL (like: https://your-app-name.up.railway.app)
+3. Copy your URL (like: https://product-notes-for-staff.up.railway.app)
 
 ## Step 6: Update Shopify Partners Dashboard
 1. Go to https://partners.shopify.com
-2. Select your app "Internal notes for listings"
+2. Select your app "Product Notes for Staff"
 3. Go to Configuration
 4. Update ALL these URLs with your Railway URL:
-   - App URL: `https://your-app-name.up.railway.app`
-   - Allowed redirection URL(s): `https://your-app-name.up.railway.app/api/auth`
-   - App proxy URL: `https://your-app-name.up.railway.app`
+   - App URL: `https://product-notes-for-staff.up.railway.app`
+   - Allowed redirection URL(s): `https://product-notes-for-staff.up.railway.app/auth/callback`
+   - App proxy URL: `https://product-notes-for-staff.up.railway.app`
 
-## Step 7: Update shopify.app.toml
-Before pushing to GitHub, update these in shopify.app.toml:
-- Replace `https://your-app.up.railway.app/` with your actual Railway URL
+## Step 7: Deploy Extensions
+Run locally to deploy extensions:
+```bash
+npx shopify app deploy --force
+```
 
 ## Step 8: Push Changes
 ```bash

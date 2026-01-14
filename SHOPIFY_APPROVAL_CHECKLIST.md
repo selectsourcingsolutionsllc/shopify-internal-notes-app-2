@@ -1,7 +1,7 @@
 # Shopify App Store Approval Checklist
 
-**App Name:** Internal Notes for Listings
-**Audit Date:** January 11, 2026
+**App Name:** Product Notes for Staff
+**Audit Date:** January 13, 2026
 **Status:** ✅ Ready for Submission (after preparing listing assets)
 
 ---
@@ -24,8 +24,8 @@
 | Requirement | Status | Notes |
 |------------|--------|-------|
 | GraphQL API (not REST) | ✅ Pass | All API calls use GraphQL mutations/queries |
-| API version current | ✅ Pass | Using `2024-10` (October24) |
-| Webhooks use API version | ✅ Pass | Using `2024-10` in shopify.app.toml |
+| API version current | ✅ Pass | Using `2025-01` (January25) |
+| Webhooks use API version | ✅ Pass | Using `2025-01` in shopify.app.toml |
 
 ### Billing
 
@@ -54,10 +54,10 @@
 
 | Requirement | Status | Notes |
 |------------|--------|-------|
-| App name unique (≤30 chars) | ✅ Pass | "Internal Notes for Listings" (28 chars) |
+| App name unique (≤30 chars) | ✅ Pass | "Product Notes for Staff" (23 chars) |
 | Privacy policy page | ✅ Pass | `/privacy-policy` route exists |
 | Terms of service page | ✅ Pass | `/terms-of-service` route exists |
-| App handles match | ✅ Pass | `internal-notes-for-listings` consistent |
+| App handles match | ✅ Pass | `product-notes-for-staff` consistent |
 
 ### Listing Assets Needed (for submission)
 
