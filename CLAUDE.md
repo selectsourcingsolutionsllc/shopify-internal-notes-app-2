@@ -1,3 +1,17 @@
+# CRITICAL: ALWAYS CHECK CONVERSATION TRANSCRIPT
+
+**BEFORE giving any advice or answering questions, ALWAYS search/read `conversation_transcript.txt` for relevant context!**
+
+This file contains the full history of:
+- All URL changes and configurations
+- Previous bugs and how they were fixed
+- Environment variables and their values
+- Decisions that were made and why
+
+**DO NOT give advice based on assumptions. CHECK THE TRANSCRIPT FIRST.**
+
+---
+
 # User Context
 
 The user is new to programming and needs basic explanations. Always assume they don't know technical terms or concepts.
