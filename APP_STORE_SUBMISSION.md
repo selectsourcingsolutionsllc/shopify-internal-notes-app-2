@@ -1,5 +1,10 @@
 # App Store Submission Guide
 
+## DIRECT LINK TO APP LISTING PAGE
+**https://apps.shopify.com/services/partner-app-submissions/759aead17dfbcb721121009dacc43ce2/en**
+
+---
+
 ## App Introduction (100 chars)
 ```
 Add internal notes to product listings staff is FORCED to see & Block fulfillment until they do!

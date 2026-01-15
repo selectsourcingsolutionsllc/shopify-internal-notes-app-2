@@ -4488,6 +4488,11 @@ STATUS: ✅ ALL HIGH PRIORITY UX IMPROVEMENTS COMPLETE
 
 ## APP STORE SUBMISSION GUIDE - January 15, 2026
 
+### DIRECT LINK TO APP LISTING PAGE
+**https://apps.shopify.com/services/partner-app-submissions/759aead17dfbcb721121009dacc43ce2/en**
+
+^ This is THE link to create/edit the app listing for "Product Notes for Staff"
+
 ### How to Create App Listing in Shopify Partner Dashboard
 
 1. Go to **https://partners.shopify.com/organizations**
@@ -4495,6 +4500,8 @@ STATUS: ✅ ALL HIGH PRIORITY UX IMPROVEMENTS COMPLETE
 3. Click on your app (Product Notes for Staff)
 4. Look for **"App listing"** or **"Distribution"** section
 5. Fill in listing details and click **Save**
+
+**OR just use the direct link above!**
 
 ### App Listing Text (FINAL)
 
