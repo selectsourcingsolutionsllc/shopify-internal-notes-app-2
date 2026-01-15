@@ -112,7 +112,6 @@ export async function uploadFile(
       })
       .toBuffer();
     await writeFile(thumbnailPath, thumbnailBuffer);
-    console.log("[Storage] Thumbnail created:", thumbnailPath);
   } catch (error) {
     console.error("[Storage] Failed to create thumbnail:", error);
     // If thumbnail creation fails, use the original as fallback
@@ -121,10 +120,6 @@ export async function uploadFile(
   // Return URLs that will be served by Express
   const url = `${PUBLIC_URL}/uploads/${relativePath}/${filename}`;
   const thumbnailUrl = `${PUBLIC_URL}/uploads/${relativePath}/${thumbnailFilename}`;
-
-  console.log("[Storage] File saved to:", fullPath);
-  console.log("[Storage] Public URL:", url);
-  console.log("[Storage] Thumbnail URL:", thumbnailUrl);
 
   return { url, thumbnailUrl, filename };
 }
@@ -141,7 +136,6 @@ export async function deleteFile(url: string, thumbnailUrl?: string): Promise<vo
       // Sanitize path to prevent path traversal attacks
       const fullPath = sanitizePath(UPLOAD_DIR, urlPath);
       await unlink(fullPath);
-      console.log("[Storage] File deleted:", fullPath);
     }
   } catch (error: any) {
     // Don't log "path traversal detected" errors as they're expected for malicious requests
@@ -160,7 +154,6 @@ export async function deleteFile(url: string, thumbnailUrl?: string): Promise<vo
         // Sanitize path to prevent path traversal attacks
         const fullThumbPath = sanitizePath(UPLOAD_DIR, thumbPath);
         await unlink(fullThumbPath);
-        console.log("[Storage] Thumbnail deleted:", fullThumbPath);
       }
     } catch (error: any) {
       if (error.message !== "Invalid path: path traversal detected") {

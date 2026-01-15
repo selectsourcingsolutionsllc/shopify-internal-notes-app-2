@@ -147,7 +147,7 @@ export default function NotesIndex() {
                 onClearAll={handleClearFilters}
               />
               <div style={{ marginTop: "16px" }}>
-                <Button onClick={handleFilterSubmit} primary>
+                <Button onClick={handleFilterSubmit} variant="primary">
                   Apply Filters
                 </Button>
               </div>

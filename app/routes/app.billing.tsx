@@ -164,30 +164,15 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Request billing for the specific plan matching the selected tier
-    const billingResponse = await billing.request({
+    // billing.request() automatically redirects to Shopify's payment page
+    await billing.request({
       plan: tier.planKey,
       isTest: IS_TEST_BILLING,
       returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_APP_HANDLE}/app/billing`,
     });
 
-    // Store subscription info with the plan name
-    await prisma.billingSubscription.upsert({
-      where: { shopDomain: session.shop },
-      create: {
-        shopDomain: session.shop,
-        subscriptionId: billingResponse.appSubscription.id,
-        planName: tier.planKey,
-        status: "PENDING",
-        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      },
-      update: {
-        subscriptionId: billingResponse.appSubscription.id,
-        planName: tier.planKey,
-        status: "PENDING",
-      },
-    });
-
-    return redirect(billingResponse.confirmationUrl);
+    // If we get here, billing.request didn't redirect (shouldn't happen)
+    return redirect("/app/billing");
   }
 
   if (action === "cancel") {

@@ -114,9 +114,9 @@ export default function TestPage() {
               </div>
               
               <div style={{ marginTop: "20px" }}>
-                <Button 
+                <Button
                   url="/test/create-sample-data"
-                  primary
+                  variant="primary"
                 >
                   Create Sample Data
                 </Button>

@@ -4349,4 +4349,255 @@ NOTE_SEPARATOR = "\n\n---\n\n"
 
 ---
 
-STATUS: 🔍 AWAITING RAILWAY LOGS FROM USER
+=====================================
+SESSION: January 14, 2026 (Continued)
+BUG FIX: Warning Note Being Re-Added - SOLVED!
+=====================================
+
+## ROOT CAUSE FOUND:
+
+After analyzing Railway logs, discovered the note WAS being removed when acknowledging,
+but then IMMEDIATELY re-added when user navigated away and came back.
+
+**The flow was:**
+1. User acknowledges all notes
+2. Hold released ✅
+3. Warning note removed ✅
+4. User navigates away
+5. User comes back (new session ID generated)
+6. `check-hold` runs and sees different session
+7. Clears old acknowledgments
+8. Re-applies hold
+9. **RE-ADDS the warning note** ← THE BUG!
+
+**Log evidence:**
+```
+[Webhook] Successfully removed hold warning from order note  ← Note removed at 03:02:00
+...
+[CHECK-HOLD] Different session - user left and came back
+[Webhook] Added hold warning to order note (preserved existing notes)  ← Note re-added at 03:02:09
+```
+
+## THE FIX:
+
+In `app/routes/api.public.check-hold.tsx`, removed the calls to `addHoldNoteToOrder()`.
+
+**Before (lines 146 and 154):**
+```typescript
+// Add warning note
+await addHoldNoteToOrder(admin, orderId);
+```
+
+**After:**
+```typescript
+// NOTE: We do NOT re-add the warning note here.
+// The warning note is only added on ORDER_CREATE webhook.
+// If user acknowledged and the note was removed, it stays removed.
+// The extension UI still shows "Order On Hold" banner - that's enough.
+```
+
+**Why this is correct:**
+- Warning note is added ONCE when order is created (ORDER_CREATE webhook)
+- When user acknowledges, note is removed permanently for that order
+- When user leaves and comes back, hold is re-applied BUT note is NOT re-added
+- The extension UI still shows "Order On Hold" banner - that's sufficient notification
+- User must re-acknowledge, but doesn't see duplicate warning notes
+
+## FILES CHANGED:
+- `app/routes/api.public.check-hold.tsx`:
+  - Removed line 6: `import { addHoldNoteToOrder } from "./webhooks";`
+  - Removed line 146: `await addHoldNoteToOrder(admin, orderId);`
+  - Removed line 154: `await addHoldNoteToOrder(admin, orderId);`
+  - Added explanatory comments
+
+## COMMIT:
+- 80a7d39 - Fix: Don't re-add warning note when hold is re-applied due to session change
+
+## STATUS: ✅ FIX PUSHED TO BRANCH
+- Branch: claude/read-conversation-transcript-Mypzw
+- Needs to be merged to main to deploy to Railway
+
+## NEXT STEPS FOR USER:
+1. Merge branch to main (or create PR)
+2. Railway will auto-deploy
+3. Test: Create order → Acknowledge all notes → Navigate away → Come back
+4. Expected: Hold should be re-applied, but warning note should NOT be in order notes
+
+---
+
+## ✅ FIX CONFIRMED WORKING - January 14, 2026
+
+User tested and confirmed the bug is fixed:
+- Warning note is now removed when acknowledging all notes
+- Warning note does NOT get re-added when navigating away and coming back
+- Hold still gets re-applied (as intended) but without the duplicate warning note
+
+**Final behavior:**
+1. Order created → Hold applied → Warning note added (ONCE)
+2. User acknowledges all notes → Hold released → Warning note removed
+3. User navigates away and comes back → Hold re-applied → Warning note stays removed ✅
+4. User re-acknowledges → Hold released again
+
+The extension UI still shows "Order On Hold" banner when needed, which is sufficient.
+
+---
+
+STATUS: ✅ BUG FIXED AND VERIFIED WORKING
+
+---
+
+## UX IMPROVEMENTS AND CLEANUP - January 14, 2026
+
+Completed HIGH PRIORITY UX improvements and code cleanup:
+
+### 1. App Home Improvements (app/routes/app._index.tsx)
+- Added subtitle explaining value proposition: "Add internal notes to products so your team never misses important details when fulfilling orders"
+- Changed page title from "Product Notes Dashboard" to "Product Notes for Staff"
+- Replaced technical labels with merchant-friendly text:
+  - "Total Notes" → "Product Notes"
+  - "Total Acknowledgments" → "Notes Reviewed"
+  - "Pending Acknowledgments" → "Awaiting Review"
+  - "Require Acknowledgment" → "Staff Must Review Notes"
+  - "Block Fulfillment" → "Hold Orders Until Reviewed"
+  - "Enabled/Disabled" → "On/Off"
+
+### 2. Extension Banner Improvements (extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx)
+- Loading state: Changed from aggressive "STOP - DO NOT FULFILL" to friendly "PLEASE WAIT - Checking for product notes..."
+- Hold banner: Now explains WHY order is on hold: "This order contains products with staff notes that must be reviewed before shipping. Please read and acknowledge each note below to release the hold."
+- All acknowledged banner: Changed to positive tone "All notes reviewed! Click the button below to release the hold and proceed with fulfillment."
+- Hold released banner: Changed to "Ready to ship! The hold has been released and you can now fulfill this order."
+
+### 3. Polaris Deprecation Fixes
+- app/routes/app.notes.tsx: Changed `primary` to `variant="primary"` on Button
+- app/routes/test.tsx: Changed `primary` to `variant="primary"` on Button
+
+### 4. Code Cleanup
+- Switched extension toml to use OrderFulfillmentBlock.tsx (better UX) instead of OrderDetailsBlock.tsx
+- DELETED: extensions/order-fulfillment-ui/src/OrderDetailsBlock.tsx (540 lines, 20+ console.log statements)
+- DELETED: app/routes/api.acknowledgments.tsx (dead code, replaced by api.public.acknowledgments.tsx)
+- Net change: -645 lines, +24 lines
+
+### COMMIT:
+- cdfb627 - Improve UX and remove dead code
+
+---
+
+STATUS: ✅ ALL HIGH PRIORITY UX IMPROVEMENTS COMPLETE
+
+---
+
+## APP STORE SUBMISSION GUIDE - January 15, 2026
+
+### DIRECT LINK TO APP LISTING PAGE
+**https://apps.shopify.com/services/partner-app-submissions/759aead17dfbcb721121009dacc43ce2/en**
+
+^ This is THE link to create/edit the app listing for "Product Notes for Staff"
+
+### How to Create App Listing in Shopify Partner Dashboard
+
+1. Go to **https://partners.shopify.com/organizations**
+2. Click **Apps** (or go to https://partners.shopify.com/current/apps)
+3. Click on your app (Product Notes for Staff)
+4. Look for **"App listing"** or **"Distribution"** section
+5. Fill in listing details and click **Save**
+
+**OR just use the direct link above!**
+
+### App Listing Text (FINAL)
+
+**App Introduction (100 chars):**
+```
+Add internal notes to product listings staff is FORCED to see & Block fulfillment until they do!
+```
+
+**App Details (499 chars):**
+```
+Add important internal notes/instructions to any product listing that your staff is FORCED to see! How? SIMPLE - Our app BLOCKS fulfillment until your staff clicks & acknowledges each note attached to any product! This guarantees every note gets seen BEFORE FULFILLMENT! ALWAYS!
+
+Key features:
+- Add multiple notes & photos to any product
+- Setting to block fulfillment until notes are opened
+
+Perfect for quality control, special handling instructions, and team communication
+```
+
+**Feature List (2 bullets):**
+1. Add multiple notes & photos to any product
+2. Setting to block fulfillment until notes are opened
+
+### Contact Information
+- **Email:** selectsourcingsolutionsllc@outlook.com
+- **Phone:** 210-530-1209
+
+### Testing Instructions for Reviewer
+
+**Prerequisites:**
+- App is installed on test store
+- Settings pre-configured with "Block Fulfillment" enabled
+- **Note:** App is optimized for desktop admin use
+
+**Test 1: Add a Product Note**
+1. Go to Products in Shopify admin (desktop)
+2. Click on any product
+3. Scroll down to find "Product Notes" block on right side
+4. Type a note like "FRAGILE - wrap in bubble wrap before shipping"
+5. Click Save Note
+6. (Optional) Click Add Photo to attach an image
+
+**Test 2: Create an Order with a Noted Product**
+1. Go to Orders → Create order
+2. Add the product that has a note attached
+3. Add a test customer
+4. Click Create order
+5. Notice the order note says "⚠️ FULFILLMENT BLOCKED⚠️"
+
+**Test 3: Acknowledge Notes Before Fulfillment**
+1. Open the order you just created
+2. Scroll down to find "Order Fulfillment Notes" block
+3. You will see a red banner: "ORDER ON HOLD - Products Have Important Notes"
+4. Check the checkbox next to each note to acknowledge
+5. Click "Release Hold & Proceed to Fulfillment"
+6. The banner turns green: "Ready to ship!"
+7. You can now fulfill the order normally
+
+**Test 4: Verify Settings**
+1. Open the app from Apps → Product Notes for Staff
+2. Go to Settings
+3. Toggle "Block fulfillment until acknowledged" on/off
+4. Save and verify behavior changes
+
+### Privacy & Data Questions (Answers)
+
+**Consent:**
+- Privacy agreements with merchants: **Yes**
+- Respect customer consent decisions: **Not applicable** (no customer PII)
+- Respect opt-out of data sale: **Not applicable** (no data sold)
+- Automated decision-making opt-out: **Not applicable** (no automated decisions)
+
+**Storage:**
+- Retention periods: **Yes** (data deleted on uninstall)
+- Encryption at rest and transit: **Yes** (Railway HTTPS + PostgreSQL)
+
+**Protected Customer Fields:**
+- Name: **Not needed**
+- Email: **Not needed**
+- Phone: **Not needed**
+- Address: **Not needed**
+
+### Assets Needed
+- [ ] App icon (1200x1200px PNG or JPEG)
+- [ ] Screenshots (3-6 images at 1600x900px)
+- [ ] Screencast (optional but recommended)
+
+### Important Notes
+- App is DESKTOP ONLY (Shopify mobile admin doesn't support block extensions)
+- Order note text updated to mention "on desktop"
+- Webhooks must point to correct URL (reinstall app if 404 errors)
+
+### Emails to Whitelist
+Add these to allowed senders:
+- app-submissions@shopify.com
+- noreply@shopify.com
+
+---
+
