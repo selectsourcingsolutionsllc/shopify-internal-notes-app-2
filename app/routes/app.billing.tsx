@@ -164,15 +164,12 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Request billing for the specific plan matching the selected tier
-    // billing.request() automatically redirects to Shopify's payment page
-    await billing.request({
+    // billing.request() returns a Response that must be returned for redirect to work
+    return billing.request({
       plan: tier.planKey,
       isTest: IS_TEST_BILLING,
       returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_APP_HANDLE}/app/billing`,
     });
-
-    // If we get here, billing.request didn't redirect (shouldn't happen)
-    return redirect("/app/billing");
   }
 
   if (action === "cancel") {
