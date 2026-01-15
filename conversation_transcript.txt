@@ -4483,3 +4483,114 @@ Completed HIGH PRIORITY UX improvements and code cleanup:
 ---
 
 STATUS: ✅ ALL HIGH PRIORITY UX IMPROVEMENTS COMPLETE
+
+---
+
+## APP STORE SUBMISSION GUIDE - January 15, 2026
+
+### How to Create App Listing in Shopify Partner Dashboard
+
+1. Go to **https://partners.shopify.com/organizations**
+2. Click **Apps** (or go to https://partners.shopify.com/current/apps)
+3. Click on your app (Product Notes for Staff)
+4. Look for **"App listing"** or **"Distribution"** section
+5. Fill in listing details and click **Save**
+
+### App Listing Text (FINAL)
+
+**App Introduction (100 chars):**
+```
+Add internal notes to product listings staff is FORCED to see & Block fulfillment until they do!
+```
+
+**App Details (499 chars):**
+```
+Add important internal notes/instructions to any product listing that your staff is FORCED to see! How? SIMPLE - Our app BLOCKS fulfillment until your staff clicks & acknowledges each note attached to any product! This guarantees every note gets seen BEFORE FULFILLMENT! ALWAYS!
+
+Key features:
+- Add multiple notes & photos to any product
+- Setting to block fulfillment until notes are opened
+
+Perfect for quality control, special handling instructions, and team communication
+```
+
+**Feature List (2 bullets):**
+1. Add multiple notes & photos to any product
+2. Setting to block fulfillment until notes are opened
+
+### Contact Information
+- **Email:** selectsourcingsolutionsllc@outlook.com
+- **Phone:** 210-530-1209
+
+### Testing Instructions for Reviewer
+
+**Prerequisites:**
+- App is installed on test store
+- Settings pre-configured with "Block Fulfillment" enabled
+- **Note:** App is optimized for desktop admin use
+
+**Test 1: Add a Product Note**
+1. Go to Products in Shopify admin (desktop)
+2. Click on any product
+3. Scroll down to find "Product Notes" block on right side
+4. Type a note like "FRAGILE - wrap in bubble wrap before shipping"
+5. Click Save Note
+6. (Optional) Click Add Photo to attach an image
+
+**Test 2: Create an Order with a Noted Product**
+1. Go to Orders → Create order
+2. Add the product that has a note attached
+3. Add a test customer
+4. Click Create order
+5. Notice the order note says "⚠️ FULFILLMENT BLOCKED⚠️"
+
+**Test 3: Acknowledge Notes Before Fulfillment**
+1. Open the order you just created
+2. Scroll down to find "Order Fulfillment Notes" block
+3. You will see a red banner: "ORDER ON HOLD - Products Have Important Notes"
+4. Check the checkbox next to each note to acknowledge
+5. Click "Release Hold & Proceed to Fulfillment"
+6. The banner turns green: "Ready to ship!"
+7. You can now fulfill the order normally
+
+**Test 4: Verify Settings**
+1. Open the app from Apps → Product Notes for Staff
+2. Go to Settings
+3. Toggle "Block fulfillment until acknowledged" on/off
+4. Save and verify behavior changes
+
+### Privacy & Data Questions (Answers)
+
+**Consent:**
+- Privacy agreements with merchants: **Yes**
+- Respect customer consent decisions: **Not applicable** (no customer PII)
+- Respect opt-out of data sale: **Not applicable** (no data sold)
+- Automated decision-making opt-out: **Not applicable** (no automated decisions)
+
+**Storage:**
+- Retention periods: **Yes** (data deleted on uninstall)
+- Encryption at rest and transit: **Yes** (Railway HTTPS + PostgreSQL)
+
+**Protected Customer Fields:**
+- Name: **Not needed**
+- Email: **Not needed**
+- Phone: **Not needed**
+- Address: **Not needed**
+
+### Assets Needed
+- [ ] App icon (1200x1200px PNG or JPEG)
+- [ ] Screenshots (3-6 images at 1600x900px)
+- [ ] Screencast (optional but recommended)
+
+### Important Notes
+- App is DESKTOP ONLY (Shopify mobile admin doesn't support block extensions)
+- Order note text updated to mention "on desktop"
+- Webhooks must point to correct URL (reinstall app if 404 errors)
+
+### Emails to Whitelist
+Add these to allowed senders:
+- app-submissions@shopify.com
+- noreply@shopify.com
+
+---
+
