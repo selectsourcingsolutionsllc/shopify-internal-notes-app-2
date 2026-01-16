@@ -2,7 +2,7 @@ api_version = "2025-01"
 
 [[extensions]]
 
-uid = "cf0823c6-3e0a-99df-15a8-46670618eca63453b1fb"
+uid = "product-notes-ext-v2-20260116"
 
 type = "ui_extension"
 name = "Product Notes"

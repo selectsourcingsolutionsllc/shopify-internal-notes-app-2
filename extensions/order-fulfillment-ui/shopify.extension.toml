@@ -2,7 +2,7 @@ api_version = "2025-01"
 
 [[extensions]]
 
-uid = "34f2e8d1-f8e9-8f31-13c7-1f9886dc0e53127f2877"
+uid = "order-fulfillment-ext-v2-20260116"
 
 type = "ui_extension"
 name = "Order Fulfillment Notes"
