@@ -78,7 +78,8 @@
       "Bash(Remove-Item tmpclaude-* -Force -ErrorAction SilentlyContinue)",
       "Bash(npx shopify app:*)",
       "Bash(npx shopify auth logout)",
-      "WebFetch(domain:magecomp.com)"
+      "WebFetch(domain:magecomp.com)",
+      "Bash(plan or a subscription plan with line items.\"\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ],
     "deny": []
   }

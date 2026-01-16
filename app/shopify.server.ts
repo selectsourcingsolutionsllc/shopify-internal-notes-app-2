@@ -54,34 +54,54 @@ const shopify = shopifyApp({
   },
   billing: {
     [STARTER_PLAN]: {
-      amount: 9.99,
-      currencyCode: "USD",
       interval: BillingInterval.Every30Days,
       trialDays: 7,
+      lineItems: [
+        {
+          amount: 9.99,
+          currencyCode: "USD",
+        },
+      ],
     },
     [BASIC_PLAN]: {
-      amount: 14.99,
-      currencyCode: "USD",
       interval: BillingInterval.Every30Days,
       trialDays: 7,
+      lineItems: [
+        {
+          amount: 14.99,
+          currencyCode: "USD",
+        },
+      ],
     },
     [PRO_PLAN]: {
-      amount: 19.99,
-      currencyCode: "USD",
       interval: BillingInterval.Every30Days,
       trialDays: 7,
+      lineItems: [
+        {
+          amount: 19.99,
+          currencyCode: "USD",
+        },
+      ],
     },
     [TITAN_PLAN]: {
-      amount: 24.99,
-      currencyCode: "USD",
       interval: BillingInterval.Every30Days,
       trialDays: 7,
+      lineItems: [
+        {
+          amount: 24.99,
+          currencyCode: "USD",
+        },
+      ],
     },
     [ENTERPRISE_PLAN]: {
-      amount: 29.99,
-      currencyCode: "USD",
       interval: BillingInterval.Every30Days,
       trialDays: 7,
+      lineItems: [
+        {
+          amount: 29.99,
+          currencyCode: "USD",
+        },
+      ],
     },
   },
   ...(process.env.SHOP_CUSTOM_DOMAIN
