@@ -77,7 +77,8 @@
       "WebFetch(domain:gadget.dev)",
       "Bash(Remove-Item tmpclaude-* -Force -ErrorAction SilentlyContinue)",
       "Bash(npx shopify app:*)",
-      "Bash(npx shopify auth logout)"
+      "Bash(npx shopify auth logout)",
+      "WebFetch(domain:magecomp.com)"
     ],
     "deny": []
   }
