@@ -125,7 +125,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { session, billing } = await authenticate.admin(request);
 
   // Check environment variable on server only
-  const isTestBilling = process.env.isTestBilling === "true";
+  // IS_TEST_BILLING must be "true" for development stores (Shopify requires test mode)
+  const isTestBilling = process.env.IS_TEST_BILLING === "true";
 
   const subscription = await prisma.billingSubscription.findUnique({
     where: { shopDomain: session.shop },
@@ -155,7 +156,8 @@ export async function action({ request }: ActionFunctionArgs) {
   const actionType = formData.get("action");
 
   // Check environment variable on server only
-  const isTestBilling = process.env.isTestBilling === "true";
+  // IS_TEST_BILLING must be "true" for development stores (Shopify requires test mode)
+  const isTestBilling = process.env.IS_TEST_BILLING === "true";
 
   if (actionType === "subscribe") {
     // Get the selected tier from the form
