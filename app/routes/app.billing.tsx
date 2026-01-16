@@ -204,7 +204,24 @@ export async function action({ request }: ActionFunctionArgs) {
       return billingResponse;
     } catch (error) {
       console.error("[BILLING] Error creating subscription:", error);
-      // Return a proper error response instead of letting it crash
+
+      // Check if this is a Response object with a reauthorize URL
+      // Shopify billing sometimes throws a Response that contains the redirect URL
+      if (error instanceof Response) {
+        const reauthorizeUrl = error.headers.get("X-Shopify-API-Request-Failure-Reauthorize-Url");
+        console.log("[BILLING] Got Response error, reauthorize URL:", reauthorizeUrl);
+
+        if (reauthorizeUrl) {
+          // Redirect user to the billing confirmation page
+          console.log("[BILLING] Redirecting to reauthorize URL");
+          return redirect(reauthorizeUrl);
+        }
+
+        // If no reauthorize URL, return the response as-is
+        return error;
+      }
+
+      // Return a proper error response for other errors
       throw new Response(
         JSON.stringify({
           error: "Failed to create subscription",
