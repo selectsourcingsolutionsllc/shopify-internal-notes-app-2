@@ -168,8 +168,15 @@ export async function action({ request }: ActionFunctionArgs) {
       throw new Response("Invalid pricing tier selected", { status: 400 });
     }
 
-    // Build the return URL - use SHOPIFY_APP_URL which is always set
-    const appUrl = process.env.SHOPIFY_APP_URL || "";
+    // Build the return URL - MUST use the Railway app URL, not the Shopify admin URL
+    // SHOPIFY_APP_URL should be set to: https://product-notes-for-staff.up.railway.app
+    const rawAppUrl = process.env.SHOPIFY_APP_URL;
+    console.log("[BILLING] RAW SHOPIFY_APP_URL from env:", rawAppUrl);
+
+    // Hardcode the correct URL as fallback to debug
+    const appUrl = rawAppUrl && rawAppUrl.includes("railway.app")
+      ? rawAppUrl
+      : "https://product-notes-for-staff.up.railway.app";
     const returnUrl = `${appUrl}/app/billing`;
 
     // Log billing request details for debugging
@@ -178,6 +185,7 @@ export async function action({ request }: ActionFunctionArgs) {
       plan: tier.planKey,
       isTestBilling: isTestBilling,
       shop: session.shop,
+      rawAppUrl: rawAppUrl,
       appUrl: appUrl,
       returnUrl: returnUrl,
       IS_TEST_BILLING_ENV: process.env.IS_TEST_BILLING,
