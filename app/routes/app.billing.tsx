@@ -34,11 +34,8 @@ import { useState, useCallback } from "react";
 // All billing plans for checking subscription status
 const ALL_PLANS = [STARTER_PLAN, BASIC_PLAN, PRO_PLAN, TITAN_PLAN, ENTERPRISE_PLAN];
 
-// Use explicit environment variable for test billing mode
-// Set IS_TEST_BILLING=true in .env for local development
-// Do NOT set IS_TEST_BILLING in Railway (defaults to real billing)
-// PREVIOUS VALUE: process.env.NODE_ENV !== "production"
-const IS_TEST_BILLING = process.env.IS_TEST_BILLING === "true";
+// isTestBilling is now checked inside loader/action only (server-side)
+// to avoid "process is not defined" error in browser
 
 // Pricing tiers configuration - planKey must match billing config in shopify.server.ts
 const PRICING_TIERS = [
@@ -127,6 +124,9 @@ const PRICING_TIERS = [
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, billing } = await authenticate.admin(request);
 
+  // Check environment variable on server only
+  const isTestBilling = process.env.isTestBilling === "true";
+
   const subscription = await prisma.billingSubscription.findUnique({
     where: { shopDomain: session.shop },
   });
@@ -134,7 +134,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Check all plans to see if the shop has any active subscription
   const { hasActivePayment, appSubscriptions } = await billing.check({
     plans: ALL_PLANS,
-    isTest: IS_TEST_BILLING,
+    isTest: isTestBilling,
   });
 
   // Find which plan they're currently on
@@ -152,9 +152,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const { session, billing } = await authenticate.admin(request);
   const formData = await request.formData();
-  const action = formData.get("action");
+  const actionType = formData.get("action");
 
-  if (action === "subscribe") {
+  // Check environment variable on server only
+  const isTestBilling = process.env.isTestBilling === "true";
+
+  if (actionType === "subscribe") {
     // Get the selected tier from the form
     const tierId = formData.get("tierId") as string | null;
     const tier = PRICING_TIERS.find((t) => t.id === tierId);
@@ -167,7 +170,7 @@ export async function action({ request }: ActionFunctionArgs) {
     console.log("[BILLING] Subscribe request:", {
       tierId,
       plan: tier.planKey,
-      isTestBilling: IS_TEST_BILLING,
+      isTestBilling: isTestBilling,
       shop: session.shop,
       appHandle: process.env.SHOPIFY_APP_HANDLE,
       returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_APP_HANDLE}/app/billing`,
@@ -178,7 +181,7 @@ export async function action({ request }: ActionFunctionArgs) {
       // billing.request() returns a Response that must be returned for redirect to work
       const billingResponse = await billing.request({
         plan: tier.planKey,
-        isTest: IS_TEST_BILLING,
+        isTest: isTestBilling,
         returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_APP_HANDLE}/app/billing`,
       });
 
@@ -191,7 +194,7 @@ export async function action({ request }: ActionFunctionArgs) {
         JSON.stringify({
           error: "Failed to create subscription",
           details: error instanceof Error ? error.message : String(error),
-          isTestBilling: IS_TEST_BILLING,
+          isTestBilling: isTestBilling,
         }),
         {
           status: 500,
@@ -201,7 +204,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   }
 
-  if (action === "cancel") {
+  if (actionType === "cancel") {
     const subscription = await prisma.billingSubscription.findUnique({
       where: { shopDomain: session.shop },
     });
@@ -209,7 +212,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (subscription) {
       await billing.cancel({
         subscriptionId: subscription.subscriptionId,
-        isTest: IS_TEST_BILLING,
+        isTest: isTestBilling,
         prorate: true,
       });
 
