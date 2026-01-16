@@ -163,13 +163,42 @@ export async function action({ request }: ActionFunctionArgs) {
       throw new Response("Invalid pricing tier selected", { status: 400 });
     }
 
-    // Request billing for the specific plan matching the selected tier
-    // billing.request() returns a Response that must be returned for redirect to work
-    return billing.request({
+    // Log billing request details for debugging
+    console.log("[BILLING] Subscribe request:", {
+      tierId,
       plan: tier.planKey,
-      isTest: IS_TEST_BILLING,
+      isTestBilling: IS_TEST_BILLING,
+      shop: session.shop,
+      appHandle: process.env.SHOPIFY_APP_HANDLE,
       returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_APP_HANDLE}/app/billing`,
     });
+
+    try {
+      // Request billing for the specific plan matching the selected tier
+      // billing.request() returns a Response that must be returned for redirect to work
+      const billingResponse = await billing.request({
+        plan: tier.planKey,
+        isTest: IS_TEST_BILLING,
+        returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_APP_HANDLE}/app/billing`,
+      });
+
+      console.log("[BILLING] billing.request succeeded, returning redirect response");
+      return billingResponse;
+    } catch (error) {
+      console.error("[BILLING] Error creating subscription:", error);
+      // Return a proper error response instead of letting it crash
+      throw new Response(
+        JSON.stringify({
+          error: "Failed to create subscription",
+          details: error instanceof Error ? error.message : String(error),
+          isTestBilling: IS_TEST_BILLING,
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+    }
   }
 
   if (action === "cancel") {
