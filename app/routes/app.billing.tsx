@@ -127,18 +127,42 @@ const PRICING_TIERS = [
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, billing } = await authenticate.admin(request);
 
-  const subscription = await prisma.billingSubscription.findUnique({
-    where: { shopDomain: session.shop },
-  });
-
   // Check all plans to see if the shop has any active subscription
   const { hasActivePayment, appSubscriptions } = await billing.check({
     plans: ALL_PLANS,
     isTest: IS_TEST_BILLING,
   });
 
-  // Find which plan they're currently on
-  const currentPlan = appSubscriptions?.[0]?.name || subscription?.planName || null;
+  // Find which plan they're currently on from Shopify
+  const activeShopifySubscription = appSubscriptions?.[0];
+  const currentPlan = activeShopifySubscription?.name || null;
+
+  // Sync subscription to database if Shopify shows an active one
+  // This handles the return from Shopify's payment page
+  let subscription = await prisma.billingSubscription.findUnique({
+    where: { shopDomain: session.shop },
+  });
+
+  if (hasActivePayment && activeShopifySubscription) {
+    // Update or create local subscription record to match Shopify
+    subscription = await prisma.billingSubscription.upsert({
+      where: { shopDomain: session.shop },
+      create: {
+        shopDomain: session.shop,
+        subscriptionId: activeShopifySubscription.id,
+        planName: activeShopifySubscription.name,
+        status: "ACTIVE",
+        trialEndsAt: activeShopifySubscription.trialDays
+          ? new Date(Date.now() + activeShopifySubscription.trialDays * 24 * 60 * 60 * 1000)
+          : null,
+      },
+      update: {
+        subscriptionId: activeShopifySubscription.id,
+        planName: activeShopifySubscription.name,
+        status: "ACTIVE",
+      },
+    });
+  }
 
   return json({
     subscription,
