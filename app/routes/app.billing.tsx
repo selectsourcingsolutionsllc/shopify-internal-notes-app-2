@@ -168,14 +168,19 @@ export async function action({ request }: ActionFunctionArgs) {
       throw new Response("Invalid pricing tier selected", { status: 400 });
     }
 
+    // Build the return URL - use SHOPIFY_APP_URL which is always set
+    const appUrl = process.env.SHOPIFY_APP_URL || "";
+    const returnUrl = `${appUrl}/app/billing`;
+
     // Log billing request details for debugging
     console.log("[BILLING] Subscribe request:", {
       tierId,
       plan: tier.planKey,
       isTestBilling: isTestBilling,
       shop: session.shop,
-      appHandle: process.env.SHOPIFY_APP_HANDLE,
-      returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_APP_HANDLE}/app/billing`,
+      appUrl: appUrl,
+      returnUrl: returnUrl,
+      IS_TEST_BILLING_ENV: process.env.IS_TEST_BILLING,
     });
 
     try {
@@ -184,7 +189,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const billingResponse = await billing.request({
         plan: tier.planKey,
         isTest: isTestBilling,
-        returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_APP_HANDLE}/app/billing`,
+        returnUrl: returnUrl,
       });
 
       console.log("[BILLING] billing.request succeeded, returning redirect response");
