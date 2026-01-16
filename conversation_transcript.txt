@@ -4601,3 +4601,139 @@ Add these to allowed senders:
 
 ---
 
+
+## BILLING FIX & GIT WORKFLOW DISCOVERY - January 16, 2026
+
+### BILLING BUTTON FIX
+
+**Problem:** Subscription buttons on billing page would flicker but not redirect to Shopify payment page.
+
+**Root Cause #1:** The `billing.request()` function returns a Response that must be RETURNED from the action, not just awaited.
+
+**Fix #1 (commit 3d1e5ce):**
+```typescript
+// BEFORE (broken):
+await billing.request({...});
+return redirect("/app/billing");
+
+// AFTER (working):
+return billing.request({...});
+```
+
+**Root Cause #2:** CodeRabbit identified that subscription persistence was removed, breaking cancel flow and UI.
+
+**Fix #2 (commit 29ab59f):** Added subscription sync in loader - when user returns from Shopify payment page, the loader checks `billing.check()` and syncs the subscription to the database:
+
+```typescript
+if (hasActivePayment && activeShopifySubscription) {
+  subscription = await prisma.billingSubscription.upsert({
+    where: { shopDomain: session.shop },
+    create: {
+      shopDomain: session.shop,
+      subscriptionId: activeShopifySubscription.id,
+      planName: activeShopifySubscription.name,
+      status: "ACTIVE",
+      trialEndsAt: activeShopifySubscription.trialDays
+        ? new Date(Date.now() + activeShopifySubscription.trialDays * 24 * 60 * 60 * 1000)
+        : null,
+    },
+    update: {
+      subscriptionId: activeShopifySubscription.id,
+      planName: activeShopifySubscription.name,
+      status: "ACTIVE",
+    },
+  });
+}
+```
+
+**File Changed:** `app/routes/app.billing.tsx`
+
+---
+
+### CLAUDE.MD RULE ADDED
+
+Added critical rule to CLAUDE.md (commit 6af96f0):
+- Claude must ALWAYS check `conversation_transcript.txt` before giving advice
+- Prevents bad advice based on assumptions
+- Contains all URL changes, bug fixes, env var values, and decisions
+
+---
+
+### GIT WORKFLOW DISCOVERY
+
+**Problem:** Railway wasn't deploying automatically. User had to do manual PR merges.
+
+**Investigation:** Claude cannot push directly to `master` branch - gets HTTP 403 error.
+
+**Root Cause:** This is a **Claude Code platform restriction**, NOT a GitHub setting:
+- Claude Code only allows pushing to branches starting with `claude/`
+- This is a security feature to prevent AI from pushing directly to production branches
+- The session-specific branch is: `claude/read-conversation-transcript-Mypzw`
+
+**Error when trying to push to master:**
+```
+error: RPC failed; HTTP 403 curl 22 The requested URL returned error: 403
+```
+
+**Workaround Options:**
+1. Change Railway to deploy from `claude/*` branch instead of master
+2. User manually pushes to master after Claude commits
+3. Use PR workflow (create PR → merge → Railway deploys)
+
+**Current Workflow:**
+1. Claude commits and pushes to `claude/read-conversation-transcript-Mypzw`
+2. User creates PR at: https://github.com/selectsourcingsolutionsllc/shopify-internal-notes-app-2/compare/master...claude/read-conversation-transcript-Mypzw
+3. User clicks "Create pull request" → "Merge pull request" → "Confirm merge"
+4. Railway auto-deploys from master
+
+---
+
+### RAILWAY ENVIRONMENT VARIABLES CONFIRMED
+
+User confirmed these values in Railway dashboard:
+- DATABASE_URL: `postgresql://postgres:lIBGZzfNWvzNAmJYalexXPpGCDiorSTy@internal-notes-db.railway.internal:5432/railway`
+- SHOPIFY_APP_URL: `https://product-notes-for-staff.up.railway.app`
+- SHOPIFY_APP_HANDLE: `product-notes-for-staff`
+- Public networking domain: `product-notes-for-staff.up.railway.app`
+- Private networking: `product-notes-for-staff.railway.internal`
+
+---
+
+### APP REINSTALLATION
+
+User uninstalled and reinstalled the app to re-register webhooks with correct URL.
+- Reinstall done from Shopify admin (Settings → Apps and sales channels → find previously installed app)
+
+---
+
+### CODERABBIT REVIEW FEEDBACK (PR #3 and #4)
+
+CodeRabbit flagged these issues:
+1. **APP_STORE_SUBMISSION.md** - Bare URLs should be wrapped in markdown links
+2. **APP_STORE_SUBMISSION.md** - Fenced code blocks need language specifier (use `text`)
+3. **app/routes/app.billing.tsx** - Critical: subscription persistence was removed, breaking cancel flow
+
+Fix #3 was addressed in commit 29ab59f (subscription sync in loader).
+
+---
+
+### COMMITS THIS SESSION
+
+| Commit | Message |
+|--------|---------|
+| 6af96f0 | Add rule: always check conversation transcript before giving advice |
+| 3d1e5ce | Fix billing: return billing.request() response for redirect to work |
+| 29ab59f | Fix billing: sync subscription to database when returning from Shopify payment page |
+
+---
+
+### MERGED PRs THIS SESSION
+
+- PR #3: UX improvements, billing fix, App Store prep
+- PR #4: Billing redirect fix and transcript rule
+
+---
+
+STATUS: Billing fixes deployed. Git workflow uses PR merges due to Claude Code platform restrictions.
+
+---
