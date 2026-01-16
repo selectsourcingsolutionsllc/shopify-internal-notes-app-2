@@ -1,6 +1,6 @@
 import { json, redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useSearchParams, Form } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -407,25 +407,33 @@ export default function Billing() {
                         Current Plan
                       </Button>
                     ) : hasActiveSubscription ? (
-                      <Button
-                        fullWidth
-                        variant={tier.recommended ? "primary" : undefined}
-                        onClick={() => handleSubscribe(tier.id)}
-                        loading={isSubmitting}
-                        disabled={isSubmitting}
-                      >
-                        Switch to {tier.name}
-                      </Button>
+                      <Form method="post">
+                        <input type="hidden" name="action" value="subscribe" />
+                        <input type="hidden" name="tierId" value={tier.id} />
+                        <Button
+                          fullWidth
+                          variant={tier.recommended ? "primary" : undefined}
+                          submit
+                          loading={isSubmitting}
+                          disabled={isSubmitting}
+                        >
+                          Switch to {tier.name}
+                        </Button>
+                      </Form>
                     ) : (
-                      <Button
-                        fullWidth
-                        variant={tier.recommended ? "primary" : undefined}
-                        onClick={() => handleSubscribe(tier.id)}
-                        loading={isSubmitting}
-                        disabled={isSubmitting}
-                      >
-                        {tier.recommended ? "Start 7-Day Trial" : "Start Trial"}
-                      </Button>
+                      <Form method="post">
+                        <input type="hidden" name="action" value="subscribe" />
+                        <input type="hidden" name="tierId" value={tier.id} />
+                        <Button
+                          fullWidth
+                          variant={tier.recommended ? "primary" : undefined}
+                          submit
+                          loading={isSubmitting}
+                          disabled={isSubmitting}
+                        >
+                          {tier.recommended ? "Start 7-Day Trial" : "Start Trial"}
+                        </Button>
+                      </Form>
                     )}
                   </Box>
                 </BlockStack>
