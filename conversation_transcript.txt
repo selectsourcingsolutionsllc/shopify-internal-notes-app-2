@@ -4657,12 +4657,101 @@ Configuration added to `.claude.json`:
 ```
 
 ## NEXT STEPS:
-1. [ ] Use Context7 to fetch latest @shopify/shopify-app-remix billing documentation
-2. [ ] Determine if package update is needed
+1. [x] Use Context7 to fetch latest @shopify/shopify-app-remix billing documentation
+2. [x] Determine if package update is needed
 3. [ ] Check Railway logs when trial button is clicked
-4. [ ] Fix the trial button functionality
+4. [x] Fix the trial button functionality (API version updates)
 
 ---
 
-STATUS: IN PROGRESS - Context7 MCP installed, awaiting restart
+=====================================
+SESSION: January 20, 2026 (Continued)
+TRIAL BUTTON FIX - API VERSION UPDATES
+=====================================
+
+## CONTEXT7 DOCUMENTATION LOOKUP
+
+Used Context7 MCP to fetch latest Shopify billing documentation:
+- Found `appSubscriptionCreate` mutation documentation
+- Confirmed billing configuration structure is correct
+- Key parameters: `lineItems`, `name`, `returnUrl`, `test`, `trialDays`
+
+## ISSUE #1 FOUND: API VERSION MISMATCH
+
+| File | Had | Should Be |
+|------|-----|-----------|
+| shopify.server.ts | `ApiVersion.October24` (2024-10) | `ApiVersion.January25` (2025-01) |
+| shopify.app.toml | `2025-01` | `2025-01` ✓ |
+| Extension TOMLs | `2025-01` | `2025-01` (but wrong - see Issue #2) |
+
+The server code was using an older API version than the TOML files declared.
+
+## FIX #1: Updated shopify.server.ts
+
+**File:** `app/shopify.server.ts`
+- Line 27: `ApiVersion.October24` → `ApiVersion.January25`
+- Line 113: Same change for exported constant
+
+**Commit:** fbc77b7 - Update API version from October24 to January25
+
+---
+
+## ISSUE #2 FOUND: EXTENSION API VERSION TOO OLD
+
+When trying to deploy with `shopify app deploy`, got error:
+
+```
+Version couldn't be created.
+
+order-fulfillment-notes
+
+Validation errors
+  • api_version: "2025-01" is not a valid API version: Block extension
+    requires one of ["2025-04", "2025-07", "2025-10", "2026-01",
+    "2026-04", "unstable", "internal"]
+```
+
+**Root Cause:** Block extensions require a NEWER API version than the main app.
+- Main app/webhooks: Can use `2025-01`
+- Block extensions: Require `2025-04` or newer
+
+## FIX #2: Updated Extension TOML Files
+
+| File | Before | After |
+|------|--------|-------|
+| extensions/product-notes-ui/shopify.extension.toml | 2025-01 | **2025-04** |
+| extensions/order-fulfillment-ui/shopify.extension.toml | 2025-01 | **2025-04** |
+
+**Commit:** 0e41d6e - Update extension API versions to 2025-04
+
+---
+
+## FINAL API VERSION CONFIGURATION
+
+| Component | API Version | Notes |
+|-----------|-------------|-------|
+| shopify.server.ts | January25 (2025-01) | Main app server |
+| shopify.app.toml webhooks | 2025-01 | Webhooks config |
+| product-notes-ui extension | 2025-04 | Block extensions need newer |
+| order-fulfillment-ui extension | 2025-04 | Block extensions need newer |
+
+---
+
+## KEY LESSON LEARNED
+
+**Block extensions have DIFFERENT API version requirements than the main app!**
+
+- Main app can use older stable versions (2025-01)
+- Block extensions require newer versions (2025-04+)
+- Always check the error message for valid versions list
+
+---
+
+## COMMITS THIS SESSION:
+1. fbc77b7 - Update API version from October24 to January25
+2. 0e41d6e - Update extension API versions to 2025-04
+
+---
+
+STATUS: READY TO TEST - User needs to run `shopify app deploy` and test trial button
 
