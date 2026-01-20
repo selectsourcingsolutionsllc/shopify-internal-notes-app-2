@@ -4601,3 +4601,68 @@ Add these to allowed senders:
 
 ---
 
+=====================================
+SESSION: January 20, 2026
+TRIAL BUTTON NOT FUNCTIONING - INVESTIGATION
+=====================================
+
+## ISSUE REPORTED:
+User reported that the "Start Trial" button on the billing page is not functioning.
+
+## CURRENT PACKAGE VERSIONS:
+| Package | Current Version |
+|---------|-----------------|
+| @shopify/shopify-app-remix | ^4.0.1 |
+| @shopify/cli | ^3.88.1 |
+| @shopify/app | ^3.58.2 |
+| @shopify/polaris | ^12.0.0 |
+
+## LATEST VERSIONS AVAILABLE:
+| Package | Latest Version |
+|---------|---------------|
+| @shopify/shopify-app-remix | 4.1.0 |
+
+## API VERSION:
+- App currently uses: 2025-01
+- Current Shopify API: 2026-01
+
+## BILLING CODE LOCATION:
+- `app/routes/app.billing.tsx` - Billing page with trial buttons
+- `app/shopify.server.ts` - Billing plan configuration
+
+## BILLING CONFIGURATION (shopify.server.ts):
+All 5 plans configured with:
+- trialDays: 7
+- BillingInterval.Every30Days
+- Prices: $9.99, $14.99, $19.99, $24.99, $29.99
+
+## ENVIRONMENT VARIABLES INVOLVED:
+- IS_TEST_BILLING - Must be "true" for dev stores
+- SHOPIFY_APP_URL - Must be Railway URL
+
+## CONTEXT7 MCP SERVER INSTALLED:
+Added Context7 MCP server to get up-to-date library documentation.
+
+Configuration added to `.claude.json`:
+```json
+{
+  "context7": {
+    "type": "http",
+    "url": "https://mcp.context7.com/mcp",
+    "headers": {
+      "CONTEXT7_API_KEY": "ctx7sk-8187caef-7304-483f-9e91-1fcf25adb372"
+    }
+  }
+}
+```
+
+## NEXT STEPS:
+1. [ ] Use Context7 to fetch latest @shopify/shopify-app-remix billing documentation
+2. [ ] Determine if package update is needed
+3. [ ] Check Railway logs when trial button is clicked
+4. [ ] Fix the trial button functionality
+
+---
+
+STATUS: IN PROGRESS - Context7 MCP installed, awaiting restart
+
