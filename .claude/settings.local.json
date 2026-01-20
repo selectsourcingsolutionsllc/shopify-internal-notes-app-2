@@ -79,7 +79,12 @@
       "Bash(npx shopify app:*)",
       "Bash(npx shopify auth logout)",
       "WebFetch(domain:magecomp.com)",
-      "Bash(plan or a subscription plan with line items.\"\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(plan or a subscription plan with line items.\"\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(shopify app dev clean:*)",
+      "Bash(claude mcp add context7 -- npx -y @upstash/context7-mcp)",
+      "Bash(claude mcp remove:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs"
     ],
     "deny": []
   }

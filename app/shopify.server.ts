@@ -24,7 +24,7 @@ const shopify = shopifyApp({
   apiSecretKey: process.env.SHOPIFY_API_SECRET!,
   appUrl: process.env.SHOPIFY_APP_URL!,
   scopes: process.env.SCOPES!.split(","),
-  apiVersion: ApiVersion.October24,
+  apiVersion: ApiVersion.January25,
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
   // Use offline tokens so webhooks can make API calls
@@ -110,7 +110,7 @@ const shopify = shopifyApp({
 });
 
 export default shopify;
-export const apiVersion = ApiVersion.October24;
+export const apiVersion = ApiVersion.January25;
 export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;
 export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;
