@@ -4860,10 +4860,20 @@ return shopifyRedirect(confirmationUrl, { target: '_top' });
 
 STATUS: ✅ BILLING BUTTON WORKING - Trial subscription flow complete
 
+⚠️ **CRITICAL WARNING: DO NOT TOUCH BILLING CODE!** ⚠️
+The billing page (`app/routes/app.billing.tsx`) is now FULLY FUNCTIONAL.
+- DO NOT revert any billing-related code
+- DO NOT modify `app/routes/app.billing.tsx`
+- ONLY modify the order notes extension code (`OrderFulfillmentBlock.tsx`)
+
 =====================================
 SESSION: January 21, 2026 (Continued)
 ORDER FULFILLMENT EXTENSION - FEATURE INVESTIGATION & REVERT
 =====================================
+
+## ⚠️ SCOPE OF CHANGES - READ FIRST!
+**ONLY change:** `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx`
+**DO NOT touch:** `app/routes/app.billing.tsx` (billing is WORKING!)
 
 ## ISSUE REPORTED:
 User noticed the order fulfillment notes block was "NOT how we successfully set it up" - photos were displaying full size instead of thumbnails, and other features were missing.
