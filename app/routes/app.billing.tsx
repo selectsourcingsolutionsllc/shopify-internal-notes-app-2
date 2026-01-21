@@ -202,8 +202,26 @@ export async function action({ request }: ActionFunctionArgs) {
 
       console.log("[BILLING] billing.request succeeded, returning redirect response");
       return billingResponse;
-    } catch (error) {
-      console.error("[BILLING] Error creating subscription:", error);
+    } catch (error: unknown) {
+      // Log the FULL error object to see GraphQL error details
+      console.error("[BILLING] Error creating subscription - FULL ERROR:");
+      console.error(JSON.stringify(error, Object.getOwnPropertyNames(error as object), 2));
+
+      // If it has graphQLErrors, log those specifically
+      if (error && typeof error === 'object' && 'errors' in error) {
+        const errObj = error as { errors?: { graphQLErrors?: unknown[] } };
+        if (errObj.errors?.graphQLErrors) {
+          console.error("[BILLING] GraphQL Errors:", JSON.stringify(errObj.errors.graphQLErrors, null, 2));
+        }
+      }
+
+      // Also try to extract any message property
+      if (error && typeof error === 'object' && 'message' in error) {
+        console.error("[BILLING] Error message:", (error as { message: string }).message);
+      }
+
+      // Log the error directly too (sometimes helps)
+      console.error("[BILLING] Raw error object:", error);
 
       // Check if this is a Response object with a reauthorize URL
       // Shopify billing sometimes throws a Response that contains the redirect URL
