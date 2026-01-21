@@ -170,8 +170,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Build the return URL - MUST use the Railway app URL, not the Shopify admin URL
     // SHOPIFY_APP_URL should be set to: https://product-notes-for-staff.up.railway.app
-    const rawAppUrl = process.env.SHOPIFY_APP_URL;
-    console.log("[BILLING] RAW SHOPIFY_APP_URL from env:", rawAppUrl);
+    const rawAppUrl = process.env.SHOPIFY_APP_URL?.trim(); // IMPORTANT: trim() to remove any accidental spaces
+    console.log("[BILLING] RAW SHOPIFY_APP_URL from env:", `"${rawAppUrl}"`);
 
     // Hardcode the correct URL as fallback to debug
     const appUrl = rawAppUrl && rawAppUrl.includes("railway.app")
