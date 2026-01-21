@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   reactExtension,
   BlockStack,
@@ -22,6 +22,15 @@ const TARGET = 'admin.order-details.block.render';
 
 export default reactExtension(TARGET, () => <OrderFulfillmentBlock />);
 
+// Generate a random session ID (simple UUID-like string)
+function generateSessionId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 function OrderFulfillmentBlock() {
   const api = useApi(TARGET);
   const { data } = api;
@@ -30,99 +39,182 @@ function OrderFulfillmentBlock() {
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const [currentNoteId, setCurrentNoteId] = useState<string | null>(null);
-  const [canFulfill, setCanFulfill] = useState(false); // Start false - must acknowledge first
+  const [canFulfill, setCanFulfill] = useState(true);
   const [debugInfo, setDebugInfo] = useState<string>('');
-  const [orderProductIds, setOrderProductIds] = useState<string[]>([]);
-  const [holdSecured, setHoldSecured] = useState(false); // Track if hold has been re-applied
-  const [holdReleased, setHoldReleased] = useState(false); // Track if user has released the hold
-  const [releasingHold, setReleasingHold] = useState(false); // Track if release is in progress
-  const [pendingAcknowledgments, setPendingAcknowledgments] = useState<Set<string>>(new Set()); // Track notes being acknowledged
+  const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
+  const [allProductIds, setAllProductIds] = useState<string[]>([]);
 
-  const orderId = data.selected?.[0]?.id;
+  // Generate a unique session ID when component mounts
+  // This stays stable for the entire page session
+  const sessionId = useMemo(() => generateSessionId(), []);
 
-  // Try to get shop domain from multiple sources
-  const getShopDomain = (): string => {
-    const possibleShop =
+  // Try different ways to get the order ID
+  const orderId = (data as any)?.selected?.[0]?.id || (data as any)?.order?.id;
+
+  const [shopDomain, setShopDomain] = useState<string>('');
+
+  // Fetch shop domain using Direct API Access (the correct Shopify way)
+  const fetchShopDomain = async (): Promise<string> => {
+    // First check if we already have it cached
+    if (shopDomain) return shopDomain;
+
+    // Try static properties first
+    const staticShop =
       (api as any).shop?.myshopifyDomain ||
       (api as any).data?.shop?.myshopifyDomain ||
       (api as any).extension?.shop ||
       (api as any).host?.shop ||
       '';
-    return possibleShop;
+
+    if (staticShop) {
+      console.log('[Order Extension] Shop from static:', staticShop);
+      setShopDomain(staticShop);
+      return staticShop;
+    }
+
+    // Use Direct API Access - the official Shopify way for admin extensions
+    // See: https://shopify.dev/docs/api/admin-extensions/latest/direct-api-access
+    try {
+      console.log('[Order Extension] Fetching shop via Direct API Access...');
+      const response = await fetch('shopify:admin/api/graphql.json', {
+        method: 'POST',
+        body: JSON.stringify({
+          query: `
+            query GetShop {
+              shop {
+                myshopifyDomain
+              }
+            }
+          `
+        }),
+      });
+
+      const result = await response.json();
+      console.log('[Order Extension] Shop GraphQL result:', JSON.stringify(result));
+
+      if (result?.data?.shop?.myshopifyDomain) {
+        const domain = result.data.shop.myshopifyDomain;
+        setShopDomain(domain);
+        return domain;
+      }
+    } catch (err) {
+      console.error('[Order Extension] Shop GraphQL failed:', err);
+    }
+
+    console.log('[Order Extension] Could not get shop domain');
+    return '';
   };
 
   useEffect(() => {
-    const shop = getShopDomain();
-    setDebugInfo(`Order: ${orderId || 'none'}, Shop: ${shop || 'none'}`);
+    const init = async () => {
+      // Log API structure for debugging
+      console.log('[Order Extension] Full API keys:', Object.keys(api));
+      console.log('[Order Extension] Data:', JSON.stringify(data));
+      console.log('[Order Extension] Order ID:', orderId);
 
-    if (orderId) {
-      // Reset acknowledgments first, then fetch notes
-      // This ensures every person viewing the order sees notes fresh
-      resetAndFetchNotes();
-      fetchSettings();
-    } else {
-      setLoading(false);
-    }
+      // Fetch shop domain first
+      const shop = await fetchShopDomain();
+      setDebugInfo(`Order: ${orderId || 'none'}, Shop: ${shop || 'none'}`);
+
+      if (orderId && shop) {
+        fetchOrderNotes();
+        fetchSettings();
+      } else if (!orderId) {
+        setLoading(false);
+        setError('No order ID found');
+      } else if (!shop) {
+        setLoading(false);
+        setError('Could not determine shop domain');
+      }
+    };
+
+    init();
   }, [orderId]);
-  
+
   useEffect(() => {
     // Check if all required notes are acknowledged
     if (settings?.requireAcknowledgment && productNotes.length > 0) {
-      const allAcknowledged = productNotes.every(note => 
+      const allAcknowledged = productNotes.every(note =>
         acknowledgments[note.id]?.acknowledged
       );
       setCanFulfill(allAcknowledged);
     }
   }, [productNotes, acknowledgments, settings]);
-  
+
   const fetchOrderNotes = async () => {
     try {
       setLoading(true);
+      console.log('[Order Extension] Starting fetchOrderNotes for order:', orderId);
 
-      // Use GraphQL query to get order line items
+      // Use Direct API Access to get order line items (the correct Shopify way)
+      // See: https://shopify.dev/docs/api/admin-extensions/latest/direct-api-access
       let productIds: string[] = [];
 
       try {
-        const query = (api as any).query;
-        if (query) {
-          const result = await query(`
-            query GetOrder($id: ID!) {
-              order(id: $id) {
-                id
-                name
-                lineItems(first: 50) {
-                  edges {
-                    node {
-                      product {
-                        id
+        console.log('[Order Extension] Fetching order via Direct API Access...');
+        const response = await fetch('shopify:admin/api/graphql.json', {
+          method: 'POST',
+          body: JSON.stringify({
+            query: `
+              query GetOrder($id: ID!) {
+                order(id: $id) {
+                  id
+                  name
+                  lineItems(first: 50) {
+                    edges {
+                      node {
+                        product {
+                          id
+                        }
                       }
                     }
                   }
                 }
               }
-            }
-          `, { variables: { id: orderId } });
+            `,
+            variables: { id: orderId }
+          }),
+        });
 
-          if (result?.data?.order?.lineItems?.edges) {
-            productIds = result.data.order.lineItems.edges
-              .map((edge: any) => edge.node?.product?.id)
-              .filter(Boolean);
-          }
+        const result = await response.json();
+        console.log('[Order Extension] GraphQL result:', JSON.stringify(result));
+
+        if (result?.data?.order?.lineItems?.edges) {
+          productIds = result.data.order.lineItems.edges
+            .map((edge: any) => edge.node?.product?.id)
+            .filter(Boolean);
+        }
+
+        // Check for GraphQL errors
+        if (result?.errors) {
+          console.error('[Order Extension] GraphQL errors:', result.errors);
         }
       } catch (queryErr) {
-        // GraphQL query failed - continue without product IDs
+        console.error('[Order Extension] GraphQL query failed:', queryErr);
       }
 
+      console.log('[Order Extension] Product IDs found:', productIds);
+
+      // Save all product IDs for later use (when releasing hold)
+      setAllProductIds(productIds);
+
       if (productIds.length === 0) {
+        console.log('[Order Extension] No product IDs found');
         setProductNotes([]);
         setLoading(false);
         return;
       }
 
-      const shop = getShopDomain();
-      const url = `${BASE_URL}/api/public/orders/${encodeURIComponent(orderId)}/notes${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+      // Get shop domain (should already be cached from init)
+      const shop = shopDomain || await fetchShopDomain();
+      if (!shop) {
+        throw new Error('Shop domain not available');
+      }
+
+      const url = `${BASE_URL}/api/public/orders/${encodeURIComponent(orderId)}/notes?shop=${encodeURIComponent(shop)}`;
+
+      console.log('[Order Extension] Fetching order notes:', url);
+      console.log('[Order Extension] With productIds:', productIds);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -132,23 +224,52 @@ function OrderFulfillmentBlock() {
         body: JSON.stringify({ productIds }),
       });
 
+      console.log('[Order Extension] Response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to fetch notes');
       }
 
       const responseData = await response.json();
+      console.log('[Order Extension] Response data:', JSON.stringify(responseData));
+
+      // FIRST: Check if hold needs to be re-applied (clears stale acknowledgments if session changed)
+      // This must happen BEFORE we load acknowledgments into UI state
+      let acknowledgementsWereCleared = false;
+      if (productIds.length > 0) {
+        acknowledgementsWereCleared = await checkAndReapplyHold(productIds);
+      }
 
       setProductNotes(responseData.notes || []);
 
       // Initialize acknowledgments state
-      const acks: Record<string, any> = {};
-      (responseData.notes || []).forEach((note: any) => {
-        acks[note.id] = (responseData.acknowledgments || []).find((ack: any) =>
-          ack.noteId === note.id && ack.orderId === orderId
-        ) || { acknowledged: false };
-      });
-      setAcknowledgments(acks);
+      // If acknowledgments were just cleared by check-hold, start with empty state
+      if (acknowledgementsWereCleared) {
+        const acks: Record<string, any> = {};
+        (responseData.notes || []).forEach((note: any) => {
+          acks[note.id] = { acknowledged: false };
+        });
+        setAcknowledgments(acks);
+      } else {
+        // The database record existing = acknowledged. Transform it to include acknowledged: true
+        const acks: Record<string, any> = {};
+        (responseData.notes || []).forEach((note: any) => {
+          const existingAck = (responseData.acknowledgments || []).find((ack: any) =>
+            ack.noteId === note.id && ack.orderId === orderId
+          );
+          if (existingAck) {
+            // Acknowledgment exists in database = it's acknowledged
+            acks[note.id] = {
+              acknowledged: true,
+              acknowledgedAt: existingAck.acknowledgedAt,
+            };
+          } else {
+            acks[note.id] = { acknowledged: false };
+          }
+        });
+        setAcknowledgments(acks);
+      }
 
     } catch (err: any) {
       console.error('[Order Extension] Error fetching notes:', err);
@@ -160,8 +281,10 @@ function OrderFulfillmentBlock() {
 
   const fetchSettings = async () => {
     try {
-      const shop = getShopDomain();
-      const url = `${BASE_URL}/api/public/settings${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+      const shop = shopDomain || await fetchShopDomain();
+      if (!shop) return; // Can't fetch without shop
+
+      const url = `${BASE_URL}/api/public/settings?shop=${encodeURIComponent(shop)}`;
 
       const response = await fetch(url, {
         headers: {
@@ -174,162 +297,74 @@ function OrderFulfillmentBlock() {
       const responseData = await response.json();
       setSettings(responseData.settings);
     } catch (err: any) {
-      console.error('[Extension] Failed to fetch settings:', err);
+      console.error('[Order Extension] Failed to fetch settings:', err);
     }
   };
 
-  // Reset acknowledgments and re-apply hold when page loads
-  // This ensures every person viewing the order must acknowledge notes
-  const resetAndFetchNotes = async () => {
+  // Check if hold needs to be re-applied (called when extension loads)
+  const checkAndReapplyHold = async (productIds: string[]): Promise<boolean> => {
     try {
-      setLoading(true);
+      if (!orderId || productIds.length === 0) return false;
 
-      // First, get product IDs via GraphQL
-      let productIds: string[] = [];
+      const shop = shopDomain || await fetchShopDomain();
+      if (!shop) return false;
 
-      try {
-        const query = (api as any).query;
-        if (query) {
-          const result = await query(`
-            query GetOrder($id: ID!) {
-              order(id: $id) {
-                id
-                name
-                lineItems(first: 50) {
-                  edges {
-                    node {
-                      product {
-                        id
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          `, { variables: { id: orderId } });
+      console.log('[Order Extension] Checking if hold needs to be re-applied... sessionId:', sessionId);
 
-          if (result?.data?.order?.lineItems?.edges) {
-            productIds = result.data.order.lineItems.edges
-              .map((edge: any) => edge.node?.product?.id)
-              .filter(Boolean);
-          }
-        }
-      } catch (queryErr) {
-        // GraphQL query failed - continue without product IDs
-      }
+      const formData = new FormData();
+      formData.append('orderId', orderId);
+      formData.append('productIds', JSON.stringify(productIds));
+      formData.append('sessionId', sessionId);
 
-      if (productIds.length === 0) {
-        setProductNotes([]);
-        setLoading(false);
-        return;
-      }
-
-      // Save product IDs to state for use when acknowledging
-      setOrderProductIds(productIds);
-
-      // Reset acknowledgments and re-apply hold
-      const shop = getShopDomain();
-      const resetUrl = `${BASE_URL}/api/public/reset-acknowledgments${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
-
-      try {
-        const resetResponse = await fetch(resetUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderId,
-            productIds,
-          }),
-        });
-
-        if (resetResponse.ok) {
-          const resetData = await resetResponse.json();
-          // Mark hold as secured once the API confirms it was applied
-          if (resetData.holdApplied || resetData.success) {
-            setHoldSecured(true);
-          }
-        } else {
-          // Still mark as secured to show notes - the hold may already be in place
-          setHoldSecured(true);
-        }
-      } catch (resetErr) {
-        // Still mark as secured to allow viewing notes
-        setHoldSecured(true);
-      }
-
-      // Now fetch notes (acknowledgments will be empty after reset)
-      const url = `${BASE_URL}/api/public/orders/${encodeURIComponent(orderId)}/notes${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+      const url = `${BASE_URL}/api/public/check-hold?shop=${encodeURIComponent(shop)}`;
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ productIds }),
+        body: formData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch notes');
+        console.error('[Order Extension] Check-hold request failed:', response.status);
+        return false;
       }
 
-      const responseData = await response.json();
+      const result = await response.json();
+      console.log('[Order Extension] Check-hold result:', result);
 
-      setProductNotes(responseData.notes || []);
-
-      // Initialize acknowledgments as empty (since we just reset them)
-      const acks: Record<string, any> = {};
-      (responseData.notes || []).forEach((note: any) => {
-        acks[note.id] = { acknowledged: false };
-      });
-      setAcknowledgments(acks);
-
+      // Return whether acknowledgments were cleared so caller can handle it
+      if (result.holdApplied || result.acknowledgementsCleared) {
+        console.log('[Order Extension] Acknowledgements were cleared');
+        setCanFulfill(false);
+        return true;
+      }
+      return false;
     } catch (err: any) {
-      console.error('[Order Extension] Error in resetAndFetchNotes:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      console.error('[Order Extension] Error checking hold:', err);
+      return false;
     }
   };
-  
-  const handleAcknowledge = async (noteId: string, photoRequired = false) => {
-    // Mark as pending immediately for visual feedback
-    setPendingAcknowledgments(prev => new Set(prev).add(noteId));
 
-    if (photoRequired || settings?.requirePhotoProof) {
-      setCurrentNoteId(noteId);
-      setShowPhotoModal(true);
-    } else {
-      await submitAcknowledgment(noteId);
-    }
+  const handleAcknowledge = async (noteId: string) => {
+    await submitAcknowledgment(noteId);
   };
-  
-  const submitAcknowledgment = async (noteId: string, photoData: File | null = null) => {
-    // Validate orderId exists before submitting
-    if (!orderId) {
-      setError("Cannot acknowledge: Order ID is missing");
-      setPendingAcknowledgments(prev => {
-        const next = new Set(prev);
-        next.delete(noteId);
-        return next;
-      });
-      return;
-    }
 
+  const submitAcknowledgment = async (noteId: string) => {
     try {
+      const shop = shopDomain || await fetchShopDomain();
+      if (!shop) {
+        throw new Error('Shop domain not available');
+      }
+
       const formData = new FormData();
       formData.append('noteId', noteId);
       formData.append('orderId', orderId);
-      // Pass all product IDs so API can check if all notes are acknowledged
-      formData.append('allProductIds', JSON.stringify(orderProductIds));
+      // Pass all product IDs so the server can check if all notes are acknowledged
+      // and release the fulfillment hold if so
+      formData.append('allProductIds', JSON.stringify(allProductIds));
+      // Pass sessionId so server knows which session created this acknowledgment
+      formData.append('sessionId', sessionId);
 
-      if (photoData) {
-        formData.append('photo', photoData);
-      }
-
-      const shop = getShopDomain();
-      const url = `${BASE_URL}/api/public/acknowledgments${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+      const url = `${BASE_URL}/api/public/acknowledgments?shop=${encodeURIComponent(shop)}`;
 
       const response = await fetch(url, {
         method: 'POST',
@@ -338,7 +373,7 @@ function OrderFulfillmentBlock() {
 
       if (!response.ok) throw new Error('Failed to acknowledge note');
 
-      const responseData = await response.json();
+      const result = await response.json();
 
       // Update local state
       setAcknowledgments(prev => ({
@@ -346,89 +381,26 @@ function OrderFulfillmentBlock() {
         [noteId]: {
           acknowledged: true,
           acknowledgedAt: new Date().toISOString(),
-          proofPhotoUrl: photoData ? URL.createObjectURL(photoData) : null,
         },
       }));
 
-      // Check if all notes are now acknowledged and hold was auto-released
-      if (responseData.allAcknowledged) {
+      // If the hold was released, update canFulfill immediately
+      if (result.holdReleased) {
+        console.log('[Order Extension] Hold released! Order can now be fulfilled.');
         setCanFulfill(true);
-
-        // Check if hold was auto-released
-        if (responseData.holdReleased) {
-          setHoldReleased(true);
-        }
       }
-
-      setShowPhotoModal(false);
-      setCurrentNoteId(null);
 
     } catch (err: any) {
       setError(err.message);
-      // Remove from pending on error so user can retry
-      setPendingAcknowledgments(prev => {
-        const next = new Set(prev);
-        next.delete(noteId);
-        return next;
-      });
-    }
-  };
-  
-  const handlePhotoUpload = async (event: any) => {
-    const file = event.target.files[0];
-    if (file && currentNoteId) {
-      await submitAcknowledgment(currentNoteId, file);
     }
   };
 
-  // Explicitly release the hold - user must click this button
-  const releaseHoldAndFulfill = async () => {
-    if (!orderId) {
-      setError("Cannot release hold: Order ID is missing");
-      return;
-    }
-
-    try {
-      setReleasingHold(true);
-
-      const shop = getShopDomain();
-      const url = `${BASE_URL}/api/public/release-hold${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId,
-          productIds: orderProductIds,
-        }),
-      });
-
-      const responseData = await response.json();
-
-      if (response.ok && responseData.success) {
-        setHoldReleased(true);
-      } else {
-        setError(responseData.error || 'Failed to release hold');
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setReleasingHold(false);
-    }
-  };
-  
   if (loading) {
     return (
-      <Box padding="base">
-        <BlockStack>
-          <Banner tone="critical">
-            <Text fontWeight="bold">PLEASE WAIT - Checking for product notes...</Text>
-          </Banner>
-          <Banner tone="warning">
-            <Text>Do not create shipping labels or fulfill this order until this check completes.</Text>
-          </Banner>
+      <Box padding="none">
+        <BlockStack gap="extraTight">
+          <Text fontWeight="bold">Note</Text>
+          <Text>Loading product notes...</Text>
         </BlockStack>
       </Box>
     );
@@ -436,13 +408,12 @@ function OrderFulfillmentBlock() {
 
   if (error) {
     return (
-      <Box padding="base">
-        <BlockStack>
-          <Text fontWeight="bold">Product Notes</Text>
+      <Box padding="none">
+        <BlockStack gap="extraTight">
+          <Text fontWeight="bold">Note</Text>
           <Banner tone="critical">
             <Text>Error: {error}</Text>
           </Banner>
-          <Text emphasis="subdued">{debugInfo}</Text>
           <Button onPress={fetchOrderNotes}>Retry</Button>
         </BlockStack>
       </Box>
@@ -451,201 +422,121 @@ function OrderFulfillmentBlock() {
 
   if (productNotes.length === 0) {
     return (
-      <Box padding="base">
-        <BlockStack>
-          <Text fontWeight="bold">Product Notes</Text>
+      <Box padding="none">
+        <BlockStack gap="extraTight">
+          <Text fontWeight="bold">Note</Text>
           <Text emphasis="subdued">No notes for products in this order.</Text>
-          <Text emphasis="subdued">{debugInfo}</Text>
         </BlockStack>
       </Box>
     );
   }
-  
+
+  // Show one note at a time with navigation (keeps height constant)
+  const currentNote = productNotes[currentNoteIndex];
+  const ack = acknowledgments[currentNote?.id];
+  const isAcknowledged = ack?.acknowledged;
+
   return (
-    <BlockStack>
-      {/* Show critical warning if notes need acknowledgment */}
-      {settings?.blockFulfillment && !canFulfill && (
-        <Banner tone="critical">
-          <BlockStack>
-            <Text fontWeight="bold">ORDER ON HOLD - Products Have Important Notes</Text>
-            <Text>This order contains products with staff notes that must be reviewed before shipping. Please read and acknowledge each note below to release the hold.</Text>
-          </BlockStack>
-        </Banner>
-      )}
+    <Box padding="none">
+      <BlockStack gap="extraTight">
+        {settings?.blockFulfillment && !canFulfill && (
+          <Banner
+            title="Order On Hold"
+            tone="critical"
+          >
+            <Text>
+              This order is on hold. Acknowledge all product notes to release the hold and enable fulfillment.
+            </Text>
+          </Banner>
+        )}
 
-      {/* Show button to release hold when all acknowledged but hold not released */}
-      {settings?.blockFulfillment && canFulfill && !holdReleased && productNotes.length > 0 && (
-        <Box padding="base">
-          <BlockStack>
-            <Banner tone="success">
-              <Text fontWeight="bold">All notes reviewed! Click the button below to release the hold and proceed with fulfillment.</Text>
-            </Banner>
-            <Button
-              variant="primary"
-              onPress={releaseHoldAndFulfill}
-              disabled={releasingHold}
-            >
-              {releasingHold ? 'Releasing Hold...' : 'Release Hold & Proceed to Fulfillment'}
-            </Button>
-          </BlockStack>
-        </Box>
-      )}
+        <InlineStack blockAlignment="center">
+          <Text fontWeight="bold">Note</Text>
+          <Badge tone="warning">{currentNoteIndex + 1} / {productNotes.length}</Badge>
+        </InlineStack>
 
-      {/* Show success when hold is released */}
-      {holdReleased && (
-        <Banner tone="success">
-          <Text fontWeight="bold">Ready to ship! The hold has been released and you can now fulfill this order.</Text>
-        </Banner>
-      )}
-      
-      <Box padding="base">
-        <BlockStack>
-          <Text>
-            Product Notes for This Order
-          </Text>
-          
-          <Text>
-            Review and acknowledge these important notes before fulfilling the order.
-          </Text>
-          
-          {productNotes.map((note) => {
-            const ack = acknowledgments[note.id];
-            const isAcknowledged = ack?.acknowledged;
-            
-            return (
-              <Box key={note.id} padding="base">
-                <BlockStack>
-                  <InlineStack>
-                    <Text>
-                      Product: {note.productTitle || note.productId}
-                    </Text>
-                    {isAcknowledged && (
-                      <Badge tone="success">
-                        <Text>✓</Text>
-                        Acknowledged
-                      </Badge>
-                    )}
-                  </InlineStack>
-                  
-                  <Text>{note.content}</Text>
-
-                  {note.photos && note.photos.length > 0 && (
-                    <InlineStack blockAlignment="center" gap="tight">
-                      <Link
-                        href={note.photos[0].url.startsWith('/')
-                          ? `${BASE_URL}${note.photos[0].url}`
-                          : note.photos[0].url}
-                        external
-                      >
-                        <Image
-                          source={note.photos[0].thumbnailUrl
-                            ? (note.photos[0].thumbnailUrl.startsWith('/')
-                                ? `${BASE_URL}${note.photos[0].thumbnailUrl}`
-                                : note.photos[0].thumbnailUrl)
-                            : (note.photos[0].url.startsWith('/')
-                                ? `${BASE_URL}${note.photos[0].url}`
-                                : note.photos[0].url)}
-                          alt="Product note photo"
-                        />
-                      </Link>
-                      {note.photos.length > 1 && (
-                        <Badge tone="info">+{note.photos.length - 1} more</Badge>
-                      )}
-                    </InlineStack>
-                  )}
-                  
-                  {!isAcknowledged && settings?.requireAcknowledgment && (
-                    <InlineStack>
-                      <Checkbox
-                        label={pendingAcknowledgments.has(note.id) ? "Saving acknowledgment..." : "I have read and understood this note"}
-                        checked={pendingAcknowledgments.has(note.id)}
-                        disabled={pendingAcknowledgments.has(note.id)}
-                        onChange={(checked) => {
-                          if (checked && !pendingAcknowledgments.has(note.id)) {
-                            handleAcknowledge(note.id);
-                          }
-                        }}
-                      />
-                    </InlineStack>
-                  )}
-                  
-                  {isAcknowledged && (
-                    <Text>
-                      Acknowledged by {ack.acknowledgedBy} at {new Date(ack.acknowledgedAt).toLocaleString()}
-                    </Text>
-                  )}
-                  
-                  {isAcknowledged && ack.proofPhotoUrl && (
-                    <InlineStack blockAlignment="center" gap="tight">
-                      <Text>Proof photo:</Text>
-                      <Link
-                        href={ack.proofPhotoUrl.startsWith('/')
-                          ? `${BASE_URL}${ack.proofPhotoUrl}`
-                          : ack.proofPhotoUrl}
-                        external
-                      >
-                        <Image
-                          source={ack.proofPhotoUrl.startsWith('/')
-                            ? `${BASE_URL}${ack.proofPhotoUrl}`
-                            : ack.proofPhotoUrl}
-                          alt="Acknowledgment proof"
-                        />
-                      </Link>
-                    </InlineStack>
-                  )}
-                </BlockStack>
-              </Box>
-            );
-          })}
-          
-        </BlockStack>
-      </Box>
-      
-      {/* Photo upload modal - Note: Native file input may have limited functionality
-          in Shopify's extension sandbox. Test thoroughly before enabling photo proof feature.
-          Consider using Shopify's admin APIs for file handling if issues occur. */}
-      {showPhotoModal && (
-        <Modal
-          title="Upload Proof Photo"
-          open={showPhotoModal}
-          onClose={() => {
-            setShowPhotoModal(false);
-            setCurrentNoteId(null);
-          }}
-          primaryAction={{
-            content: 'Cancel',
-            onAction: () => {
-              setShowPhotoModal(false);
-              setCurrentNoteId(null);
-            },
-          }}
-        >
-          <Modal.Section>
-            <BlockStack gap="base">
-              <Text>
-                Please upload a photo as proof of acknowledgment.
-              </Text>
-
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handlePhotoUpload}
-                style={{
-                  padding: '8px',
-                  border: '1px solid #e1e3e5',
-                  borderRadius: '4px',
-                  width: '100%',
+        {/* Show acknowledgment UI only if requireAcknowledgment is enabled */}
+        {settings?.requireAcknowledgment ? (
+          <Banner tone="warning" title="Check box to acknowledge">
+            <BlockStack gap="tight">
+              {/* Checkbox with note content - always visible */}
+              <Checkbox
+                label={currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}
+                checked={isAcknowledged}
+                disabled={isAcknowledged}
+                onChange={(checked: boolean) => {
+                  if (checked) {
+                    handleAcknowledge(currentNote.id);
+                  }
                 }}
               />
 
-              <Text appearance="subdued" variant="bodySm">
-                This photo will be saved as part of the audit trail.
-              </Text>
+              {isAcknowledged && ack.acknowledgedAt && (
+                <InlineStack gap="tight">
+                  <Badge tone="success">Acknowledged</Badge>
+                  <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
+                </InlineStack>
+              )}
+
+              {/* Photo thumbnail below */}
+              {currentNote.photos && currentNote.photos.length > 0 && (
+                <InlineStack gap="tight" blockAlignment="center">
+                  <Link href={currentNote.photos[0].url} external>
+                    <Image
+                      source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
+                      alt="Note photo"
+                    />
+                  </Link>
+                  {currentNote.photos.length > 1 && (
+                    <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
+                  )}
+                </InlineStack>
+              )}
             </BlockStack>
-          </Modal.Section>
-        </Modal>
-      )}
-    </BlockStack>
+          </Banner>
+        ) : (
+          /* Show notes as info-only when acknowledgment is NOT required */
+          <Banner tone="info" title="Product Note">
+            <BlockStack gap="tight">
+              <Text>{currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}</Text>
+
+              {/* Photo thumbnail below */}
+              {currentNote.photos && currentNote.photos.length > 0 && (
+                <InlineStack gap="tight" blockAlignment="center">
+                  <Link href={currentNote.photos[0].url} external>
+                    <Image
+                      source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
+                      alt="Note photo"
+                    />
+                  </Link>
+                  {currentNote.photos.length > 1 && (
+                    <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
+                  )}
+                </InlineStack>
+              )}
+            </BlockStack>
+          </Banner>
+        )}
+
+        {productNotes.length > 1 && (
+          <InlineStack inlineAlignment="center">
+            <Button
+              variant="tertiary"
+              disabled={currentNoteIndex === 0}
+              onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="tertiary"
+              disabled={currentNoteIndex === productNotes.length - 1}
+              onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
+            >
+              Next
+            </Button>
+          </InlineStack>
+        )}
+      </BlockStack>
+    </Box>
   );
 }
