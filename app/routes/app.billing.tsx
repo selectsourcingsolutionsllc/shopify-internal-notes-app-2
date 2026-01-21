@@ -151,7 +151,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { session, billing, admin } = await authenticate.admin(request);
+  const { session, billing, admin, redirect: shopifyRedirect } = await authenticate.admin(request);
   const formData = await request.formData();
   const actionType = formData.get("action");
 
@@ -245,10 +245,12 @@ export async function action({ request }: ActionFunctionArgs) {
         console.error("[BILLING] USER ERRORS:", JSON.stringify(testData.data.appSubscriptionCreate.userErrors, null, 2));
       }
 
-      // If we got a confirmationUrl, redirect to it
+      // If we got a confirmationUrl, redirect to it using _top to break out of iframe
       if (testData.data?.appSubscriptionCreate?.confirmationUrl) {
-        console.log("[BILLING] Got confirmation URL, redirecting...");
-        return redirect(testData.data.appSubscriptionCreate.confirmationUrl);
+        const confirmationUrl = testData.data.appSubscriptionCreate.confirmationUrl;
+        console.log("[BILLING] Got confirmation URL, redirecting with _top target:", confirmationUrl);
+        // Use Shopify's redirect helper with _top target to break out of the embedded iframe
+        return shopifyRedirect(confirmationUrl, { target: '_top' });
       }
 
     } catch (graphqlError) {
@@ -295,9 +297,9 @@ export async function action({ request }: ActionFunctionArgs) {
         console.log("[BILLING] Got Response error, reauthorize URL:", reauthorizeUrl);
 
         if (reauthorizeUrl) {
-          // Redirect user to the billing confirmation page
-          console.log("[BILLING] Redirecting to reauthorize URL");
-          return redirect(reauthorizeUrl);
+          // Redirect user to the billing confirmation page with _top to break out of iframe
+          console.log("[BILLING] Redirecting to reauthorize URL with _top target");
+          return shopifyRedirect(reauthorizeUrl, { target: '_top' });
         }
 
         // If no reauthorize URL, return the response as-is
