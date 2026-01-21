@@ -4,7 +4,7 @@ const path = require("path");
 
 const app = express();
 
-// Allowed origins for CORS - only Shopify admin domains
+// Allowed origins for CORS - Shopify admin domains + our own Railway URL
 const ALLOWED_ORIGIN_PATTERNS = [
   /^https:\/\/[a-zA-Z0-9-]+\.myshopify\.com$/,
   /^https:\/\/admin\.shopify\.com$/,
@@ -12,6 +12,7 @@ const ALLOWED_ORIGIN_PATTERNS = [
   /^https:\/\/extensions\.shopifycdn\.com$/,  // Extensions CDN
   /^https:\/\/[a-zA-Z0-9-]+\.shopifycdn\.com$/,  // Any Shopify CDN
   /^https:\/\/[a-zA-Z0-9-]+\.spin\.dev$/,  // Shopify development
+  /^https:\/\/product-notes-for-staff\.up\.railway\.app$/,  // Our own Railway URL (for embedded iframe requests)
 ];
 
 function isAllowedOrigin(origin) {
