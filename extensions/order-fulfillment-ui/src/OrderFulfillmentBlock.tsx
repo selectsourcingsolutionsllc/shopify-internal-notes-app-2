@@ -10,6 +10,7 @@ import {
   Banner,
   Box,
   Image,
+  Link,
   useApi,
 } from '@shopify/ui-extensions-react/admin';
 
@@ -530,12 +531,23 @@ function OrderFulfillmentBlock() {
 
                   {note.photos && note.photos.length > 0 && (
                     <InlineStack blockAlignment="center" gap="tight">
-                      <Image
-                        source={note.photos[0].url.startsWith('/')
+                      <Link
+                        href={note.photos[0].url.startsWith('/')
                           ? `${BASE_URL}${note.photos[0].url}`
                           : note.photos[0].url}
-                        alt="Product note photo"
-                      />
+                        external
+                      >
+                        <Image
+                          source={note.photos[0].thumbnailUrl
+                            ? (note.photos[0].thumbnailUrl.startsWith('/')
+                                ? `${BASE_URL}${note.photos[0].thumbnailUrl}`
+                                : note.photos[0].thumbnailUrl)
+                            : (note.photos[0].url.startsWith('/')
+                                ? `${BASE_URL}${note.photos[0].url}`
+                                : note.photos[0].url)}
+                          alt="Product note photo"
+                        />
+                      </Link>
                       {note.photos.length > 1 && (
                         <Badge tone="info">+{note.photos.length - 1} more</Badge>
                       )}
@@ -566,12 +578,19 @@ function OrderFulfillmentBlock() {
                   {isAcknowledged && ack.proofPhotoUrl && (
                     <InlineStack blockAlignment="center" gap="tight">
                       <Text>Proof photo:</Text>
-                      <Image
-                        source={ack.proofPhotoUrl.startsWith('/')
+                      <Link
+                        href={ack.proofPhotoUrl.startsWith('/')
                           ? `${BASE_URL}${ack.proofPhotoUrl}`
                           : ack.proofPhotoUrl}
-                        alt="Acknowledgment proof"
-                      />
+                        external
+                      >
+                        <Image
+                          source={ack.proofPhotoUrl.startsWith('/')
+                            ? `${BASE_URL}${ack.proofPhotoUrl}`
+                            : ack.proofPhotoUrl}
+                          alt="Acknowledgment proof"
+                        />
+                      </Link>
                     </InlineStack>
                   )}
                 </BlockStack>
