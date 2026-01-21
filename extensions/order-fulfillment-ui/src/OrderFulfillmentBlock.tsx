@@ -44,6 +44,13 @@ function OrderFulfillmentBlock() {
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [allProductIds, setAllProductIds] = useState<string[]>([]);
 
+  // NEW FEATURES from January 14 version:
+  const [holdReleased, setHoldReleased] = useState(false);  // Shows "Ready to ship!" success banner
+  const [releasingHold, setReleasingHold] = useState(false);  // Shows "Releasing Hold..." while in progress
+  const [pendingAcknowledgments, setPendingAcknowledgments] = useState<Set<string>>(new Set());  // Shows "Saving..." per note
+  const [holdSecured, setHoldSecured] = useState(false);  // Tracks if hold was applied on load
+  const [productTitles, setProductTitles] = useState<Record<string, string>>({});  // Maps productId -> title
+
   // Generate a unique session ID when component mounts
   // This stays stable for the entire page session
   const sessionId = useMemo(() => generateSessionId(), []);
@@ -165,6 +172,7 @@ function OrderFulfillmentBlock() {
                       node {
                         product {
                           id
+                          title
                         }
                       }
                     }
@@ -183,6 +191,16 @@ function OrderFulfillmentBlock() {
           productIds = result.data.order.lineItems.edges
             .map((edge: any) => edge.node?.product?.id)
             .filter(Boolean);
+
+          // Build product title mapping for display
+          const titles: Record<string, string> = {};
+          result.data.order.lineItems.edges.forEach((edge: any) => {
+            const product = edge.node?.product;
+            if (product?.id && product?.title) {
+              titles[product.id] = product.title;
+            }
+          });
+          setProductTitles(titles);
         }
 
         // Check for GraphQL errors
@@ -335,6 +353,8 @@ function OrderFulfillmentBlock() {
       if (result.holdApplied || result.acknowledgementsCleared) {
         console.log('[Order Extension] Acknowledgements were cleared');
         setCanFulfill(false);
+        setHoldSecured(true);  // Track that hold was applied on load
+        setHoldReleased(false);  // Reset released state
         return true;
       }
       return false;
@@ -345,7 +365,15 @@ function OrderFulfillmentBlock() {
   };
 
   const handleAcknowledge = async (noteId: string) => {
+    // Add to pending set to show "Saving..." feedback
+    setPendingAcknowledgments(prev => new Set(prev).add(noteId));
     await submitAcknowledgment(noteId);
+    // Remove from pending set when done
+    setPendingAcknowledgments(prev => {
+      const next = new Set(prev);
+      next.delete(noteId);
+      return next;
+    });
   };
 
   const submitAcknowledgment = async (noteId: string) => {
@@ -384,14 +412,58 @@ function OrderFulfillmentBlock() {
         },
       }));
 
-      // If the hold was released, update canFulfill immediately
+      // If the hold was released (auto-release on last note), update state
       if (result.holdReleased) {
         console.log('[Order Extension] Hold released! Order can now be fulfilled.');
         setCanFulfill(true);
+        setHoldReleased(true);
       }
 
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  // Explicit release hold function - calls the release-hold API
+  const releaseHoldAndFulfill = async () => {
+    try {
+      setReleasingHold(true);
+      const shop = shopDomain || await fetchShopDomain();
+      if (!shop) {
+        throw new Error('Shop domain not available');
+      }
+
+      console.log('[Order Extension] Explicitly releasing hold for order:', orderId);
+
+      const url = `${BASE_URL}/api/public/release-hold?shop=${encodeURIComponent(shop)}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId,
+          productIds: allProductIds,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to release hold');
+      }
+
+      if (result.success || result.holdReleased) {
+        console.log('[Order Extension] Hold explicitly released!');
+        setCanFulfill(true);
+        setHoldReleased(true);
+      }
+    } catch (err: any) {
+      console.error('[Order Extension] Error releasing hold:', err);
+      setError(err.message);
+    } finally {
+      setReleasingHold(false);
     }
   };
 
@@ -439,7 +511,20 @@ function OrderFulfillmentBlock() {
   return (
     <Box padding="none">
       <BlockStack gap="extraTight">
-        {settings?.blockFulfillment && !canFulfill && (
+        {/* Show success banner when hold is released */}
+        {holdReleased && (
+          <Banner
+            title="Ready to ship!"
+            tone="success"
+          >
+            <Text>
+              All notes acknowledged. You can now fulfill this order.
+            </Text>
+          </Banner>
+        )}
+
+        {/* Show critical banner when order is on hold */}
+        {settings?.blockFulfillment && !canFulfill && !holdReleased && (
           <Banner
             title="Order On Hold"
             tone="critical"
@@ -459,17 +544,29 @@ function OrderFulfillmentBlock() {
         {settings?.requireAcknowledgment ? (
           <Banner tone="warning" title="Check box to acknowledge">
             <BlockStack gap="tight">
+              {/* Show product title */}
+              {currentNote.productId && productTitles[currentNote.productId] && (
+                <Text fontWeight="bold" emphasis="subdued">
+                  Product: {productTitles[currentNote.productId]}
+                </Text>
+              )}
+
               {/* Checkbox with note content - always visible */}
               <Checkbox
                 label={currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}
                 checked={isAcknowledged}
-                disabled={isAcknowledged}
+                disabled={isAcknowledged || pendingAcknowledgments.has(currentNote.id)}
                 onChange={(checked: boolean) => {
                   if (checked) {
                     handleAcknowledge(currentNote.id);
                   }
                 }}
               />
+
+              {/* Show "Saving acknowledgment..." indicator */}
+              {pendingAcknowledgments.has(currentNote.id) && (
+                <Text emphasis="subdued">Saving acknowledgment...</Text>
+              )}
 
               {isAcknowledged && ack.acknowledgedAt && (
                 <InlineStack gap="tight">
@@ -498,6 +595,13 @@ function OrderFulfillmentBlock() {
           /* Show notes as info-only when acknowledgment is NOT required */
           <Banner tone="info" title="Product Note">
             <BlockStack gap="tight">
+              {/* Show product title */}
+              {currentNote.productId && productTitles[currentNote.productId] && (
+                <Text fontWeight="bold" emphasis="subdued">
+                  Product: {productTitles[currentNote.productId]}
+                </Text>
+              )}
+
               <Text>{currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}</Text>
 
               {/* Photo thumbnail below */}
@@ -536,6 +640,23 @@ function OrderFulfillmentBlock() {
             </Button>
           </InlineStack>
         )}
+
+        {/* Show "Release Hold" button when all notes are acknowledged but hold not yet released */}
+        {settings?.blockFulfillment && !holdReleased && (() => {
+          const allAcknowledged = productNotes.every(note => acknowledgments[note.id]?.acknowledged);
+          if (allAcknowledged && productNotes.length > 0) {
+            return (
+              <Button
+                variant="primary"
+                onPress={releaseHoldAndFulfill}
+                disabled={releasingHold}
+              >
+                {releasingHold ? 'Releasing Hold...' : 'Release Hold & Proceed to Fulfillment'}
+              </Button>
+            );
+          }
+          return null;
+        })()}
       </BlockStack>
     </Box>
   );
