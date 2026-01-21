@@ -151,7 +151,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { session, billing } = await authenticate.admin(request);
+  const { session, billing, admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const actionType = formData.get("action");
 
@@ -191,6 +191,81 @@ export async function action({ request }: ActionFunctionArgs) {
       IS_TEST_BILLING_ENV: process.env.IS_TEST_BILLING,
     });
 
+    // First, let's make a manual GraphQL call to see the exact error
+    console.log("[BILLING] Making manual GraphQL call to debug...");
+    try {
+      const testResponse = await admin.graphql(`
+        mutation AppSubscriptionCreate($name: String!, $returnUrl: URL!, $test: Boolean, $trialDays: Int, $lineItems: [AppSubscriptionLineItemInput!]!) {
+          appSubscriptionCreate(
+            name: $name,
+            returnUrl: $returnUrl,
+            test: $test,
+            trialDays: $trialDays,
+            lineItems: $lineItems
+          ) {
+            appSubscription {
+              id
+              name
+              status
+            }
+            confirmationUrl
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `, {
+        variables: {
+          name: tier.planKey,
+          returnUrl: returnUrl,
+          test: isTestBilling,
+          trialDays: 7,
+          lineItems: [
+            {
+              plan: {
+                appRecurringPricingDetails: {
+                  interval: "EVERY_30_DAYS",
+                  price: {
+                    amount: tier.price,
+                    currencyCode: "USD"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      });
+
+      const testData = await testResponse.json();
+      console.log("[BILLING] Manual GraphQL response:", JSON.stringify(testData, null, 2));
+
+      // Check for userErrors
+      if (testData.data?.appSubscriptionCreate?.userErrors?.length > 0) {
+        console.error("[BILLING] USER ERRORS:", JSON.stringify(testData.data.appSubscriptionCreate.userErrors, null, 2));
+      }
+
+      // If we got a confirmationUrl, redirect to it
+      if (testData.data?.appSubscriptionCreate?.confirmationUrl) {
+        console.log("[BILLING] Got confirmation URL, redirecting...");
+        return redirect(testData.data.appSubscriptionCreate.confirmationUrl);
+      }
+
+    } catch (graphqlError) {
+      console.error("[BILLING] Manual GraphQL error:", graphqlError);
+      // Try to extract more details
+      if (graphqlError && typeof graphqlError === 'object') {
+        const errAny = graphqlError as Record<string, unknown>;
+        if (errAny.body) {
+          console.error("[BILLING] GraphQL error body:", JSON.stringify(errAny.body, null, 2));
+        }
+        if (errAny.response) {
+          console.error("[BILLING] GraphQL error response:", errAny.response);
+        }
+      }
+    }
+
+    // Fall back to the library method
     try {
       // Request billing for the specific plan matching the selected tier
       // billing.request() returns a Response that must be returned for redirect to work
@@ -205,23 +280,13 @@ export async function action({ request }: ActionFunctionArgs) {
     } catch (error: unknown) {
       // Log the FULL error object to see GraphQL error details
       console.error("[BILLING] Error creating subscription - FULL ERROR:");
-      console.error(JSON.stringify(error, Object.getOwnPropertyNames(error as object), 2));
 
-      // If it has graphQLErrors, log those specifically
-      if (error && typeof error === 'object' && 'errors' in error) {
-        const errObj = error as { errors?: { graphQLErrors?: unknown[] } };
-        if (errObj.errors?.graphQLErrors) {
-          console.error("[BILLING] GraphQL Errors:", JSON.stringify(errObj.errors.graphQLErrors, null, 2));
+      // Try to iterate through all properties
+      if (error && typeof error === 'object') {
+        for (const key of Object.keys(error)) {
+          console.error(`[BILLING] Error.${key}:`, JSON.stringify((error as Record<string, unknown>)[key], null, 2));
         }
       }
-
-      // Also try to extract any message property
-      if (error && typeof error === 'object' && 'message' in error) {
-        console.error("[BILLING] Error message:", (error as { message: string }).message);
-      }
-
-      // Log the error directly too (sometimes helps)
-      console.error("[BILLING] Raw error object:", error);
 
       // Check if this is a Response object with a reauthorize URL
       // Shopify billing sometimes throws a Response that contains the redirect URL
