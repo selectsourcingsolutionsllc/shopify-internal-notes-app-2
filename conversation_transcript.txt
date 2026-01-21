@@ -4755,3 +4755,108 @@ Validation errors
 
 STATUS: READY TO TEST - User needs to run `shopify app deploy` and test trial button
 
+=====================================
+SESSION: January 21, 2026
+BILLING BUTTON FIX - 500 ERROR & IFRAME REDIRECT
+=====================================
+
+## ISSUE REPORTED:
+"Start Trial" button on billing page returns 500 error. When clicked, shows "Application Error: Error 500".
+
+## DEBUGGING PROCESS:
+
+### Step 1: Added Error Logging
+Added detailed error logging to `app/routes/app.billing.tsx` to capture GraphQL errors.
+- Logs showed: `graphQLErrors: [Array]` but couldn't see actual error
+
+### Step 2: Added Manual GraphQL Call
+Added direct `appSubscriptionCreate` mutation to capture full error response including `userErrors`.
+
+### Step 3: Found Root Cause #1 - URL WITH SPACES
+
+**The Error:**
+```
+"message": "Variable $returnUrl of type URL! was provided invalid value",
+"explanation": "invalid url '  https://product-notes-for-staff.up.railway.app/app/billing'"
+```
+
+**Root Cause:** The `SHOPIFY_APP_URL` environment variable in Railway had **TWO LEADING SPACES** before `https://`!
+
+**Fix #1:**
+1. User fixed Railway env var (removed spaces)
+2. Added `.trim()` to code: `const rawAppUrl = process.env.SHOPIFY_APP_URL?.trim();`
+
+**Commit:** c02115b - Fix: trim SHOPIFY_APP_URL to remove accidental spaces
+
+---
+
+### Step 4: Found Root Cause #2 - IFRAME REDIRECT BLOCKED
+
+After fixing the URL, clicking "Start Trial" showed:
+```
+Firefox Can't Open This Page
+To protect your security, admin.shopify.com will not allow Firefox
+to display the page if another site has embedded it.
+```
+
+**Root Cause:** Shopify apps run inside an **iframe**. Regular `redirect()` tries to load Shopify's billing page inside the iframe, but Shopify's billing page has `X-Frame-Options: DENY`.
+
+**Fix #2:** Use Shopify's redirect helper with `target: '_top'` to break out of iframe:
+
+```typescript
+// Get redirect helper from authenticate
+const { redirect: shopifyRedirect } = await authenticate.admin(request);
+
+// Use _top to open in parent window
+return shopifyRedirect(confirmationUrl, { target: '_top' });
+```
+
+**Commit:** ec9da90 - Fix: Use _top target for billing redirect to break out of iframe
+
+---
+
+## FILES CHANGED:
+
+1. **app/routes/app.billing.tsx**
+   - Added `.trim()` to `SHOPIFY_APP_URL` reading
+   - Added manual GraphQL mutation for debugging
+   - Changed `redirect()` to `shopifyRedirect(url, { target: '_top' })`
+   - Added detailed error logging
+
+2. **TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md**
+   - Added Section 23: Billing Button 500 Error and Iframe Redirect
+   - Updated Table of Contents
+   - Added items 24-25 to "Most Common Mistakes"
+   - Added items 25-26 to Chronological Timeline
+
+---
+
+## COMMITS THIS SESSION:
+1. 0a59a0a - Add detailed error logging for billing GraphQL errors
+2. 9b5634b - Add manual GraphQL billing call for better error debugging
+3. c02115b - Fix: trim SHOPIFY_APP_URL to remove accidental spaces
+4. ec9da90 - Fix: Use _top target for billing redirect to break out of iframe
+5. 6a0e647 - Add billing button fix to troubleshooting guide
+
+---
+
+## KEY LESSONS:
+
+1. **Environment variables can have hidden spaces** - Always use `.trim()` and log with quotes: `"${value}"`
+2. **Embedded apps run in iframes** - Regular redirects don't work for external URLs
+3. **Use `target: '_top'`** - Breaks out of iframe to parent window
+4. **Context7 MCP** - Useful for looking up latest Shopify API documentation
+
+---
+
+## ENVIRONMENT VARIABLES FOR BILLING:
+
+| Variable | Value | Notes |
+|----------|-------|-------|
+| `SHOPIFY_APP_URL` | `https://product-notes-for-staff.up.railway.app` | NO spaces! |
+| `IS_TEST_BILLING` | `true` | Required for dev stores |
+
+---
+
+STATUS: ✅ BILLING BUTTON WORKING - Trial subscription flow complete
+
