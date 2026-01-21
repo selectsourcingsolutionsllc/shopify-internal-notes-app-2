@@ -118,6 +118,7 @@ cat extensions/*/shopify.extension.toml | grep module
 20. [Acknowledgment Checkbox Persistence - THE DATA TRANSFORMATION BUG](#20-acknowledgment-checkbox-persistence---the-data-transformation-bug)
 21. [Extension Deployment - THE NULL SESSION ID BUG](#21-extension-deployment---the-null-session-id-bug)
 22. [App Store Approval Preparation - API VERSION & BILLING FIXES](#22-app-store-approval-preparation---api-version--billing-fixes-january-13-2026)
+23. [Billing Button 500 Error and Iframe Redirect - THE TRIAL BUTTON FIX](#23-billing-button-500-error-and-iframe-redirect---the-trial-button-fix-january-21-2026)
 
 ---
 
@@ -1327,6 +1328,8 @@ The app's webhooks and scopes are registered during OAuth. Changes only take eff
 21. **Using future API versions** - api_version = "2025-07" will get rejected! Always use current released versions like "2024-10"
 22. **Using NODE_ENV for billing test mode** - If NODE_ENV is misconfigured, production uses test billing (no real charges)! Use explicit IS_TEST_BILLING env var instead.
 23. **Missing try/catch in webhooks** - Webhook errors should be caught and logged, not crash silently!
+24. **Environment variables with hidden spaces** - URL env vars with leading/trailing spaces cause "invalid url" errors! Always use `.trim()` and check logs with quotes around values.
+25. **Redirecting to external URLs in embedded apps** - Regular `redirect()` fails in iframes! Use `shopifyRedirect(url, { target: '_top' })` to break out of iframe.
 
 ---
 
@@ -1358,6 +1361,8 @@ Here's the order we encountered and solved issues:
 22. **Future API Version (2025-07)** - Multiple TOML files had unreleased api_version. Would cause App Store rejection. Changed to "2024-10".
 23. **NODE_ENV for Billing Test Mode** - IS_TEST_BILLING was based on NODE_ENV which is fragile. Changed to explicit env var.
 24. **Webhooks Missing try/catch** - No error handling in webhook route. Added try/catch with logging.
+25. **Billing URL with Hidden Spaces** - SHOPIFY_APP_URL env var had leading spaces causing "invalid url" error. Fixed with `.trim()`.
+26. **Billing Redirect in Iframe** - Regular redirect blocked by X-Frame-Options. Fixed with `shopifyRedirect(url, { target: '_top' })`.
 
 ---
 
@@ -1992,6 +1997,135 @@ We submitted each code section to a Shopify agent (external AI) for review:
 
 ---
 
-*Last Updated: January 13, 2026*
-*Based on 80+ commits of debugging sessions*
+## 23. Billing Button 500 Error and Iframe Redirect - THE TRIAL BUTTON FIX (January 21, 2026)
+
+### OVERVIEW
+
+The "Start Trial" button on the billing page was throwing a 500 error and wouldn't work. This turned out to be TWO separate issues that had to be fixed in sequence.
+
+### ISSUE 1: URL WITH LEADING SPACES (500 Error)
+
+**Symptom**: Clicking "Start Trial" button returns 500 error. User sees "Application Error: Error 500".
+
+**The Error in Logs**:
+```
+"message": "Variable $returnUrl of type URL! was provided invalid value",
+"explanation": "invalid url '  https://product-notes-for-staff.up.railway.app/app/billing'"
+```
+
+**Root Cause**: The `SHOPIFY_APP_URL` environment variable in Railway had **leading spaces** before the URL! Look closely:
+```
+"  https://..."  ← Two spaces before https!
+```
+
+Shopify's GraphQL API rejected this as an invalid URL.
+
+**The Fix**:
+
+1. **In Railway**: Delete the `SHOPIFY_APP_URL` variable and re-add it WITHOUT any spaces:
+   ```
+   https://product-notes-for-staff.up.railway.app
+   ```
+
+2. **In Code** (to prevent this in the future): Add `.trim()` when reading the env var:
+   ```typescript
+   // app/routes/app.billing.tsx
+   const rawAppUrl = process.env.SHOPIFY_APP_URL?.trim(); // IMPORTANT: trim() removes accidental spaces
+   ```
+
+**How to Debug URL Issues**:
+```typescript
+// Add this log to see the EXACT value including any hidden characters
+console.log("[BILLING] RAW SHOPIFY_APP_URL from env:", `"${rawAppUrl}"`);
+```
+
+The quotes around the value make hidden spaces visible in logs.
+
+### ISSUE 2: IFRAME REDIRECT BLOCKED (Firefox/Browser Security)
+
+**Symptom**: After fixing the URL, clicking "Start Trial" shows:
+```
+Firefox Can't Open This Page
+To protect your security, admin.shopify.com will not allow Firefox
+to display the page if another site has embedded it.
+```
+
+**Root Cause**: Shopify apps run inside an **iframe** in the Shopify admin. When you do a regular `redirect()`, it tries to load Shopify's billing confirmation page INSIDE the iframe. But Shopify's billing page has `X-Frame-Options: DENY` which blocks it from loading in iframes (for security).
+
+**The Fix**: Use Shopify's special redirect helper with `target: '_top'` to break out of the iframe:
+
+```typescript
+// app/routes/app.billing.tsx
+
+// Get the redirect helper from authenticate
+const { session, billing, admin, redirect: shopifyRedirect } = await authenticate.admin(request);
+
+// When redirecting to billing confirmation URL:
+if (testData.data?.appSubscriptionCreate?.confirmationUrl) {
+  const confirmationUrl = testData.data.appSubscriptionCreate.confirmationUrl;
+
+  // Use _top target to open in parent window (breaks out of iframe)
+  return shopifyRedirect(confirmationUrl, { target: '_top' });
+}
+```
+
+**Why `_top` Works**:
+- `_top` tells the browser to load the URL in the TOP-LEVEL window
+- This is the full browser window, not the iframe
+- Shopify's billing page can now load properly because it's not in an iframe
+
+### THE COMPLETE BILLING FIX SEQUENCE
+
+1. **Check Railway env vars**: Make sure `SHOPIFY_APP_URL` has no leading/trailing spaces
+2. **Add `.trim()`** to the code as a safety measure
+3. **Use `shopifyRedirect()` with `target: '_top'`** for any external Shopify URLs
+4. **Test in browser**: Click "Start Trial" → Should open Shopify billing confirmation page
+
+### KEY LESSONS
+
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+| URL with spaces | 500 error, "invalid url" in logs | Trim env vars, add `.trim()` in code |
+| Iframe redirect blocked | "Firefox can't open this page" | Use `redirect(url, { target: '_top' })` |
+
+### DEBUGGING BILLING ISSUES
+
+If billing fails, add this manual GraphQL call to see the EXACT error from Shopify:
+
+```typescript
+// This shows the actual userErrors from Shopify's API
+const testResponse = await admin.graphql(`
+  mutation AppSubscriptionCreate($name: String!, $returnUrl: URL!, ...) {
+    appSubscriptionCreate(...) {
+      appSubscription { id name status }
+      confirmationUrl
+      userErrors {
+        field
+        message   ← This tells you exactly what's wrong!
+      }
+    }
+  }
+`, { variables: { ... } });
+
+const testData = await testResponse.json();
+console.log("[BILLING] GraphQL response:", JSON.stringify(testData, null, 2));
+
+if (testData.data?.appSubscriptionCreate?.userErrors?.length > 0) {
+  console.error("[BILLING] USER ERRORS:", testData.data.appSubscriptionCreate.userErrors);
+}
+```
+
+### ENVIRONMENT VARIABLES FOR BILLING
+
+| Variable | Value | Notes |
+|----------|-------|-------|
+| `SHOPIFY_APP_URL` | `https://your-app.up.railway.app` | NO spaces! No trailing slash! |
+| `IS_TEST_BILLING` | `true` | Required for dev stores |
+
+**Critical**: `IS_TEST_BILLING=true` is REQUIRED for development stores. Without it, Shopify rejects all billing requests because dev stores can only accept test charges.
+
+---
+
+*Last Updated: January 21, 2026*
+*Based on 85+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
