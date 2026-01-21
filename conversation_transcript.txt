@@ -4860,3 +4860,137 @@ return shopifyRedirect(confirmationUrl, { target: '_top' });
 
 STATUS: ✅ BILLING BUTTON WORKING - Trial subscription flow complete
 
+=====================================
+SESSION: January 21, 2026 (Continued)
+ORDER FULFILLMENT EXTENSION - FEATURE INVESTIGATION & REVERT
+=====================================
+
+## ISSUE REPORTED:
+User noticed the order fulfillment notes block was "NOT how we successfully set it up" - photos were displaying full size instead of thumbnails, and other features were missing.
+
+## INVESTIGATION PROCESS:
+
+### Step 1: Initial Assumption (WRONG)
+Initially thought the billing button fix (Jan 20-21) might have broken the extension. However, the billing fix only touched:
+- `app/routes/app.billing.tsx`
+- `TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md`
+
+### Step 2: Found the Real Cause
+On **January 14, 2026**, commit `cdfb627` ("Improve UX and remove dead code"):
+- Switched extension toml to use `OrderFulfillmentBlock.tsx` instead of `OrderDetailsBlock.tsx`
+- DELETED `OrderDetailsBlock.tsx` (540 lines, had 20+ console.log statements)
+- The thumbnail + Link code was in `OrderDetailsBlock.tsx` but NOT carried over
+
+### Step 3: Attempted Fix
+Reverted to January 13 `OrderDetailsBlock.tsx` code (renamed to `OrderFulfillmentBlock.tsx`).
+- Commit: `cba70e1` - Revert OrderFulfillmentBlock to January 13 version
+
+### Step 4: User Reported More Issues
+After the revert, user noticed:
+- Notes were staying acknowledged after clicking off the order and coming back
+- Many features were still missing
+
+### Step 5: Deep Investigation
+Discovered that `OrderDetailsBlock.tsx` (Jan 13) and `OrderFulfillmentBlock.tsx` (Jan 14) were **TWO COMPLETELY DIFFERENT IMPLEMENTATIONS** with different feature sets.
+
+---
+
+## COMPLETE FEATURE COMPARISON
+
+### OrderDetailsBlock.tsx (January 13, 542 lines)
+Used sessionId approach, compact UI, auto-release:
+
+1. ✅ SessionId with `useMemo` - stable session tracking
+2. ✅ Direct API Access (`shopify:admin/api/graphql.json`) - Shopify approved method
+3. ✅ `checkAndReapplyHold()` function - compares sessionIds
+4. ✅ Pagination (Previous/Next buttons) - one note at a time
+5. ✅ Thumbnail photos (`thumbnailUrl`) - smaller display
+6. ✅ Link wrapper for photos - click opens full size in new tab
+7. ✅ 211 character truncation - keeps UI compact
+8. ✅ Compact banner-based UI - minimal padding
+9. ✅ Auto-release on last acknowledgment - no separate button needed
+10. ❌ NO "Release Hold & Proceed" button
+11. ❌ NO `holdReleased` state
+12. ❌ NO `releasingHold` state
+13. ❌ NO `pendingAcknowledgments` state
+14. ❌ NO `holdSecured` state
+15. ❌ NO photo upload modal
+16. ❌ NO product title per note
+17. ❌ NO `releaseHoldAndFulfill()` function
+
+### OrderFulfillmentBlock.tsx (January 14, 629 lines)
+Used reset-all approach, full UI, manual release:
+
+1. ❌ NO sessionId - uses `resetAndFetchNotes()` instead
+2. ❌ NO Direct API Access - uses `api.query` instead
+3. ❌ NO `checkAndReapplyHold()` - uses `reset-acknowledgments` API
+4. ❌ NO Pagination - shows all notes at once
+5. ❌ NO Thumbnail photos - uses full URL
+6. ❌ NO Link wrapper - photos not clickable
+7. ❌ NO 211 character truncation - shows full content
+8. ❌ NO Compact UI - uses larger Box layout
+9. ❌ NO Auto-release - requires manual button click
+10. ✅ "Release Hold & Proceed to Fulfillment" button
+11. ✅ `holdReleased` state + success banner
+12. ✅ `releasingHold` state - shows "Releasing Hold..."
+13. ✅ `pendingAcknowledgments` state (Set) - shows "Saving acknowledgment..."
+14. ✅ `holdSecured` state - tracks if hold was applied
+15. ✅ Photo upload modal for proof photos
+16. ✅ Product title per note - shows "Product: [title]"
+17. ✅ `releaseHoldAndFulfill()` function - calls `/api/public/release-hold`
+
+---
+
+## KEY DIFFERENCE IN APPROACH
+
+| Aspect | OrderDetailsBlock (Jan 13) | OrderFulfillmentBlock (Jan 14) |
+|--------|---------------------------|-------------------------------|
+| **Reset method** | SessionId comparison via `check-hold` | Reset ALL acknowledgments via `reset-acknowledgments` |
+| **Hold release** | Auto-release when last note acknowledged | Manual "Release Hold" button required |
+| **UI layout** | Compact banners, one note at a time | Full list, larger boxes |
+| **Photo display** | Thumbnails + Link | Full size, no Link |
+| **GraphQL** | Direct API Access | `api.query` method |
+
+---
+
+## CURRENT STATE:
+Extension was reverted to January 13 `OrderDetailsBlock.tsx` code, but this is MISSING many features from the January 14 `OrderFulfillmentBlock.tsx`.
+
+---
+
+## TODO: FEATURES TO REIMPLEMENT
+
+The following 17 features need to be combined into a single, complete implementation:
+
+### From OrderDetailsBlock.tsx (keep these):
+- [ ] 1. SessionId with `useMemo` for stable session tracking
+- [ ] 2. Direct API Access (`shopify:admin/api/graphql.json`) - Shopify approved
+- [ ] 3. `checkAndReapplyHold()` function with sessionId comparison
+- [ ] 4. Pagination (Previous/Next) - one note at a time
+- [ ] 5. Thumbnail photos using `thumbnailUrl`
+- [ ] 6. Link wrapper for photos - click opens full size
+- [ ] 7. 211 character content truncation
+- [ ] 8. Compact banner-based UI layout
+- [ ] 9. Auto-release hold when last note acknowledged
+
+### From OrderFulfillmentBlock.tsx (add these):
+- [ ] 10. "Release Hold & Proceed to Fulfillment" button (as backup/explicit option)
+- [ ] 11. `holdReleased` state + success banner ("Ready to ship!")
+- [ ] 12. `releasingHold` state - shows "Releasing Hold..." while in progress
+- [ ] 13. `pendingAcknowledgments` state (Set) - shows "Saving acknowledgment..."
+- [ ] 14. `holdSecured` state - tracks if hold was applied on load
+- [ ] 15. Photo upload modal (for proof photo requirement)
+- [ ] 16. Product title display per note
+- [ ] 17. `releaseHoldAndFulfill()` function for explicit release
+
+---
+
+## COMMITS THIS SESSION:
+1. f4d1bf9 - Fix: Restore thumbnail + Link for photos (partial fix)
+2. cba70e1 - Revert OrderFulfillmentBlock to January 13 version
+
+---
+
+STATUS: ⏳ AWAITING IMPLEMENTATION OF COMBINED FEATURES (17 items)
+
+
