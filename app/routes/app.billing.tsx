@@ -113,7 +113,7 @@ const PRICING_TIERS = [
 const ALL_PLANS = PRICING_TIERS.map(t => t.planKey);
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session, billing } = await authenticate.admin(request);
+  const { session, billing, admin } = await authenticate.admin(request);
 
   // Check environment variable on server only
   // IS_TEST_BILLING must be "true" for development stores (Shopify requires test mode)
@@ -128,6 +128,51 @@ export async function loader({ request }: LoaderFunctionArgs) {
     plans: ALL_PLANS,
     isTest: isTestBilling,
   });
+
+  // ========== DEBUG: Log all subscription info ==========
+  console.log("\n========== BILLING DEBUG ==========");
+  console.log("[BILLING DEBUG] Shop:", session.shop);
+  console.log("[BILLING DEBUG] IS_TEST_BILLING:", isTestBilling);
+  console.log("[BILLING DEBUG] hasActivePayment:", hasActivePayment);
+  console.log("[BILLING DEBUG] appSubscriptions from billing.check():", JSON.stringify(appSubscriptions, null, 2));
+  console.log("[BILLING DEBUG] Local DB subscription:", JSON.stringify(subscription, null, 2));
+
+  // Also query Shopify directly for full subscription details
+  try {
+    const response = await admin.graphql(`
+      query {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            name
+            status
+            test
+            trialDays
+            createdAt
+            currentPeriodEnd
+          }
+          allSubscriptions(first: 10) {
+            edges {
+              node {
+                id
+                name
+                status
+                test
+                createdAt
+              }
+            }
+          }
+        }
+      }
+    `);
+    const data = await response.json();
+    console.log("[BILLING DEBUG] Shopify GraphQL - activeSubscriptions:", JSON.stringify(data.data?.currentAppInstallation?.activeSubscriptions, null, 2));
+    console.log("[BILLING DEBUG] Shopify GraphQL - allSubscriptions:", JSON.stringify(data.data?.currentAppInstallation?.allSubscriptions?.edges, null, 2));
+  } catch (error) {
+    console.error("[BILLING DEBUG] GraphQL query error:", error);
+  }
+  console.log("====================================\n");
+  // ========== END DEBUG ==========
 
   // Get the plan name from Shopify, then convert to tier ID
   const currentPlanName = appSubscriptions?.[0]?.name || subscription?.planName || null;
