@@ -6752,3 +6752,54 @@ Cancel action tries to use database ID but it's null.
 - https://www.prisma.io/docs/guides/shopify
 
 ================================================================================
+
+================================================================================
+SESSION: January 22, 2026 - Billing Fix Implementation
+================================================================================
+
+## Fix Implemented: Save Subscription to Database After Billing Approval
+
+### The Problem:
+When a user subscribes, they get redirected to Shopify's billing page. After approving, Shopify redirects them back to /app/billing?charge_id=... BUT the app never captured this and saved the subscription to the database. So the cancel button couldn't find any subscription to cancel.
+
+### The Fix (in app/routes/app.billing.tsx):
+
+1. **Detect billing approval return** - When the page loads, check if there's a `charge_id` in the URL (this means user just approved billing)
+
+2. **Save subscription to database** - Query Shopify for full subscription details and save them:
+   - subscriptionId (Shopify's ID like gid://shopify/AppSubscription/123)
+   - chargeId (from URL)
+   - planName (e.g., "Starter Plan")
+   - status (ACTIVE)
+   - test (true/false)
+   - trialStartedAt / trialEndsAt
+   - currentPeriodEnd
+
+3. **Improved cancel action** - Added a fallback: if the subscription isn't in the database, query Shopify directly. Also uses the correct test flag from the stored subscription.
+
+### To test:
+1. Wait for Railway to redeploy (it detects the git push automatically)
+2. Go to your billing page
+3. Subscribe to a plan (you may need to cancel first and resubscribe for the new code to capture it)
+4. After subscribing, check Railway logs - you should see "Subscription saved to database successfully!"
+5. Now try clicking "Cancel Subscription" - it should work
+
+### Commits Made This Session:
+- d02a5df: Add billing subscription fields and tracking tables (schema changes)
+- 889a131: Fix: Save subscription to database after billing approval
+
+### Database Schema Changes Made:
+Added to BillingSubscription:
+- chargeId (String?) - Shopify's charge_id from return URL
+- test (Boolean) - Is this a test charge?
+- trialStartedAt (DateTime?) - When trial started
+
+Added new tables:
+- ShopInstallation - Track app install/uninstall history
+- WebhookEvent - Log webhook processing for debugging
+
+================================================================================
+CONTINUE HERE: Need to test the billing fix and work through the remaining
+10 billing issues in the todo list. Current subscription needs to be cancelled
+and resubscribed for the new code to capture the subscription ID properly.
+================================================================================
