@@ -142,19 +142,15 @@ export async function action({ request }: ActionFunctionArgs) {
         // Actually applied holds
         console.log("[CHECK-HOLD] Successfully applied hold to", holdResult.results.length, "fulfillment orders");
 
-        // Only add warning note on FIRST-TIME hold (no previous acknowledgments)
-        // If acknowledgementsCleared is true, user previously acknowledged and left - don't re-add note
-        if (!acknowledgementsCleared) {
-          try {
-            const orderGid = `gid://shopify/Order/${numericOrderId}`;
-            await addHoldNoteToOrder(admin, orderGid);
-            console.log("[CHECK-HOLD] Added hold warning note to order (first-time hold)");
-          } catch (noteError) {
-            console.error("[CHECK-HOLD] Failed to add hold note:", noteError);
-            // Continue even if note fails - hold is more important
-          }
-        } else {
-          console.log("[CHECK-HOLD] Skipping note - this is a re-application after session change");
+        // ALWAYS add warning note when hold is applied
+        // Whether first-time or re-application after session change, user needs to see the warning
+        try {
+          const orderGid = `gid://shopify/Order/${numericOrderId}`;
+          await addHoldNoteToOrder(admin, orderGid);
+          console.log("[CHECK-HOLD] Added hold warning note to order");
+        } catch (noteError) {
+          console.error("[CHECK-HOLD] Failed to add hold note:", noteError);
+          // Continue even if note fails - hold is more important
         }
 
         return json({ holdApplied: true, acknowledgementsCleared, reason: "hold re-applied" });
