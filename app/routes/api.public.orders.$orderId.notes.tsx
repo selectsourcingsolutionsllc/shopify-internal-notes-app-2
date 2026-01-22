@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
+import { unauthenticated } from "../shopify.server";
 import { getVerifiedShop } from "../utils/shop-validation.server";
 
 // Public endpoint for UI extensions - get notes for products in an order
@@ -48,7 +49,45 @@ export async function action({ request, params }: ActionFunctionArgs) {
         },
       });
 
-      return json({ notes, acknowledgments });
+      // Get product titles from Shopify in a single batch query
+      const productTitles: Record<string, string> = {};
+      if (productIds.length > 0) {
+        try {
+          const { admin } = await unauthenticated.admin(shop);
+          const response = await admin.graphql(
+            `#graphql
+            query getProducts($ids: [ID!]!) {
+              nodes(ids: $ids) {
+                ... on Product {
+                  id
+                  title
+                }
+              }
+            }`,
+            { variables: { ids: productIds } }
+          );
+
+          const data = await response.json();
+          if (data.data?.nodes) {
+            for (const product of data.data.nodes) {
+              if (product?.id && product?.title) {
+                productTitles[product.id] = product.title;
+              }
+            }
+          }
+          console.log("[PUBLIC API] Fetched product titles:", Object.keys(productTitles).length);
+        } catch (error) {
+          console.error("[PUBLIC API] Failed to fetch product titles:", error);
+        }
+      }
+
+      // Add product titles to notes
+      const notesWithTitles = notes.map(note => ({
+        ...note,
+        productTitle: productTitles[note.productId] || null,
+      }));
+
+      return json({ notes: notesWithTitles, acknowledgments });
     } catch (error) {
       console.error("[PUBLIC API] Error:", error);
       return json({ error: "Database error" }, { status: 500 });

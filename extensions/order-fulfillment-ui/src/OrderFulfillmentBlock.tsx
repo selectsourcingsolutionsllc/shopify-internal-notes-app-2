@@ -44,6 +44,10 @@ function OrderFulfillmentBlock() {
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [allProductIds, setAllProductIds] = useState<string[]>([]);
 
+  // Feature 17: Release Hold button state
+  const [holdReleased, setHoldReleased] = useState(false);
+  const [releasingHold, setReleasingHold] = useState(false);
+
   // Generate a unique session ID when component mounts
   // This stays stable for the entire page session
   const sessionId = useMemo(() => generateSessionId(), []);
@@ -388,10 +392,54 @@ function OrderFulfillmentBlock() {
       if (result.holdReleased) {
         console.log('[Order Extension] Hold released! Order can now be fulfilled.');
         setCanFulfill(true);
+        setHoldReleased(true);
       }
 
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  // Feature 17: Explicit release hold function
+  const releaseHoldAndFulfill = async () => {
+    try {
+      setReleasingHold(true);
+      const shop = shopDomain || await fetchShopDomain();
+      if (!shop) {
+        throw new Error('Shop domain not available');
+      }
+
+      console.log('[Order Extension] Explicitly releasing hold for order:', orderId);
+
+      const url = `${BASE_URL}/api/public/release-hold?shop=${encodeURIComponent(shop)}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId,
+          productIds: allProductIds,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to release hold');
+      }
+
+      if (result.success || result.holdReleased) {
+        console.log('[Order Extension] Hold explicitly released!');
+        setCanFulfill(true);
+        setHoldReleased(true);
+      }
+    } catch (err: any) {
+      console.error('[Order Extension] Error releasing hold:', err);
+      setError(err.message);
+    } finally {
+      setReleasingHold(false);
     }
   };
 
@@ -439,7 +487,20 @@ function OrderFulfillmentBlock() {
   return (
     <Box padding="none">
       <BlockStack gap="extraTight">
-        {settings?.blockFulfillment && !canFulfill && (
+        {/* Success banner when hold is released */}
+        {holdReleased && (
+          <Banner
+            title="Ready to ship!"
+            tone="success"
+          >
+            <Text>
+              All notes acknowledged. You can now fulfill this order.
+            </Text>
+          </Banner>
+        )}
+
+        {/* Critical banner when order is on hold */}
+        {settings?.blockFulfillment && !canFulfill && !holdReleased && (
           <Banner
             title="Order On Hold"
             tone="critical"
@@ -459,6 +520,13 @@ function OrderFulfillmentBlock() {
         {settings?.requireAcknowledgment ? (
           <Banner tone="warning" title="Check box to acknowledge">
             <BlockStack gap="tight">
+              {/* Show product title if available */}
+              {currentNote.productTitle && (
+                <Text fontWeight="bold" emphasis="subdued">
+                  Product: {currentNote.productTitle}
+                </Text>
+              )}
+
               {/* Checkbox with note content - always visible */}
               <Checkbox
                 label={currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}
@@ -498,6 +566,13 @@ function OrderFulfillmentBlock() {
           /* Show notes as info-only when acknowledgment is NOT required */
           <Banner tone="info" title="Product Note">
             <BlockStack gap="tight">
+              {/* Show product title if available */}
+              {currentNote.productTitle && (
+                <Text fontWeight="bold" emphasis="subdued">
+                  Product: {currentNote.productTitle}
+                </Text>
+              )}
+
               <Text>{currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}</Text>
 
               {/* Photo thumbnail below */}
@@ -536,6 +611,23 @@ function OrderFulfillmentBlock() {
             </Button>
           </InlineStack>
         )}
+
+        {/* Feature 17: Release Hold button - shows when all notes acknowledged but hold not yet released */}
+        {settings?.blockFulfillment && !holdReleased && (() => {
+          const allAcknowledged = productNotes.every(note => acknowledgments[note.id]?.acknowledged);
+          if (allAcknowledged && productNotes.length > 0) {
+            return (
+              <Button
+                variant="primary"
+                onPress={releaseHoldAndFulfill}
+                disabled={releasingHold}
+              >
+                {releasingHold ? 'Releasing Hold...' : 'Release Hold & Proceed to Fulfillment'}
+              </Button>
+            );
+          }
+          return null;
+        })()}
       </BlockStack>
     </Box>
   );
