@@ -2319,6 +2319,146 @@ The ORDERS_CREATE webhook also has `addHoldNoteToOrder`, but:
 
 ---
 
-*Last Updated: January 21, 2026*
-*Based on 85+ commits of debugging sessions*
+## 26. Current Plan Highlighting - THE TIER ID SOLUTION (January 22, 2026)
+
+### THE PROBLEM
+
+When implementing current plan highlighting on the billing page, we encountered React hydration errors #418 and #425:
+- "Hydration failed because the initial UI does not match what was rendered on the server"
+- "Text content does not match server-rendered HTML"
+
+### THE OVERCOMPLICATED APPROACH (FAILED)
+
+The initial approach imported plan constants from `.server.ts`:
+
+```tsx
+// app/routes/app.billing.tsx
+import { STARTER_PLAN, BASIC_PLAN, PRO_PLAN, TITAN_PLAN, ENTERPRISE_PLAN } from "../shopify.server";
+
+const PRICING_TIERS = [
+  { id: "starter", planKey: STARTER_PLAN, ... },  // STARTER_PLAN imported from .server.ts
+  ...
+];
+
+// In component
+const isCurrentPlan = tier.planKey === currentPlan;
+```
+
+**Why it failed:**
+- `.server.ts` files are STRIPPED from the client bundle
+- Server: `tier.planKey = "Titan Plan"` (import works)
+- Client: `tier.planKey = undefined` (import stripped!)
+- Different results = hydration mismatch
+
+### THE USER'S INSIGHT
+
+The user noticed something important:
+
+> "How is the 'Switch to Basic' button linked to the correct pricing page?"
+
+Looking at the button code:
+```tsx
+<Form method="post">
+  <input type="hidden" name="tierId" value={tier.id} />  {/* Just "basic" */}
+  <Button submit>Switch to {tier.name}</Button>
+</Form>
+```
+
+The button uses `tier.id` (a simple string like `"basic"`) - NOT the imported constants!
+
+**The user asked:**
+> "Can't you use the same logic or similar logic to link the highlighted card?"
+
+**YES! The user was absolutely right.** The solution was already in front of us.
+
+### THE SIMPLE SOLUTION (USER'S IDEA)
+
+Instead of comparing plan names (which needed imported constants), compare tier IDs:
+
+**Step 1: Define planKey as simple strings (not imports)**
+```tsx
+const PRICING_TIERS = [
+  { id: "starter", planKey: "Starter Plan", ... },  // Simple string!
+  { id: "basic",   planKey: "Basic Plan",   ... },
+  { id: "titan",   planKey: "Titan Plan",   ... },
+];
+```
+
+**Step 2: Loader converts plan name → tier ID**
+```tsx
+export async function loader() {
+  // Shopify returns: "Titan Plan"
+  const currentPlanName = appSubscriptions?.[0]?.name;
+
+  // Convert to tier ID: "titan"
+  const currentTierId = PRICING_TIERS.find(t => t.planKey === currentPlanName)?.id;
+
+  return json({ currentTierId });  // Send "titan" to client
+}
+```
+
+**Step 3: Component compares simple string IDs**
+```tsx
+{PRICING_TIERS.map((tier) => {
+  const isCurrentPlan = tier.id === currentTierId;
+  // "titan" === "titan" → true (same on server AND client!)
+
+  return (
+    <div style={isCurrentPlan ? { borderTop: '3px solid #2C6ECB' } : undefined}>
+      {isCurrentPlan && <Badge tone="info">Current</Badge>}
+      ...
+    </div>
+  );
+})}
+```
+
+### WHY THIS WORKS
+
+| Value | Server | Client | Match? |
+|-------|--------|--------|--------|
+| `currentTierId` | `"titan"` | `"titan"` | ✅ Same (from loader) |
+| `tier.id` | `"titan"` | `"titan"` | ✅ Same (hardcoded string) |
+| `isCurrentPlan` | `true` | `true` | ✅ No hydration error! |
+
+### THE KEY LESSON
+
+> **Look at what already works!**
+>
+> The subscribe button already used `tier.id` successfully.
+> The user spotted this and suggested using the same pattern.
+> Sometimes the simplest solution is right in front of you.
+
+### STYLING (SUBTLE & MODERN)
+
+The user also requested subtle styling instead of gaudy green borders:
+
+```tsx
+// Subtle blue accent at top
+style={isCurrentPlan ? {
+  borderTop: '3px solid #2C6ECB',  // Shopify blue
+  borderRadius: '8px',
+} : undefined}
+
+// "Current" badge instead of giant banner
+{isCurrentPlan && <Badge tone="info">Current</Badge>}
+
+// Disabled button
+{isCurrentPlan && <Button disabled>Current Plan</Button>}
+```
+
+### COMMITS FOR THIS FIX
+
+| Commit | Description |
+|--------|-------------|
+| `435c9dc` | Restored billing status page after revert |
+| `a63d464` | **THE FIX** - Tier ID approach with subtle styling |
+
+### CREDIT
+
+**This solution was suggested by the user**, who noticed the button already used `tier.id` and asked why the highlighting couldn't use the same approach. They were right - it was simpler and avoided all the hydration issues.
+
+---
+
+*Last Updated: January 22, 2026*
+*Based on 90+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
