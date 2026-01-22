@@ -5167,3 +5167,66 @@ The `acknowledgementsCleared` variable distinguishes the scenarios:
 - `711d577` - Fix: Only add hold note on first-time hold, not re-application (CORRECT FIX)
 
 ================================================================================
+
+================================================================================
+SESSION CONTINUATION: JANUARY 21, 2026 - NOTE NOT ADDED ON RE-APPLICATION FIX
+================================================================================
+
+## PROBLEM
+After the first fix, the note worked on FIRST-TIME viewing. But when user:
+1. Acknowledged all notes
+2. Left the page
+3. Came back (different session)
+
+The hold was re-applied correctly, but the NOTE was NOT added.
+
+## ROOT CAUSE
+The previous fix (commit 711d577) had this logic:
+
+```typescript
+if (!acknowledgementsCleared) {
+  // Add note - first-time hold only
+} else {
+  console.log("[CHECK-HOLD] Skipping note - this is a re-application after session change");
+}
+```
+
+This was WRONG! When user leaves and comes back:
+- Acknowledgments are CLEARED
+- Hold is RE-APPLIED  
+- User needs to see the warning note AGAIN!
+
+## THE FIX (commit 181dd93)
+Remove the conditional - ALWAYS add note when hold is applied:
+
+```typescript
+if (holdResult.success && holdResult.results.length > 0) {
+  console.log("[CHECK-HOLD] Successfully applied hold");
+
+  // ALWAYS add warning note when hold is applied
+  // Whether first-time or re-application after session change, user needs to see the warning
+  try {
+    const orderGid = `gid://shopify/Order/${numericOrderId}`;
+    await addHoldNoteToOrder(admin, orderGid);
+    console.log("[CHECK-HOLD] Added hold warning note to order");
+  } catch (noteError) {
+    console.error("[CHECK-HOLD] Failed to add hold note:", noteError);
+  }
+
+  return json({ holdApplied: true, acknowledgementsCleared, reason: "hold re-applied" });
+}
+```
+
+## WHY THIS IS SAFE
+The "same session" case (user stays on page) is handled EARLIER in the code:
+- Line 109-112: If same sessionId, return early with "same session"
+- No hold applied, no note added
+- So we never get duplicate notes for same session
+
+## USER CONFIRMATION
+"PERFECT"
+
+## COMMITS
+- `181dd93` - Fix: Always add hold note when hold is applied (not just first-time)
+
+================================================================================
