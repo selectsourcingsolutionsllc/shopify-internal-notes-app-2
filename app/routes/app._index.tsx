@@ -80,6 +80,10 @@ export default function AppIndex() {
       subtitle="Add internal notes to products so your team never misses important details when fulfilling orders"
       secondaryActions={[
         {
+          content: "Billing",
+          url: "/app/billing-status",
+        },
+        {
           content: "Settings",
           url: "/app/settings",
         },
