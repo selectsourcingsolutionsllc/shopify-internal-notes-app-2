@@ -5230,3 +5230,290 @@ The "same session" case (user stays on page) is handled EARLIER in the code:
 - `181dd93` - Fix: Always add hold note when hold is applied (not just first-time)
 
 ================================================================================
+
+
+================================================================================
+SESSION: JANUARY 21, 2026 - BILLING SUMMARY PAGE IMPLEMENTATION PLAN
+================================================================================
+
+## FEATURE REQUEST
+User requested a billing summary page where they can:
+1. View their membership/subscription status
+2. View billing charge history
+
+## RESEARCH CONDUCTED
+Searched multiple sources:
+- Shopify official documentation
+- GitHub issues and demo repositories
+- Shopify Community forums
+- Shopify Developer Community forums
+
+## KEY IMPLEMENTATION APPROACH
+
+### Files to Create/Modify:
+1. app/routes/app.billing-status.tsx - New billing summary page
+2. app/utils/billing.server.ts - Billing helper functions
+3. app/routes/app._index.tsx - Add link to billing page in navigation
+
+### GraphQL Queries to Use:
+
+**Get Active Subscription:**
+```graphql
+query {
+  currentAppInstallation {
+    activeSubscriptions {
+      id
+      name
+      status
+      test
+      trialDays
+      createdAt
+      currentPeriodEnd
+      lineItems {
+        plan {
+          pricingDetails {
+            ... on AppRecurringPricing {
+              interval
+              price { amount currencyCode }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Get Subscription History:**
+```graphql
+query {
+  currentAppInstallation {
+    allSubscriptions(first: 10) {
+      edges {
+        node {
+          id
+          name
+          status
+          createdAt
+          test
+        }
+      }
+    }
+  }
+}
+```
+
+### UI Components (Polaris):
+- Card - Container for subscription info
+- DescriptionList - Display plan details (term/description pairs)
+- Badge - Status indicator (tone="success" for ACTIVE, etc.)
+- Banner - Trial ending warning
+- Button - Upgrade/Cancel actions
+
+================================================================================
+## KNOWN ISSUES TO AVOID (FROM FORUM RESEARCH)
+================================================================================
+
+### Issue 1: 401 Error with billing.require()
+**Problem:** Remix v3_singleFetch flag breaks billing redirects
+**How I Will Avoid It:**
+- Check remix.config.js for v3_singleFetch flag
+- If enabled, disable it OR do not use try/catch around billing calls
+- Use direct GraphQL queries instead of billing.check() for display
+
+### Issue 2: Test Mode vs Production Confusion
+**Problem:** Staff stores only create TEST charges even with isTest: false
+**How I Will Avoid It:**
+- Use billing.check() with isTest: true for status display
+- Store IS_TEST_BILLING in env var (already have this!)
+- Do not rely on isTest for determining subscription validity
+
+### Issue 3: Billing Stuck in Loop
+**Problem:** Combining billing.check() + billing.require() causes loops
+**How I Will Avoid It:**
+- For the status page, use ONLY billing.check() or direct GraphQL
+- Never call billing.require() on the status display page
+- Keep billing.request() only on explicit upgrade button click
+
+### Issue 4: Custom returnUrl Loses Session
+**Problem:** Session lost after billing approval redirect
+**How I Will Avoid It:**
+- Use launchUrl from GraphQL instead of SHOPIFY_APP_URL
+- Already fixed this in previous billing work (see troubleshooting guide)
+- Use shopifyRedirect with target: _top
+
+### Issue 5: currentPeriodEnd Shows Wrong/Past Date
+**Problem:** Field unreliable in test mode, may not update
+**How I Will Avoid It:**
+- Calculate trial days manually: createdAt + trialDays
+- Use status === ACTIVE as primary validity check
+- Do not rely solely on currentPeriodEnd for display
+
+**Trial Calculation Code:**
+```typescript
+function calculateTrialStatus(subscription: any) {
+  if (!subscription) return { inTrial: false, daysRemaining: 0 };
+
+  const now = new Date();
+  const createdAt = new Date(subscription.createdAt);
+  const elapsedMs = now.getTime() - createdAt.getTime();
+  const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+  const remainingDays = Math.max(0, Math.round(subscription.trialDays - elapsedDays));
+
+  return {
+    inTrial: remainingDays > 0,
+    daysRemaining: remainingDays,
+  };
+}
+```
+
+### Issue 6: Managed Pricing vs Billing API Conflict
+**Problem:** Cannot use Billing API if managed pricing is enabled
+**How I Will Avoid It:**
+- Check Partner Dashboard settings before implementing
+- We are using manual billing (billing config in shopify.server.ts)
+- If conflict occurs, disable managed pricing in Partner Dashboard
+
+### Issue 7: billing.check() Access Denied for Staff
+**Problem:** Staff without billing permissions get errors
+**How I Will Avoid It:**
+- Use direct GraphQL query for display instead of billing.check()
+- Wrap in try/catch and show graceful error if access denied
+- Query currentAppInstallation directly
+
+**Safe Query Approach:**
+```typescript
+// Instead of billing.check() which may fail for staff:
+const response = await admin.graphql(`
+  query {
+    currentAppInstallation {
+      activeSubscriptions { id name status trialDays createdAt currentPeriodEnd }
+    }
+  }
+`);
+```
+
+### Issue 8: Iframe Redirect Blocked
+**Problem:** Billing approval pages block iframe embedding
+**How I Will Avoid It:**
+- Already fixed in previous work - use shopifyRedirect with target: _top
+- For any external Shopify URLs, always use _top target
+- Never redirect to Shopify pages inside the iframe
+
+### Issue 9: Free Tier Not Handled
+**Problem:** billing.require() throws error for free plans
+**How I Will Avoid It:**
+- Use billing.check() which handles free plans gracefully
+- Check appSubscriptions.length to detect no-plan state
+- Display appropriate message for free tier users
+
+### Issue 10: currentPeriodEnd is NULL After Cancellation
+**Problem:** Cannot determine access expiry after downgrade
+**How I Will Avoid It:**
+- Store subscription data in our OWN database
+- Save currentPeriodEnd when subscription is active
+- Use our stored value after cancellation
+
+### Issue 11: APP_SUBSCRIPTIONS_UPDATE Webhook Not Firing on Uninstall
+**Problem:** Webhook does not fire when app uninstalled
+**How I Will Avoid It:**
+- Listen to APP_UNINSTALLED webhook as backup
+- Assume subscription cancelled on app uninstall
+- Update our database on uninstall event
+
+### Issue 12: Duplicate Webhook Definitions
+**Problem:** Defining webhooks in both TOML and shopifyApp() breaks things
+**How I Will Avoid It:**
+- Check current webhook configuration
+- Use ONLY shopify.app.toml for webhook definitions
+- Remove any webhook config from shopify.server.ts if present
+
+================================================================================
+## IMPLEMENTATION PLAN
+================================================================================
+
+### Step 1: Create billing.server.ts utility
+- getSubscriptionStatus() - fetch current subscription via GraphQL
+- calculateTrialStatus() - compute remaining trial days
+- getSubscriptionHistory() - fetch past subscriptions
+
+### Step 2: Create app.billing-status.tsx route
+- Loader: fetch subscription data using direct GraphQL (not billing.check)
+- Display: Card with DescriptionList showing plan details
+- Badge: Show status with appropriate tone
+- History: List of past subscriptions
+
+### Step 3: Add navigation link
+- Add Billing link to app navigation
+- Consider adding to settings page as well
+
+### Step 4: Handle edge cases
+- No subscription: Show Free tier or prompt to upgrade
+- Trial active: Show days remaining with Banner warning if < 3 days
+- Cancelled: Show when access expires (from our DB)
+- Error: Graceful error message if query fails
+
+### Step 5: Test thoroughly
+- Test on dev store with test charges
+- Test with staff account (may have limited permissions)
+- Test trial calculation accuracy
+- Test subscription history display
+
+================================================================================
+## POLARIS UI STRUCTURE
+================================================================================
+
+Page title="Billing and Subscription"
+  Layout
+    Layout.Section
+      Card
+        BlockStack gap="400"
+          InlineStack align="space-between"
+            Text variant="headingMd" - Current Plan
+            Badge tone="success" - Active
+
+          DescriptionList
+            items:
+              - term: Plan, description: Pro Plan
+              - term: Price, description: $9.99/month
+              - term: Billing Cycle, description: Monthly
+              - term: Next Billing Date, description: Feb 21, 2026
+
+          Banner tone="warning" (if inTrial)
+            X days remaining in your free trial
+
+          InlineStack gap="300"
+            Button - Change Plan
+            Button tone="critical" - Cancel Subscription
+
+    Layout.Section
+      Card
+        Text variant="headingMd" - Billing History
+        List of past subscriptions
+
+================================================================================
+## REFERENCES USED
+================================================================================
+
+GitHub Repositories:
+- https://github.com/marktiddy/Shopify-Remix-Billing-Demo (working example)
+- https://github.com/Shopify/billing-demo-app (official demo)
+- https://github.com/Shopify/shopify-app-template-remix/issues (known issues)
+
+Shopify Documentation:
+- https://shopify.dev/docs/api/shopify-app-remix/v2/apis/billing
+- https://shopify.dev/docs/apps/launch/billing/view-charges-earnings
+- https://shopify.dev/docs/api/admin-graphql/latest/objects/appsubscription
+
+Community Forums:
+- https://community.shopify.dev/t/the-best-practice-of-using-shopify-managed-pricing/12627
+- https://community.shopify.com/t/shopify-app-remix-template-billing-example/237888
+- https://community.shopify.dev/t/handling-billing-check-access-denied-errors-in-shopify-remix-apps/11528
+
+Known Issues Researched:
+- GitHub Issue #708 - Test Mode problems
+- GitHub Issue #473 - 401 Error with v3_singleFetch
+- GitHub Issue #476 - returnUrl session loss
+- GitHub Issue #431 - Free tier handling
+
+================================================================================
