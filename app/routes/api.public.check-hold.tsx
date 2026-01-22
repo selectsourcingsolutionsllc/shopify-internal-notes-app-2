@@ -4,6 +4,7 @@ import prisma from "../db.server";
 import { unauthenticated } from "../shopify.server";
 import { applyHoldsToOrder, getFulfillmentOrders } from "../utils/fulfillment-hold.server";
 import { getVerifiedShop } from "../utils/shop-validation.server";
+import { addHoldNoteToOrder } from "./webhooks";
 
 // Public endpoint for UI extensions - check if hold needs to be re-applied
 // Called when the extension loads to ensure hold is in place if needed
@@ -141,10 +142,15 @@ export async function action({ request }: ActionFunctionArgs) {
         // Actually applied holds
         console.log("[CHECK-HOLD] Successfully applied hold to", holdResult.results.length, "fulfillment orders");
 
-        // NOTE: We do NOT re-add the warning note here.
-        // The warning note is only added on ORDER_CREATE webhook.
-        // If user acknowledged and the note was removed, it stays removed.
-        // The extension UI still shows "Order On Hold" banner - that's enough.
+        // Add warning note to order (webhooks can be delayed, so we add it here too)
+        try {
+          const orderGid = `gid://shopify/Order/${numericOrderId}`;
+          await addHoldNoteToOrder(admin, orderGid);
+          console.log("[CHECK-HOLD] Added hold warning note to order");
+        } catch (noteError) {
+          console.error("[CHECK-HOLD] Failed to add hold note:", noteError);
+          // Continue even if note fails - hold is more important
+        }
 
         return json({ holdApplied: true, acknowledgementsCleared: true, reason: "hold re-applied" });
       } else if (holdResult.success && holdResult.results.length === 0) {
