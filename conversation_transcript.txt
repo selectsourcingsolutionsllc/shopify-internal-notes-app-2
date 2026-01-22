@@ -6318,31 +6318,437 @@ model BillingSubscription {
 ```
 
 ================================================================================
-## RESEARCH SOURCES
+## COMPLETE RESEARCH DATA
 ================================================================================
 
-### Context7 (Shopify GraphQL Admin API 2025-07)
+### PART 1: CONTEXT7 - SHOPIFY GRAPHQL ADMIN API (2025-07)
+--------------------------------------------------------------------------------
+
+#### AppSubscription Object Fields
+Source: https://shopify.dev/docs/api/admin-graphql/2025-07/objects/AppSubscription
+
+```
+- createdAt (DateTime!) - When subscription was created
+- currentPeriodEnd (DateTime) - When current period ends (null if inactive)
+- id (ID!) - Globally-unique ID (e.g., "gid://shopify/AppSubscription/12345")
+- lineItems ([AppSubscriptionLineItem!]!) - Plans attached to subscription
+- name (String!) - Name of the subscription (e.g., "Pro Plan")
+- returnUrl (URL!) - Redirect URL after approval
+- status (AppSubscriptionStatus!) - Current status
+- test (Boolean!) - Whether this is a test transaction
+- trialDays (Int!) - Number of free trial days
+```
+
+#### AppSubscriptionStatus Enum Values
+```
+- ACTIVE: Approved and being billed
+- CANCELLED: Cancelled by app (terminal state)
+- DECLINED: Declined by merchant (terminal state)
+- EXPIRED: Not approved within 2 days (terminal state)
+- FROZEN: On hold due to non-payment
+- PENDING: Pending merchant approval
+```
+
+#### appSubscriptionCancel Mutation
+Source: https://shopify.dev/docs/api/admin-graphql/2025-07/mutations/appsubscriptioncancel
+
+```graphql
+mutation AppSubscriptionCancel($id: ID!, $prorate: Boolean) {
+  appSubscriptionCancel(id: $id, prorate: $prorate) {
+    appSubscription {
+      id
+      status
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+```
+
+**Arguments:**
+- id (ID!) - Required - The subscription ID to cancel
+- prorate (Boolean) - Optional (default: false) - Issue prorated refund
+
+**Returns:**
+- appSubscription (AppSubscription) - The cancelled subscription
+- userErrors ([UserError!]!) - Any errors
+
+#### currentAppInstallation Query
+Source: https://shopify.dev/docs/api/admin-graphql/2025-07/queries/currentAppInstallation
+
+```graphql
+query {
+  currentAppInstallation {
+    activeSubscriptions {
+      id
+      name
+      status
+      test
+      trialDays
+      createdAt
+      currentPeriodEnd
+    }
+    allSubscriptions(first: 10) {
+      edges {
+        node {
+          id
+          name
+          status
+          test
+          createdAt
+        }
+      }
+    }
+  }
+}
+```
+
+**Key Fields on AppInstallation:**
+- activeSubscriptions ([AppSubscription!]!) - ACTIVE subscriptions only
+- allSubscriptions (AppSubscriptionConnection!) - ALL subscriptions including cancelled
+- launchUrl (URL!) - URL to launch the application
+
+--------------------------------------------------------------------------------
+
+### PART 2: SHOPIFY REMIX BILLING API
+--------------------------------------------------------------------------------
+
+Source: https://shopify.dev/docs/api/shopify-app-remix/v2/apis/billing
+
+#### billing.check() Method
+
+```typescript
+const { hasActivePayment, appSubscriptions } = await billing.check({
+  plans: ["Pro Plan", "Basic Plan"],
+  isTest: true,  // Whether to consider test purchases
+});
+```
+
+**Returns:**
+- hasActivePayment (boolean) - Whether shop has active payment
+- appSubscriptions (AppSubscription[]) - Active subscriptions array
+  - Each has: id, name, test
+
+#### billing.cancel() Method
+
+```typescript
+const cancelledSubscription = await billing.cancel({
+  subscriptionId: "gid://shopify/AppSubscription/12345",
+  isTest: true,
+  prorate: true,
+});
+```
+
+**Parameters:**
+- subscriptionId (string) - Required - The subscription ID
+- isTest (boolean) - Optional - Test mode flag
+- prorate (boolean) - Optional - Issue prorated refund
+
+**Returns:** Only id, name, test (NOT currentPeriodEnd!)
+
+#### billing.request() Method
+
+```typescript
+const billingResponse = await billing.request({
+  plan: "Pro Plan",
+  isTest: true,
+  returnUrl: "https://your-app.com/app/billing",
+});
+return billingResponse; // Must return this for redirect to work
+```
+
+--------------------------------------------------------------------------------
+
+### PART 3: WEB RESEARCH - COMMON ISSUES & SOLUTIONS
+--------------------------------------------------------------------------------
+
+#### Issue #1: InvalidTransitionError
+Source: https://community.shopify.dev/t/recurringapplicationcharge-invalidtransitionerror-when-canceling-app-subscription/22015
+
+**Problem:** Error when trying to cancel subscription not in ACTIVE state
+**Cause:** Attempting to cancel CANCELLED, EXPIRED, DECLINED, FROZEN, or PENDING
+**Solution:** Check status before calling cancel. Only ACTIVE can be cancelled.
+
+#### Issue #2: Apps Without Public Distribution
+Source: https://community.shopify.dev/t/appsubscriptioncancel-errors-with-apps-without-a-public-distribution-cannot-use-the-billing-api/11897
+
+**Problem:** "Apps without a public distribution cannot use the Billing API"
+**Cause:** Development apps can't use appSubscriptionCancel GraphQL mutation
+**Solution:** Use REST API for test charges, or make app public/draft
+
+#### Issue #3: Staff Plan Stores
+Source: https://github.com/Shopify/shopify-app-template-remix/issues/708
+
+**Problem:** Shopify reviewers use Staff Plan stores which ONLY create test charges
+**Cause:** Staff Plan stores ignore isTest: false parameter
+**Solution:** Detect Staff Plan via Shop API `plan` field, adjust behavior
+
+**Code Example from Issue:**
+```javascript
+await billing.cancel({
+  subscriptionId: appSubscriptions[0].id,
+  isTest: billingTest,
+  prorate: true,
+});
+```
+
+#### Issue #4: isTest Parameter Mismatch
+Source: https://community.shopify.com/t/shopify-app-fails-the-review-if-istest-false-in-the-billing-require/333583
+
+**Problem:** billing.check() with isTest:false doesn't find test subscriptions
+**Cause:** Subscription created with test:true but checked with isTest:false
+**Solution:** Match isTest parameter to how subscription was created
+
+#### Issue #5: Test Charges Wrong currentPeriodEnd
+Source: https://community.shopify.com/c/billing-api/graphql-appsubscriptioncreate-mutation-with-quot-test-true-quot/td-p/552952
+
+**Problem:** Test subscriptions show currentPeriodEnd as seconds after creation
+**Cause:** BY DESIGN - test charges never have real billing periods
+**Solution:** Don't rely on currentPeriodEnd for test subscriptions
+
+#### Issue #6: billing.cancel() Limited Fields
+Source: https://github.com/Shopify/shopify-app-js/issues/1064
+
+**Problem:** billing.cancel() only returns id, name, test
+**Cause:** API limitation
+**Solution:** Query subscription separately if you need more fields
+
+#### Issue #7: 401 Errors in Actions
+Source: https://github.com/Shopify/shopify-app-template-remix/issues/473
+
+**Problem:** Billing API returns 401 when called from Remix action
+**Cause:** Session handling differences between loader and action
+**Solution:** Check session handling, may need to use loader instead
+
+#### Issue #8: returnUrl Session Loss
+Source: https://github.com/Shopify/shopify-app-js/issues/476
+
+**Problem:** Session lost after returning from Shopify approval
+**Cause:** Custom returnUrl causing session loss
+**Solution:** Use absolute URLs, ensure proper session handling
+
+#### Issue #9: Billing Loop
+Source: https://github.com/Shopify/shopify-api-js/issues/420
+
+**Problem:** App keeps asking for billing even after approval
+**Cause:** Test/prod mode mismatch between create and check
+**Solution:** Ensure consistent isTest values, save subscription to DB
+
+#### Issue #10: Webhook Delays
+Source: https://community.shopify.dev/t/clarifying-app-subscriptions-update-webhook-behavior-in-the-billing-system/25467
+
+**Problem:** APP_SUBSCRIPTIONS_UPDATE webhooks can take minutes
+**Cause:** Shopify webhook delivery is not instant
+**Solution:** Query API directly for critical operations, use webhooks for background sync
+
+**Webhook Behavior:**
+- Fires "each billing cycle when the current billing cycle changes"
+- Payload includes subscription value but NOT proration amounts
+- Use Partner API Transaction interface for detailed billing info
+
+--------------------------------------------------------------------------------
+
+### PART 4: DATABASE STORAGE BEST PRACTICES
+--------------------------------------------------------------------------------
+
+Sources:
+- https://docs.gadget.dev/guides/plugins/shopify/billing
+- https://dev.to/memahesh/how-to-store-user-data-in-shopify-app-2m86
+- https://magecomp.com/blog/implement-billing-plan-with-trial-shopify-remix-app/
+
+#### The Standard Pattern (Hybrid Approach)
+
+| Store WHERE | Store WHAT |
+|-------------|-----------|
+| Your Database | Session tokens, billing IDs, app settings, app-specific data |
+| Shopify (via API) | Products, orders, customers (query when needed) |
+| Shopify Metafields | Simple shop settings (non-sensitive) |
+
+#### Standard Models for Shopify App
+
+1. **Session** (Required) - Auth tokens
+2. **ShopSettings / AppSetting** - Per-shop configuration
+3. **BillingSubscription** - Subscription tracking
+4. **App-Specific Models** - Your app's data
+
+#### What to Save After Billing Approval
+
+From MageComp Tutorial:
+```javascript
+// routes/after-billing.jsx
+export const loader = async ({ request }) => {
+  const url = new URL(request.url);
+  const shop = url.searchParams.get("shop");
+  const charge_id = url.searchParams.get("charge_id");
+
+  // Save to database
+  await prisma.session.update({
+    where: { shop },
+    data: {
+      plan_id: 1,
+      charge_id: charge_id,
+    },
+  });
+
+  return redirect(`/app/dashboard?shop=${shop}`);
+};
+```
+
+#### What NOT to Store Locally
+
+- Product details (changes frequently)
+- Order details (changes frequently)
+- Customer data (privacy concerns)
+- Inventory (real-time data)
+
+**Rule:** Store only IDs/references locally, fetch full data from Shopify when needed.
+
+--------------------------------------------------------------------------------
+
+### PART 5: COMPLETE SUBSCRIPTION FLOW
+--------------------------------------------------------------------------------
+
+#### Subscribe Flow
+
+```
+Step 1: User clicks "Start Trial" button
+        ↓
+        Form submits: action="subscribe", tierId="pro"
+
+Step 2: Server action receives request
+        ↓
+        Find tier, build returnUrl
+
+Step 3: Call Shopify GraphQL
+        ↓
+        appSubscriptionCreate mutation
+        Returns: confirmationUrl
+
+Step 4: Redirect user to Shopify payment page
+        ↓
+        shopifyRedirect(confirmationUrl, { target: '_top' })
+
+Step 5: User approves on Shopify's page
+        ↓
+        Shopify redirects to returnUrl with ?charge_id=123
+
+Step 6: Handle return - SAVE TO DATABASE! (currently missing)
+        ↓
+        Query billing.check() to get subscription ID
+        Save to BillingSubscription table
+```
+
+#### Cancel Flow (Correct Way)
+
+```
+Step 1: User clicks "Cancel Subscription"
+        ↓
+        Confirm dialog
+
+Step 2: Get subscription ID from Shopify
+        ↓
+        const { appSubscriptions } = await billing.check(...)
+        const subscriptionId = appSubscriptions[0].id
+
+Step 3: Verify status is ACTIVE
+        ↓
+        Prevents InvalidTransitionError
+
+Step 4: Call cancel
+        ↓
+        await billing.cancel({ subscriptionId, isTest, prorate: true })
+
+Step 5: Update local database
+        ↓
+        Set status to "CANCELLED"
+
+Step 6: Show success message
+        ↓
+        Redirect with ?cancelled=true
+```
+
+--------------------------------------------------------------------------------
+
+### PART 6: YOUR CURRENT STATE (January 22, 2026)
+--------------------------------------------------------------------------------
+
+#### Active Subscription from Shopify
+
+```json
+{
+  "id": "gid://shopify/AppSubscription/26968195160",
+  "name": "Basic Plan",
+  "status": "ACTIVE",
+  "test": true,
+  "trialDays": 7,
+  "createdAt": "2026-01-22T18:12:33Z",
+  "currentPeriodEnd": "2026-02-28T18:12:38Z"
+}
+```
+
+#### All Historical Subscriptions (10 total)
+
+| ID | Plan | Status | Created |
+|----|------|--------|---------|
+| 26968195160 | Basic Plan | ACTIVE | Jan 22 |
+| 26962821208 | Titan Plan | PENDING | Jan 21 |
+| 26962853976 | Titan Plan | PENDING | Jan 21 |
+| 26962886744 | Enterprise Plan | PENDING | Jan 21 |
+| 26962755672 | Starter Plan | PENDING | Jan 21 |
+| 26962657368 | Basic Plan | PENDING | Jan 21 |
+| 26962690136 | Basic Plan | PENDING | Jan 21 |
+| 26962591832 | Basic Plan | PENDING | Jan 21 |
+| 26941849688 | Basic Plan | EXPIRED | Jan 16 |
+| 26941882456 | Basic Plan | EXPIRED | Jan 16 |
+
+#### Local Database
+
+```
+BillingSubscription: null (NOTHING SAVED!)
+```
+
+#### The Problem
+
+Subscribe action creates subscription in Shopify but NEVER saves to database.
+Cancel action tries to use database ID but it's null.
+
+--------------------------------------------------------------------------------
+
+### PART 7: RESEARCH SOURCES SUMMARY
+--------------------------------------------------------------------------------
+
+#### Context7 (Shopify GraphQL Admin API 2025-07)
 - AppSubscription object fields
 - appSubscriptionCancel mutation
 - currentAppInstallation query
 - AppSubscriptionStatus enum values
 
-### Official Documentation
+#### Official Documentation
 - https://shopify.dev/docs/api/shopify-app-remix/v2/apis/billing
 - https://shopify.dev/docs/api/admin-graphql/latest/mutations/appSubscriptionCancel
 - https://shopify.dev/docs/api/admin-graphql/latest/objects/appsubscription
+- https://shopify.dev/docs/apps/build/purchase-options/subscriptions/subscriptions-app/core-system-components
 
-### GitHub Issues
-- #708 - Test Mode Issues
+#### GitHub Issues
+- #708 - Test Mode Issues (Staff Plan stores)
 - #473 - 401 Errors in Actions
 - #476 - returnUrl Session Loss
 - #420 - Billing Loop
 - #1064 - Limited Cancel Response Fields
 
-### Community Forums
-- InvalidTransitionError discussion
-- Apps without public distribution error
-- Webhook delays discussion
-- Test charges currentPeriodEnd issue
+#### Community Forums
+- https://community.shopify.dev/t/recurringapplicationcharge-invalidtransitionerror-when-canceling-app-subscription/22015
+- https://community.shopify.dev/t/appsubscriptioncancel-errors-with-apps-without-a-public-distribution-cannot-use-the-billing-api/11897
+- https://community.shopify.dev/t/clarifying-app-subscriptions-update-webhook-behavior-in-the-billing-system/25467
+- https://community.shopify.com/c/billing-api/graphql-appsubscriptioncreate-mutation-with-quot-test-true-quot/td-p/552952
+
+#### Tutorials & Guides
+- https://docs.gadget.dev/guides/plugins/shopify/billing
+- https://magecomp.com/blog/implement-billing-plan-with-trial-shopify-remix-app/
+- https://github.com/marktiddy/Shopify-Remix-Billing-Demo
+- https://dev.to/memahesh/how-to-store-user-data-in-shopify-app-2m86
+- https://www.prisma.io/docs/guides/shopify
 
 ================================================================================
