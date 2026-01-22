@@ -148,14 +148,25 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
     `);
     const subscriptionData = await subscriptionResponse.json();
+    console.log("[BILLING] Shopify subscription response:", JSON.stringify(subscriptionData, null, 2));
     const activeSubscriptions = subscriptionData.data?.currentAppInstallation?.activeSubscriptions || [];
     if (activeSubscriptions.length > 0) {
       shopifySubscriptionStatus = activeSubscriptions[0].status;
       shopifySubscriptionName = activeSubscriptions[0].name;
+      console.log("[BILLING] Found active subscription:", shopifySubscriptionName, "status:", shopifySubscriptionStatus);
+    } else {
+      console.log("[BILLING] No active subscriptions found in Shopify response");
     }
   } catch (error) {
     console.error("[BILLING] Error fetching subscription from Shopify:", error);
   }
+
+  // Log all subscription sources for debugging
+  console.log("[BILLING] Subscription status check:", {
+    shopifySubscriptionStatus,
+    hasActivePayment,
+    localDbStatus: subscription?.status,
+  });
 
   // Get the plan name from Shopify, then convert to tier ID
   const currentPlanName = shopifySubscriptionName || appSubscriptions?.[0]?.name || subscription?.planName || null;
@@ -443,8 +454,14 @@ export default function Billing() {
     []
   );
 
-  // Check if subscription is truly active (from Shopify, not just our database)
-  const hasActiveSubscription = shopifySubscriptionStatus === "ACTIVE" || hasActivePayment;
+  // Check if subscription is active from ANY source:
+  // 1. Shopify GraphQL activeSubscriptions (most accurate)
+  // 2. billing.check() hasActivePayment
+  // 3. Our local database status
+  const hasActiveSubscription =
+    shopifySubscriptionStatus === "ACTIVE" ||
+    hasActivePayment ||
+    subscription?.status === "ACTIVE";
   const currentTier = PRICING_TIERS.find((t) => t.id === currentTierId);
 
   const handleSubscribe = (tierId: string) => {
