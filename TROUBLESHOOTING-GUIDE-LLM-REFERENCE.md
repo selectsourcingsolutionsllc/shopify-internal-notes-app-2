@@ -120,6 +120,7 @@ cat extensions/*/shopify.extension.toml | grep module
 22. [App Store Approval Preparation - API VERSION & BILLING FIXES](#22-app-store-approval-preparation---api-version--billing-fixes-january-13-2026)
 23. [Billing Button 500 Error and Iframe Redirect - THE TRIAL BUTTON FIX](#23-billing-button-500-error-and-iframe-redirect---the-trial-button-fix-january-21-2026)
 24. [Git Revert Without Extension Deploy - THE INVISIBLE REVERT BUG](#24-git-revert-without-extension-deploy---the-invisible-revert-bug-january-21-2026)
+25. [Hold Warning Note Not Appearing - THE MISSING addHoldNoteToOrder BUG](#25-hold-warning-note-not-appearing---the-missing-addholdnotetoorder-bug-january-21-2026)
 
 ---
 
@@ -2172,6 +2173,149 @@ if (testData.data?.appSubscriptionCreate?.userErrors?.length > 0) {
 | `IS_TEST_BILLING` | `true` | Required for dev stores |
 
 **Critical**: `IS_TEST_BILLING=true` is REQUIRED for development stores. Without it, Shopify rejects all billing requests because dev stores can only accept test charges.
+
+---
+
+---
+
+## 25. Hold Warning Note Not Appearing - THE MISSING addHoldNoteToOrder BUG (January 21, 2026)
+
+### THE PROBLEM
+
+**Symptom**: When a user views an order with products that have notes, the fulfillment hold IS applied correctly, but the "⚠️ FULFILLMENT BLOCKED⚠️" warning note is NOT added to the order.
+
+**What User Expected**: Order should have a visible note warning staff that it's blocked.
+
+**What Actually Happened**: Hold applied (correct), but no note visible on order timeline.
+
+### WHY THIS WAS SO FRUSTRATING
+
+The user correctly pointed out: **"I had the app COMPLETED AND 100% FUNCTIONAL which means i had it at 100% at some point. so there should not have to be any expirementing! you NEED TO FIND OUT HOW THE COMPLETED VERSION WAS!"**
+
+This was NOT a new feature - it HAD worked before. The solution was in the git history!
+
+### ROOT CAUSE: OVERLY AGGRESSIVE CODE REMOVAL
+
+**Commit `80a7d39` (January 14, 2026)** tried to fix a bug where the warning note was being re-added after a user acknowledged notes and left the page. The "fix" was too aggressive:
+
+```typescript
+// BEFORE commit 80a7d39 (worked correctly):
+if (holdResult.success && holdResult.results.length > 0) {
+  await addHoldNoteToOrder(admin, orderGid);  // Added note on every hold
+}
+
+// AFTER commit 80a7d39 (BROKEN):
+if (holdResult.success && holdResult.results.length > 0) {
+  // NOTE: We do NOT re-add the warning note here.
+  // Once removed by acknowledgment, it stays removed.
+}
+```
+
+**The Bug**: This removed ALL note additions, including first-time holds! The comment said "don't RE-add" but the code removed ALL additions.
+
+### THE CORRECT FIX
+
+Only add the note on FIRST-TIME holds, not on re-applications after session change:
+
+```typescript
+// app/routes/api.public.check-hold.tsx
+
+import { addHoldNoteToOrder } from "./webhooks";
+
+// In the hold application logic:
+if (holdResult.success && holdResult.results.length > 0) {
+  console.log("[CHECK-HOLD] Successfully applied hold to", holdResult.results.length, "fulfillment orders");
+
+  // Only add warning note on FIRST-TIME hold (no previous acknowledgments)
+  // If acknowledgementsCleared is true, user previously acknowledged and left - don't re-add note
+  if (!acknowledgementsCleared) {
+    try {
+      const orderGid = `gid://shopify/Order/${numericOrderId}`;
+      await addHoldNoteToOrder(admin, orderGid);
+      console.log("[CHECK-HOLD] Added hold warning note to order (first-time hold)");
+    } catch (noteError) {
+      console.error("[CHECK-HOLD] Failed to add hold note:", noteError);
+      // Continue even if note fails - hold is more important
+    }
+  } else {
+    console.log("[CHECK-HOLD] Skipping note - this is a re-application after session change");
+  }
+
+  return json({ holdApplied: true, acknowledgementsCleared, reason: "hold re-applied" });
+}
+```
+
+### THE KEY VARIABLE: `acknowledgementsCleared`
+
+The `acknowledgementsCleared` variable tells us the scenario:
+
+| Value | Meaning | Should Add Note? |
+|-------|---------|------------------|
+| `false` | No previous acknowledgments exist (first time viewing order) | YES - Add note |
+| `true` | User previously acknowledged, left, and came back | NO - Note was already added before |
+
+### HOW WE FOUND THE SOLUTION
+
+1. **Searched git history** for "addHoldNoteToOrder":
+   ```bash
+   git log --all -p -S "addHoldNoteToOrder" -- "*.tsx"
+   ```
+
+2. **Found commit `29e5347`** (January 10) which had the note addition working in check-hold
+
+3. **Found commit `80a7d39`** (January 14) which REMOVED it
+
+4. **Understood the INTENT** of 80a7d39 - prevent re-adding note after acknowledgment
+
+5. **Wrote the CORRECT fix** - use `acknowledgementsCleared` flag to distinguish first-time vs re-application
+
+### WHY THE WEBHOOK WASN'T ADDING THE NOTE EITHER
+
+The ORDERS_CREATE webhook also has `addHoldNoteToOrder`, but:
+1. Webhook can be delayed by 1-3 minutes
+2. By the time webhook fires, user may have already viewed and acknowledged the order
+3. The check-hold endpoint (called when user views order) is the reliable place to add the note
+
+### LOGS TO LOOK FOR
+
+**Working behavior**:
+```
+[CHECK-HOLD] Successfully applied hold to 1 fulfillment orders
+[CHECK-HOLD] Added hold warning note to order (first-time hold)
+```
+
+**Session change (correct behavior - no note)**:
+```
+[CHECK-HOLD] Different session - user left and came back, clearing old acknowledgments
+[CHECK-HOLD] Skipping note - this is a re-application after session change
+```
+
+### KEY FILES
+
+| File | Role |
+|------|------|
+| `app/routes/api.public.check-hold.tsx` | THE FIX LOCATION - adds note on first-time hold |
+| `app/routes/webhooks.tsx` | Contains `addHoldNoteToOrder` function |
+| `conversation_transcript.txt` | Contains full debugging session history |
+
+### LESSON LEARNED
+
+> **When the user says "it worked before", FIND THE WORKING VERSION!**
+>
+> Don't experiment or guess. Use git history:
+> - `git log --oneline` - See recent commits
+> - `git log -p -S "keyword"` - Find commits that added/removed code containing keyword
+> - `git show <commit>:path/to/file` - See file at specific commit
+>
+> The answer is in the history. FIND IT.
+
+### COMMITS RELATED TO THIS BUG
+
+| Commit | Date | Description |
+|--------|------|-------------|
+| `29e5347` | Jan 10 | Working version - check-hold adds note |
+| `80a7d39` | Jan 14 | BUG INTRODUCED - removed all note additions |
+| `711d577` | Jan 21 | FIX - only add note when `!acknowledgementsCleared` |
 
 ---
 
