@@ -5517,3 +5517,514 @@ Known Issues Researched:
 - GitHub Issue #431 - Free tier handling
 
 ================================================================================
+
+
+================================================================================
+CONTEXT7 LIBRARY REFERENCES FOR BILLING SUMMARY PAGE
+================================================================================
+
+## Libraries Identified
+
+### 1. Shopify GraphQL Admin API (2025-07)
+- Context7 ID: /websites/shopify_dev_api_admin-graphql_2025-07
+- Code Snippets: 12,376
+- Source Reputation: High
+
+### 2. Polaris React
+- Context7 ID: /websites/polaris-react_shopify
+- Code Snippets: 72,072
+- Source Reputation: High
+
+### 3. Remix Framework
+- Context7 ID: /websites/v2_remix_run
+- Code Snippets: 966
+- Source Reputation: High
+- Benchmark Score: 89.4
+
+================================================================================
+## GRAPHQL API DOCUMENTATION
+================================================================================
+
+### AppSubscription Object Fields
+Source: https://shopify.dev/docs/api/admin-graphql/2025-07/objects/AppSubscription
+
+Fields available:
+- createdAt (DateTime!) - When subscription was created
+- currentPeriodEnd (DateTime) - When current period ends (null if inactive)
+- id (ID!) - Globally-unique ID
+- lineItems ([AppSubscriptionLineItem!]!) - Plans attached to subscription
+- name (String!) - Name of the subscription
+- returnUrl (URL!) - Redirect URL after approval
+- status (AppSubscriptionStatus!) - Current status
+- test (Boolean!) - Whether this is a test transaction
+- trialDays (Int!) - Number of free trial days
+
+### AppSubscriptionStatus Enum Values
+- ACTIVE - Approved and being billed
+- CANCELLED - Cancelled by app (terminal)
+- DECLINED - Declined by merchant (terminal)
+- EXPIRED - Not approved within 2 days (terminal)
+- FROZEN - On hold due to non-payment
+- PENDING - Pending merchant approval
+
+### AppInstallation Object Fields
+Source: https://shopify.dev/docs/api/admin-graphql/2025-07/objects/AppInstallation
+
+Key fields for billing:
+- activeSubscriptions ([AppSubscription!]!) - Active recurring subscriptions
+- allSubscriptions (AppSubscriptionConnection!) - ALL subscriptions (including cancelled)
+- launchUrl (URL!) - URL to launch the application (USE THIS FOR RETURN URLs!)
+- oneTimePurchases (AppPurchaseOneTimeConnection!) - One-time purchases
+
+### currentAppInstallation Query
+Source: https://shopify.dev/docs/api/admin-graphql/2025-07/queries/currentAppInstallation
+
+Returns AppInstallation for currently authenticated app.
+
+Example:
+```graphql
+{
+  currentAppInstallation {
+    activeSubscriptions {
+      id
+      name
+      status
+      trialDays
+      createdAt
+      currentPeriodEnd
+      lineItems {
+        plan {
+          pricingDetails {
+            ... on AppRecurringPricing {
+              interval
+              price { amount currencyCode }
+            }
+          }
+        }
+      }
+    }
+    allSubscriptions(first: 10) {
+      edges {
+        node {
+          id
+          name
+          status
+          createdAt
+        }
+      }
+    }
+    launchUrl
+  }
+}
+```
+
+### appSubscriptionCreate Mutation
+Source: https://shopify.dev/docs/api/admin-graphql/2025-07/mutations/appSubscriptionCreate
+
+Arguments:
+- lineItems (AppSubscriptionLineItemInput!) - Required - Pricing plans
+- name (String!) - Required - Descriptive name
+- returnUrl (URL!) - Required - Redirect URL after approval
+- replacementBehavior (AppSubscriptionReplacementBehavior) - Optional - How to handle existing subscription
+- test (Boolean) - Optional - Test transaction flag (default: false)
+- trialDays (Int) - Optional - Free trial days
+
+Returns:
+- appSubscription (AppSubscription) - The new subscription
+- confirmationUrl (URL) - URL for merchant to approve/decline
+- userErrors ([UserError!]!) - Any errors
+
+### appSubscriptionCancel Mutation
+Source: https://shopify.dev/docs/api/admin-graphql/2025-07/mutations/appSubscriptionCancel
+
+Arguments:
+- id (ID!) - Required - Subscription ID to cancel
+- prorate (Boolean) - Optional - Issue prorated credits (default: false)
+
+Returns:
+- appSubscription (AppSubscription) - The cancelled subscription
+- userErrors ([UserError!]!) - Any errors
+
+================================================================================
+## POLARIS REACT COMPONENTS
+================================================================================
+
+### Badge Component
+Source: https://polaris-react.shopify.com/components/feedback-indicators/badge
+
+Use tone prop (not status - that is deprecated):
+```jsx
+<Badge tone="success">Active</Badge>
+<Badge tone="warning">Trial</Badge>
+<Badge tone="critical">Expired</Badge>
+<Badge>Cancelled</Badge>  // default/neutral
+```
+
+### DescriptionList Component
+Source: https://polaris-react.shopify.com/components/lists/description-list
+
+For displaying term/description pairs:
+```jsx
+<DescriptionList
+  items={[
+    { term: "Plan", description: "Pro Plan" },
+    { term: "Price", description: "$9.99/month" },
+    { term: "Status", description: "Active" },
+    { term: "Next billing", description: "Feb 21, 2026" },
+  ]}
+/>
+```
+
+### Banner Component
+Source: https://polaris-react.shopify.com/components/feedback-indicators/banner
+
+Use tone prop (not status):
+```jsx
+<Banner tone="warning">
+  3 days remaining in your free trial
+</Banner>
+<Banner tone="critical">
+  Payment failed - please update your billing information
+</Banner>
+<Banner tone="info">
+  Your subscription is active
+</Banner>
+```
+
+### Button Component
+Source: https://polaris-react.shopify.com/components/actions/button
+
+New v12 syntax uses variant and tone:
+```jsx
+<Button variant="primary">Upgrade Plan</Button>
+<Button variant="primary" tone="critical">Cancel Subscription</Button>
+<Button variant="plain">Change Plan</Button>
+<Button>Default Button</Button>
+```
+
+### Layout Components
+Source: https://polaris-react.shopify.com/components/layout-and-structure/layout
+
+```jsx
+<Page title="Billing">
+  <Layout>
+    <Layout.Section>
+      <Card>
+        {/* Main content */}
+      </Card>
+    </Layout.Section>
+    <Layout.Section variant="oneThird">
+      <Card>
+        {/* Sidebar content */}
+      </Card>
+    </Layout.Section>
+  </Layout>
+</Page>
+```
+
+### BlockStack and InlineStack
+For vertical and horizontal layouts:
+```jsx
+<BlockStack gap="400">
+  <Text>Item 1</Text>
+  <Text>Item 2</Text>
+</BlockStack>
+
+<InlineStack gap="300" align="space-between">
+  <Text>Left</Text>
+  <Badge tone="success">Right</Badge>
+</InlineStack>
+```
+
+================================================================================
+## REMIX PATTERNS
+================================================================================
+
+### Loader Pattern
+Source: https://v2.remix.run/docs/route/loader
+
+```jsx
+import { json } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
+
+export async function loader({ request }) {
+  // Fetch data
+  const data = await fetchData();
+  return json(data);
+}
+
+export default function Component() {
+  const data = useLoaderData<typeof loader>();
+  return <div>{/* Use data */}</div>;
+}
+```
+
+### Action Pattern
+Source: https://v2.remix.run/docs/discussion/data-flow
+
+```jsx
+import { json, redirect } from "@remix-run/node";
+import { Form, useActionData } from "@remix-run/react";
+
+export async function action({ request }) {
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "cancel") {
+    // Cancel subscription
+    return json({ success: true });
+  }
+
+  return json({ error: "Unknown action" });
+}
+
+export default function Component() {
+  const actionData = useActionData<typeof action>();
+
+  return (
+    <Form method="post">
+      <input type="hidden" name="intent" value="cancel" />
+      <button type="submit">Cancel</button>
+    </Form>
+  );
+}
+```
+
+================================================================================
+## COMPLETE IMPLEMENTATION CODE REFERENCE
+================================================================================
+
+### Full Billing Status Page Structure
+
+```tsx
+// app/routes/app.billing.tsx
+import { json } from "@remix-run/node";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import { useLoaderData, Form } from "@remix-run/react";
+import {
+  Page,
+  Layout,
+  Card,
+  BlockStack,
+  InlineStack,
+  Text,
+  Badge,
+  DescriptionList,
+  Banner,
+  Button,
+} from "@shopify/polaris";
+import { authenticate } from "../shopify.server";
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const { admin } = await authenticate.admin(request);
+
+  const response = await admin.graphql(`
+    query {
+      currentAppInstallation {
+        launchUrl
+        activeSubscriptions {
+          id
+          name
+          status
+          test
+          trialDays
+          createdAt
+          currentPeriodEnd
+          lineItems {
+            plan {
+              pricingDetails {
+                ... on AppRecurringPricing {
+                  interval
+                  price {
+                    amount
+                    currencyCode
+                  }
+                }
+              }
+            }
+          }
+        }
+        allSubscriptions(first: 10) {
+          edges {
+            node {
+              id
+              name
+              status
+              createdAt
+              test
+            }
+          }
+        }
+      }
+    }
+  `);
+
+  const data = await response.json();
+  const installation = data.data?.currentAppInstallation;
+  const activeSubscription = installation?.activeSubscriptions?.[0] || null;
+  const allSubscriptions = installation?.allSubscriptions?.edges || [];
+
+  // Calculate trial status
+  let trialInfo = { inTrial: false, daysRemaining: 0 };
+  if (activeSubscription && activeSubscription.trialDays > 0) {
+    const createdAt = new Date(activeSubscription.createdAt);
+    const now = new Date();
+    const elapsedMs = now.getTime() - createdAt.getTime();
+    const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+    const remaining = Math.max(0, Math.round(activeSubscription.trialDays - elapsedDays));
+    trialInfo = { inTrial: remaining > 0, daysRemaining: remaining };
+  }
+
+  return json({
+    activeSubscription,
+    allSubscriptions,
+    trialInfo,
+    launchUrl: installation?.launchUrl,
+  });
+}
+
+export async function action({ request }: ActionFunctionArgs) {
+  const { admin } = await authenticate.admin(request);
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "cancel") {
+    const subscriptionId = formData.get("subscriptionId") as string;
+
+    await admin.graphql(`
+      mutation CancelSubscription($id: ID!) {
+        appSubscriptionCancel(id: $id, prorate: true) {
+          appSubscription { id status }
+          userErrors { field message }
+        }
+      }
+    `, { variables: { id: subscriptionId } });
+
+    return json({ cancelled: true });
+  }
+
+  return json({ error: "Unknown action" });
+}
+
+export default function BillingPage() {
+  const { activeSubscription, allSubscriptions, trialInfo } = useLoaderData<typeof loader>();
+
+  // Get status badge tone
+  const getStatusTone = (status: string) => {
+    switch (status) {
+      case "ACTIVE": return "success";
+      case "FROZEN": return "warning";
+      case "CANCELLED":
+      case "DECLINED":
+      case "EXPIRED": return "critical";
+      default: return undefined;
+    }
+  };
+
+  // Format price
+  const formatPrice = (sub: any) => {
+    const pricing = sub?.lineItems?.[0]?.plan?.pricingDetails;
+    if (!pricing?.price) return "N/A";
+    return `$${pricing.price.amount}/${pricing.interval === "EVERY_30_DAYS" ? "month" : "year"}`;
+  };
+
+  return (
+    <Page title="Billing & Subscription">
+      <Layout>
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
+                <Text variant="headingMd" as="h2">Current Plan</Text>
+                {activeSubscription && (
+                  <Badge tone={getStatusTone(activeSubscription.status)}>
+                    {activeSubscription.status}
+                  </Badge>
+                )}
+              </InlineStack>
+
+              {trialInfo.inTrial && (
+                <Banner tone="warning">
+                  {trialInfo.daysRemaining} days remaining in your free trial
+                </Banner>
+              )}
+
+              {activeSubscription ? (
+                <>
+                  <DescriptionList
+                    items={[
+                      { term: "Plan", description: activeSubscription.name },
+                      { term: "Price", description: formatPrice(activeSubscription) },
+                      { term: "Status", description: activeSubscription.status },
+                      {
+                        term: "Next billing date",
+                        description: activeSubscription.currentPeriodEnd
+                          ? new Date(activeSubscription.currentPeriodEnd).toLocaleDateString()
+                          : "N/A"
+                      },
+                    ]}
+                  />
+
+                  <InlineStack gap="300">
+                    <Button>Change Plan</Button>
+                    <Form method="post">
+                      <input type="hidden" name="intent" value="cancel" />
+                      <input type="hidden" name="subscriptionId" value={activeSubscription.id} />
+                      <Button variant="primary" tone="critical" submit>
+                        Cancel Subscription
+                      </Button>
+                    </Form>
+                  </InlineStack>
+                </>
+              ) : (
+                <BlockStack gap="300">
+                  <Text>You are currently on the free plan.</Text>
+                  <Button variant="primary">Upgrade Now</Button>
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text variant="headingMd" as="h2">Billing History</Text>
+              {allSubscriptions.length > 0 ? (
+                allSubscriptions.map(({ node: sub }: any) => (
+                  <InlineStack key={sub.id} align="space-between">
+                    <Text>{sub.name}</Text>
+                    <InlineStack gap="200">
+                      <Text variant="bodySm" tone="subdued">
+                        {new Date(sub.createdAt).toLocaleDateString()}
+                      </Text>
+                      <Badge tone={getStatusTone(sub.status)}>{sub.status}</Badge>
+                    </InlineStack>
+                  </InlineStack>
+                ))
+              ) : (
+                <Text tone="subdued">No billing history available.</Text>
+              )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+      </Layout>
+    </Page>
+  );
+}
+```
+
+================================================================================
+## KEY IMPLEMENTATION NOTES FROM CONTEXT7
+================================================================================
+
+1. Use currentAppInstallation query (not appInstallation with ID)
+2. launchUrl field is available on AppInstallation - USE THIS for returnUrl
+3. activeSubscriptions returns array of active subscriptions
+4. allSubscriptions returns ALL subscriptions including cancelled (use for history)
+5. Badge uses tone prop (success, warning, critical) - NOT status (deprecated)
+6. Banner uses tone prop - NOT status (deprecated)
+7. Button uses variant and tone props in v12
+8. appSubscriptionCancel takes id and optional prorate boolean
+
+================================================================================
