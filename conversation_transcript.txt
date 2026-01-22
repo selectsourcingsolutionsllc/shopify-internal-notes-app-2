@@ -6126,3 +6126,223 @@ User requested subtle, modern styling instead of gaudy green borders:
 | `a63d464` | **THE FIX** - Tier ID approach with subtle styling |
 
 ================================================================================
+
+================================================================================
+SESSION: January 22, 2026
+BILLING CANCELLATION RESEARCH & TESTING CHECKLIST
+================================================================================
+
+## CONTEXT
+
+User requested cancel subscription functionality. Research was conducted on:
+1. Context7 (Shopify GraphQL Admin API docs)
+2. Web search (GitHub issues, community forums, official docs)
+3. Current subscription state (via debug logging)
+
+## CURRENT SUBSCRIPTION STATE (from Railway logs)
+
+**Active Subscription:**
+- ID: `gid://shopify/AppSubscription/26968195160`
+- Name: Basic Plan
+- Status: ACTIVE
+- Test: true (this is a test charge)
+- Created: Jan 22, 2026
+
+**Local Database:** null (subscription NOT saved - THIS IS THE PROBLEM)
+
+## KEY FINDING: SUBSCRIPTION NOT SAVED TO DATABASE
+
+The subscribe action creates subscription in Shopify but NEVER saves the ID to local database.
+The cancel action tries to read subscriptionId from database but it's null.
+
+**The Fix:** Save subscription to database when user returns from Shopify approval page.
+
+================================================================================
+## BILLING TESTING CHECKLIST - ALL KNOWN ISSUES
+================================================================================
+
+These issues were found during research. ALL must be tested before app store submission.
+
+### Issue #1: InvalidTransitionError when Cancelling
+- [ ] **TEST:** Try to cancel a subscription that is ACTIVE → Should succeed
+- [ ] **TEST:** Try to cancel a subscription that is CANCELLED → Should handle gracefully
+- [ ] **TEST:** Try to cancel a subscription that is PENDING → Should handle gracefully
+- [ ] **TEST:** Try to cancel a subscription that is EXPIRED → Should handle gracefully
+- [ ] **FIX:** Check subscription status BEFORE calling cancel
+- **Source:** https://community.shopify.dev/t/recurringapplicationcharge-invalidtransitionerror-when-canceling-app-subscription/22015
+
+### Issue #2: "Apps without public distribution cannot use Billing API"
+- [ ] **TEST:** Verify appSubscriptionCancel works on your app
+- [ ] **TEST:** If error occurs, check if app needs to be public/draft
+- [ ] **WORKAROUND:** Use REST API for test charges if GraphQL fails
+- **Source:** https://community.shopify.dev/t/appsubscriptioncancel-errors-with-apps-without-a-public-distribution-cannot-use-the-billing-api/11897
+
+### Issue #3: Staff Plan Stores Always Create Test Charges
+- [ ] **TEST:** Install app on Staff Plan store → Should create test charge
+- [ ] **TEST:** Verify isTest handling doesn't break on Staff Plan stores
+- [ ] **FIX:** Detect Staff Plan stores via Shop API `plan` field
+- [ ] **FIX:** Adjust billing behavior for Staff Plan stores
+- **Source:** https://github.com/Shopify/shopify-app-template-remix/issues/708
+
+### Issue #4: isTest Parameter Mismatch
+- [ ] **TEST:** Create subscription with test:true, check with isTest:true → Should find it
+- [ ] **TEST:** Create subscription with test:true, check with isTest:false → Should NOT find it
+- [ ] **FIX:** Ensure IS_TEST_BILLING env var matches how subscriptions are created
+- [ ] **FIX:** For production, set IS_TEST_BILLING=false
+- **Source:** https://community.shopify.com/t/shopify-app-fails-the-review-if-istest-false-in-the-billing-require/333583
+
+### Issue #5: Test Charges Have Wrong currentPeriodEnd
+- [ ] **TEST:** Create test subscription → Check currentPeriodEnd value
+- [ ] **VERIFY:** Test charges return currentPeriodEnd as seconds after creation (BY DESIGN)
+- [ ] **FIX:** Don't rely on currentPeriodEnd for test subscriptions
+- [ ] **FIX:** Use different logic for test vs real subscriptions
+- **Source:** https://community.shopify.com/c/billing-api/graphql-appsubscriptioncreate-mutation-with-quot-test-true-quot/td-p/552952
+
+### Issue #6: billing.cancel() Returns Limited Fields
+- [ ] **TEST:** Call billing.cancel() → Check what fields are returned
+- [ ] **VERIFY:** Only returns id, name, test (NOT currentPeriodEnd)
+- [ ] **FIX:** If you need more fields, query subscription separately after cancel
+- **Source:** https://github.com/Shopify/shopify-app-js/issues/1064
+
+### Issue #7: 401 Errors When Calling Billing from Action
+- [ ] **TEST:** Call billing.check() from loader → Should work
+- [ ] **TEST:** Call billing.check() from action → May return 401
+- [ ] **TEST:** Call billing.cancel() from action → Verify it works
+- [ ] **FIX:** If 401 errors occur, check session handling
+- **Source:** https://github.com/Shopify/shopify-app-template-remix/issues/473
+
+### Issue #8: returnUrl Session Loss
+- [ ] **TEST:** Subscribe → Approve on Shopify → Return to app → Verify still authenticated
+- [ ] **TEST:** Verify session persists after redirect
+- [ ] **FIX:** Use absolute URLs for returnUrl
+- [ ] **FIX:** Ensure SHOPIFY_APP_URL is correct (no trailing spaces!)
+- **Source:** https://github.com/Shopify/shopify-app-js/issues/476
+
+### Issue #9: Billing Loop for App Reviewers
+- [ ] **TEST:** Approve subscription → Should NOT loop back to billing page
+- [ ] **TEST:** After approval, hasActivePayment should be true
+- [ ] **FIX:** Verify test/prod mode matches between create and check
+- [ ] **FIX:** Save subscription to database after approval
+- **Source:** https://github.com/Shopify/shopify-api-js/issues/420
+
+### Issue #10: Webhook Delays (APP_SUBSCRIPTIONS_UPDATE)
+- [ ] **TEST:** Cancel subscription → Check how long webhook takes to arrive
+- [ ] **VERIFY:** Webhooks can take several minutes
+- [ ] **FIX:** Don't rely solely on webhooks for real-time status
+- [ ] **FIX:** Query API directly for critical operations
+- **Source:** https://community.shopify.dev/t/clarifying-app-subscriptions-update-webhook-behavior-in-the-billing-system/25467
+
+================================================================================
+## IMPLEMENTATION FIXES NEEDED
+================================================================================
+
+### Fix #1: Save Subscription to Database After Approval
+```typescript
+// In loader, after user returns from Shopify approval:
+if (hasActivePayment && appSubscriptions.length > 0) {
+  await prisma.billingSubscription.upsert({
+    where: { shopDomain: session.shop },
+    create: {
+      shopDomain: session.shop,
+      subscriptionId: appSubscriptions[0].id,
+      planName: appSubscriptions[0].name,
+      status: "ACTIVE",
+    },
+    update: {
+      subscriptionId: appSubscriptions[0].id,
+      planName: appSubscriptions[0].name,
+      status: "ACTIVE",
+    },
+  });
+}
+```
+
+### Fix #2: Cancel Using Correct Subscription ID
+```typescript
+// Option A: Use billing.check() to get ID (recommended)
+const { appSubscriptions } = await billing.check({ plans: ALL_PLANS, isTest });
+if (appSubscriptions.length > 0) {
+  await billing.cancel({
+    subscriptionId: appSubscriptions[0].id,
+    isTest,
+    prorate: true,
+  });
+}
+
+// Option B: Use saved ID from database (if saved)
+const subscription = await prisma.billingSubscription.findUnique({
+  where: { shopDomain: session.shop },
+});
+if (subscription?.subscriptionId) {
+  await billing.cancel({
+    subscriptionId: subscription.subscriptionId,
+    isTest,
+    prorate: true,
+  });
+}
+```
+
+### Fix #3: Check Status Before Cancelling
+```typescript
+// Query Shopify for current status
+const { appSubscriptions } = await billing.check({ plans: ALL_PLANS, isTest });
+const subscription = appSubscriptions[0];
+
+if (!subscription) {
+  return json({ error: "No active subscription found" });
+}
+
+// Only cancel if ACTIVE (prevents InvalidTransitionError)
+// Note: billing.check() only returns ACTIVE subscriptions anyway
+await billing.cancel({
+  subscriptionId: subscription.id,
+  isTest,
+  prorate: true,
+});
+```
+
+### Fix #4: Add `test` Field to BillingSubscription Schema (Optional)
+```prisma
+model BillingSubscription {
+  id                String   @id @default(cuid())
+  shopDomain        String   @unique
+  subscriptionId    String   @unique
+  planName          String?
+  status            String   // ACTIVE, CANCELLED, EXPIRED, PENDING
+  test              Boolean  @default(false)  // ADD THIS FIELD
+  trialEndsAt       DateTime?
+  currentPeriodEnd  DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+```
+
+================================================================================
+## RESEARCH SOURCES
+================================================================================
+
+### Context7 (Shopify GraphQL Admin API 2025-07)
+- AppSubscription object fields
+- appSubscriptionCancel mutation
+- currentAppInstallation query
+- AppSubscriptionStatus enum values
+
+### Official Documentation
+- https://shopify.dev/docs/api/shopify-app-remix/v2/apis/billing
+- https://shopify.dev/docs/api/admin-graphql/latest/mutations/appSubscriptionCancel
+- https://shopify.dev/docs/api/admin-graphql/latest/objects/appsubscription
+
+### GitHub Issues
+- #708 - Test Mode Issues
+- #473 - 401 Errors in Actions
+- #476 - returnUrl Session Loss
+- #420 - Billing Loop
+- #1064 - Limited Cancel Response Fields
+
+### Community Forums
+- InvalidTransitionError discussion
+- Apps without public distribution error
+- Webhook delays discussion
+- Test charges currentPeriodEnd issue
+
+================================================================================
