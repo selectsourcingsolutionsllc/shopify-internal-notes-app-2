@@ -119,14 +119,87 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // IS_TEST_BILLING must be "true" for development stores (Shopify requires test mode)
   const isTestBilling = process.env.IS_TEST_BILLING === "true";
 
-  const subscription = await prisma.billingSubscription.findUnique({
-    where: { shopDomain: session.shop },
-  });
+  // Check for charge_id in URL - this indicates user just approved billing
+  const url = new URL(request.url);
+  const chargeId = url.searchParams.get("charge_id");
 
   // Check all plans to see if the shop has any active subscription
   const { hasActivePayment, appSubscriptions } = await billing.check({
     plans: ALL_PLANS,
     isTest: isTestBilling,
+  });
+
+  // If user just returned from billing approval, save subscription to database
+  if (chargeId && hasActivePayment && appSubscriptions && appSubscriptions.length > 0) {
+    const activeSubscription = appSubscriptions[0];
+    console.log("[BILLING] User returned from billing approval with charge_id:", chargeId);
+    console.log("[BILLING] Active subscription from Shopify:", JSON.stringify(activeSubscription, null, 2));
+
+    try {
+      // Query Shopify for full subscription details (including test status)
+      const response = await admin.graphql(`
+        query {
+          currentAppInstallation {
+            activeSubscriptions {
+              id
+              name
+              status
+              test
+              trialDays
+              createdAt
+              currentPeriodEnd
+            }
+          }
+        }
+      `);
+      const data = await response.json();
+      const shopifySubscription = data.data?.currentAppInstallation?.activeSubscriptions?.[0];
+
+      if (shopifySubscription) {
+        // Calculate trial end date if trial days exist
+        let trialEndsAt = null;
+        if (shopifySubscription.trialDays && shopifySubscription.trialDays > 0) {
+          const trialEnd = new Date();
+          trialEnd.setDate(trialEnd.getDate() + shopifySubscription.trialDays);
+          trialEndsAt = trialEnd;
+        }
+
+        // Upsert the subscription to database (update if exists, create if not)
+        await prisma.billingSubscription.upsert({
+          where: { shopDomain: session.shop },
+          update: {
+            subscriptionId: shopifySubscription.id,
+            chargeId: chargeId,
+            planName: shopifySubscription.name,
+            status: shopifySubscription.status,
+            test: shopifySubscription.test || false,
+            trialStartedAt: shopifySubscription.trialDays > 0 ? new Date() : null,
+            trialEndsAt: trialEndsAt,
+            currentPeriodEnd: shopifySubscription.currentPeriodEnd ? new Date(shopifySubscription.currentPeriodEnd) : null,
+          },
+          create: {
+            shopDomain: session.shop,
+            subscriptionId: shopifySubscription.id,
+            chargeId: chargeId,
+            planName: shopifySubscription.name,
+            status: shopifySubscription.status,
+            test: shopifySubscription.test || false,
+            trialStartedAt: shopifySubscription.trialDays > 0 ? new Date() : null,
+            trialEndsAt: trialEndsAt,
+            currentPeriodEnd: shopifySubscription.currentPeriodEnd ? new Date(shopifySubscription.currentPeriodEnd) : null,
+          },
+        });
+
+        console.log("[BILLING] Subscription saved to database successfully!");
+      }
+    } catch (error) {
+      console.error("[BILLING] Error saving subscription to database:", error);
+    }
+  }
+
+  // Fetch the subscription from database (after potential save above)
+  const subscription = await prisma.billingSubscription.findUnique({
+    where: { shopDomain: session.shop },
   });
 
   // ========== DEBUG: Log all subscription info ==========
@@ -360,21 +433,70 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   if (actionType === "cancel") {
-    const subscription = await prisma.billingSubscription.findUnique({
+    let subscriptionId: string | null = null;
+    let isTestSubscription = isTestBilling;
+
+    // First try to get subscription from local database
+    const dbSubscription = await prisma.billingSubscription.findUnique({
       where: { shopDomain: session.shop },
     });
 
-    if (subscription) {
-      await billing.cancel({
-        subscriptionId: subscription.subscriptionId,
-        isTest: isTestBilling,
-        prorate: true,
-      });
+    if (dbSubscription) {
+      subscriptionId = dbSubscription.subscriptionId;
+      isTestSubscription = dbSubscription.test;
+      console.log("[BILLING] Found subscription in database:", subscriptionId);
+    } else {
+      // Fallback: Query Shopify directly for active subscription
+      console.log("[BILLING] No subscription in database, querying Shopify...");
+      try {
+        const response = await admin.graphql(`
+          query {
+            currentAppInstallation {
+              activeSubscriptions {
+                id
+                name
+                status
+                test
+              }
+            }
+          }
+        `);
+        const data = await response.json();
+        const activeSubscription = data.data?.currentAppInstallation?.activeSubscriptions?.[0];
 
-      await prisma.billingSubscription.update({
-        where: { shopDomain: session.shop },
-        data: { status: "CANCELLED" },
-      });
+        if (activeSubscription) {
+          subscriptionId = activeSubscription.id;
+          isTestSubscription = activeSubscription.test || false;
+          console.log("[BILLING] Found subscription in Shopify:", subscriptionId, "test:", isTestSubscription);
+        }
+      } catch (error) {
+        console.error("[BILLING] Error querying Shopify for subscription:", error);
+      }
+    }
+
+    if (subscriptionId) {
+      try {
+        console.log("[BILLING] Cancelling subscription:", subscriptionId, "isTest:", isTestSubscription);
+        await billing.cancel({
+          subscriptionId: subscriptionId,
+          isTest: isTestSubscription,
+          prorate: true,
+        });
+        console.log("[BILLING] Subscription cancelled successfully!");
+
+        // Update database if subscription exists there
+        if (dbSubscription) {
+          await prisma.billingSubscription.update({
+            where: { shopDomain: session.shop },
+            data: { status: "CANCELLED" },
+          });
+        }
+      } catch (error) {
+        console.error("[BILLING] Error cancelling subscription:", error);
+        throw new Response("Failed to cancel subscription", { status: 500 });
+      }
+    } else {
+      console.log("[BILLING] No subscription found to cancel");
     }
 
     return redirect("/app/billing?cancelled=true");
