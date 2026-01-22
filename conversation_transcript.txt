@@ -6028,3 +6028,101 @@ export default function BillingPage() {
 8. appSubscriptionCancel takes id and optional prorate boolean
 
 ================================================================================
+## ISSUE #27: CURRENT PLAN HIGHLIGHTING - THE TIER ID SOLUTION (January 22, 2026)
+================================================================================
+
+### THE PROBLEM
+
+After implementing billing status page, user requested highlighting the current plan on
+the billing prices page. Initial implementation caused React hydration errors #418/#425.
+
+### THE FAILED APPROACH
+
+Imported plan constants from `.server.ts`:
+```tsx
+import { TITAN_PLAN } from "../shopify.server";
+const PRICING_TIERS = [{ planKey: TITAN_PLAN, ... }];
+const isCurrentPlan = tier.planKey === currentPlan;
+```
+
+**Result:**
+- Server: `tier.planKey = "Titan Plan"` (import works)
+- Client: `tier.planKey = undefined` (.server.ts stripped from bundle!)
+- HYDRATION MISMATCH!
+
+### THE USER'S BRILLIANT INSIGHT
+
+The user asked a simple question that led to the solution:
+
+> "How is the 'Switch to Basic' button linked to the correct pricing page?"
+
+Looking at the button:
+```tsx
+<input type="hidden" name="tierId" value={tier.id} />  // Just "basic"
+```
+
+The user then asked:
+> "Can't you use the same logic or similar logic to link the highlighted card?"
+
+**THE USER WAS RIGHT!** The button already used `tier.id` (simple string) successfully.
+We just needed to use the same pattern for highlighting.
+
+### THE SIMPLE SOLUTION (USER'S IDEA)
+
+**Step 1: Use hardcoded strings instead of imports**
+```tsx
+const PRICING_TIERS = [
+  { id: "titan", planKey: "Titan Plan", ... },  // Simple string, not import!
+];
+```
+
+**Step 2: Loader converts plan name → tier ID**
+```tsx
+const currentPlanName = appSubscriptions?.[0]?.name;  // "Titan Plan"
+const currentTierId = PRICING_TIERS.find(t => t.planKey === currentPlanName)?.id;  // "titan"
+return json({ currentTierId });
+```
+
+**Step 3: Component compares simple string IDs**
+```tsx
+const isCurrentPlan = tier.id === currentTierId;  // "titan" === "titan"
+```
+
+### WHY IT WORKS
+
+Both `tier.id` and `currentTierId` are plain strings that exist on BOTH server and client.
+No imports from `.server.ts` needed in the component code.
+
+### SUBTLE STYLING (USER'S REQUEST)
+
+User requested subtle, modern styling instead of gaudy green borders:
+- Blue accent line at top (3px #2C6ECB)
+- "Current" badge (info tone)
+- "Current Plan" disabled button
+
+### TIMELINE
+
+1. User requested billing status page → implemented successfully
+2. User requested current plan highlighting → hydration errors
+3. AI spent hours trying complex fixes (moving dates to loader, suppressHydrationWarning, etc.)
+4. User reverted to checkpoint out of frustration
+5. User asked about how button works → spotted the simpler solution
+6. Implemented tier ID approach → works perfectly!
+
+### KEY LESSON
+
+> **LOOK AT WHAT ALREADY WORKS!**
+>
+> The subscribe button already used tier.id successfully.
+> The user spotted this pattern and suggested using it for highlighting.
+> Sometimes the person asking questions sees things the "expert" misses.
+
+### COMMITS
+
+| Commit | Description |
+|--------|-------------|
+| `4dfd7c8` | Checkpoint v1.0-checkpoint-jan21-2026 |
+| `435c9dc` | Restored billing status page |
+| `a63d464` | **THE FIX** - Tier ID approach with subtle styling |
+
+================================================================================
