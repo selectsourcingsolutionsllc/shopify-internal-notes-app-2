@@ -102,9 +102,49 @@ model BillingSubscription {
   id                String   @id @default(cuid())
   shopDomain        String   @unique
   subscriptionId    String   @unique
-  status            String   // ACTIVE, CANCELLED, EXPIRED, PENDING
+  chargeId          String?  // Shopify's charge_id from return URL
+  planName          String?  // e.g., "Starter Plan", "Pro Plan", etc.
+  status            String   // ACTIVE, CANCELLED, EXPIRED, PENDING, FROZEN
+  test              Boolean  @default(false) // Is this a test charge?
+  trialStartedAt    DateTime? // When trial started (prevents reinstall exploit)
   trialEndsAt       DateTime?
   currentPeriodEnd  DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+model OrderReleaseAuthorization {
+  id          String   @id @default(cuid())
+  orderId     String
+  shopDomain  String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  consumed    Boolean  @default(false)
+
+  @@unique([orderId, shopDomain])
+  @@index([orderId, shopDomain])
+}
+
+model ShopInstallation {
+  id              String    @id @default(cuid())
+  shopDomain      String    @unique
+  installedAt     DateTime  @default(now())
+  uninstalledAt   DateTime? // When app was uninstalled (null if still installed)
+  onboardingStep  Int       @default(0) // Track setup wizard progress
+  firstBillingAt  DateTime? // When they first subscribed (for analytics)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  shopDomain  String
+  topic       String   // e.g., APP_SUBSCRIPTIONS_UPDATE, APP_UNINSTALLED
+  payload     String   // Raw webhook payload (JSON as string for SQLite)
+  processedAt DateTime @default(now())
+  success     Boolean  @default(true)
+  errorMsg    String?  // Error message if processing failed
+
+  @@index([shopDomain, topic])
+  @@index([processedAt])
 }
