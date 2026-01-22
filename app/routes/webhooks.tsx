@@ -49,7 +49,10 @@ export async function addHoldNoteToOrder(admin: any, orderGid: string): Promise<
     newNote = HOLD_WARNING_TEXT + NOTE_SEPARATOR + existingNote;
   }
 
-  await admin.graphql(`
+  console.log("[Webhook] Attempting to add note to order:", orderGid);
+  console.log("[Webhook] Note content length:", newNote.length);
+
+  const response = await admin.graphql(`
     mutation orderUpdate($input: OrderInput!) {
       orderUpdate(input: $input) {
         order {
@@ -70,7 +73,17 @@ export async function addHoldNoteToOrder(admin: any, orderGid: string): Promise<
       }
     }
   });
-  console.log("[Webhook] Added hold warning to order note (preserved existing notes)");
+
+  const result = await response.json();
+  console.log("[Webhook] orderUpdate response:", JSON.stringify(result));
+
+  if (result?.data?.orderUpdate?.userErrors?.length > 0) {
+    console.error("[Webhook] FAILED to add note - userErrors:", JSON.stringify(result.data.orderUpdate.userErrors));
+  } else if (result?.errors) {
+    console.error("[Webhook] FAILED to add note - GraphQL errors:", JSON.stringify(result.errors));
+  } else {
+    console.log("[Webhook] Added hold warning to order note (preserved existing notes)");
+  }
 }
 
 // Helper to remove hold warning from order note (preserves other notes)
