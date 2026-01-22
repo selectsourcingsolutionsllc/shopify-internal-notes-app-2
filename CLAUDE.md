@@ -1,6 +1,43 @@
-# CRITICAL: ALWAYS CHECK CONVERSATION TRANSCRIPT
+# 🚨 CRITICAL: SEARCH FOR EXISTING SOLUTIONS FIRST! 🚨
 
-**BEFORE giving any advice or answering questions, ALWAYS search/read `conversation_transcript.txt` for relevant context!**
+## BEFORE doing ANYTHING, ALWAYS search these two files for solutions:
+
+### 1. TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md
+**This contains ALL major bugs and their fixes!** Search it FIRST before debugging any issue.
+
+### 2. conversation_transcript.txt
+**This contains the full history of ALL sessions!** Search for similar problems and how they were solved.
+
+## WHY THIS IS MANDATORY:
+- We have solved 99% of bugs before - the answer is in these files!
+- January 21, 2026: Spent hours debugging "hold note not appearing" when the SOLUTION was in git history all along
+- The user explicitly said: "I had the app COMPLETED AND 100% FUNCTIONAL" - meaning the solution EXISTS in history
+- NEVER experiment or guess when the answer is documented!
+
+## How to search:
+```bash
+# Search troubleshooting guide for keywords
+grep -i "hold note" TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md
+grep -i "webhook" TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md
+
+# Search conversation transcript
+grep -i "addHoldNoteToOrder" conversation_transcript.txt
+grep -i "check-hold" conversation_transcript.txt
+
+# Search git history for working versions
+git log --oneline --all | head -50
+git show <commit>:path/to/file  # See file at specific commit
+```
+
+## THE GOLDEN RULE:
+> **If the app worked before and now it's broken, the solution is in the history!**
+> **FIND the working version, don't reinvent it!**
+
+---
+
+# Also Check: conversation_transcript.txt
+
+**BEFORE giving any advice or answering questions, ALSO search/read `conversation_transcript.txt` for relevant context!**
 
 This file contains the full history of:
 - All URL changes and configurations

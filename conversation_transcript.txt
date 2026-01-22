@@ -5072,3 +5072,98 @@ Combined the best features from both January 13 and January 14 versions into a s
 
 STATUS: ✅ READY FOR TESTING
 
+
+================================================================================
+SESSION: JANUARY 21, 2026 - HOLD WARNING NOTE NOT APPEARING FIX
+================================================================================
+
+## PROBLEM
+The "⚠️ FULFILLMENT BLOCKED⚠️" warning note was not being added to orders when 
+a fulfillment hold was applied. The hold itself worked correctly, but no visible 
+note appeared on the order timeline to warn staff.
+
+## INVESTIGATION TIMELINE
+
+1. User reported: "the HOLD note is not attaching to the order"
+
+2. First check: Railway logs showed `[CHECK-HOLD] blockFulfillment is disabled`
+   - User hadn't enabled the blockFulfillment setting
+   - User enabled it, still no note
+
+3. Second check: ORDERS_CREATE webhook was delayed by 1+ minute
+   - By the time webhook fired, user had already viewed/acknowledged the order
+   - This meant the webhook path wasn't reliable for adding notes
+
+4. Added error logging to webhooks.tsx to see if GraphQL mutation was failing:
+   ```typescript
+   console.log("[Webhook] orderUpdate response:", JSON.stringify(result));
+   if (result?.data?.orderUpdate?.userErrors?.length > 0) {
+     console.error("[Webhook] FAILED to add note - userErrors:", 
+       JSON.stringify(result.data.orderUpdate.userErrors));
+   }
+   ```
+
+5. User demanded deeper investigation: "I had the app COMPLETED AND 100% FUNCTIONAL 
+   which means i had it at 100% at some point. so there should not have to be any 
+   experimenting! you NEED TO FIND OUT HOW THE COMPLETED VERSION WAS!"
+
+## ROOT CAUSE FOUND
+
+Searched git history with: `git log --all -p -S "addHoldNoteToOrder"`
+
+Found two key commits:
+- Commit `29e5347` (Jan 10): check-hold endpoint HAD `addHoldNoteToOrder` calls - notes were added
+- Commit `80a7d39` (Jan 14): REMOVED `addHoldNoteToOrder` from check-hold entirely
+
+Commit 80a7d39 was trying to fix "note re-added after acknowledgment" bug, but it 
+was TOO AGGRESSIVE. It removed ALL note additions instead of just re-applications.
+
+## THE FIX (commit 711d577)
+
+Only add note when `acknowledgementsCleared === false` (first-time hold, not re-application):
+
+```typescript
+// app/routes/api.public.check-hold.tsx
+import { addHoldNoteToOrder } from "./webhooks";
+
+if (holdResult.success && holdResult.results.length > 0) {
+  console.log("[CHECK-HOLD] Successfully applied hold");
+
+  // Only add warning note on FIRST-TIME hold (no previous acknowledgments)
+  // If acknowledgementsCleared is true, user previously acknowledged and left
+  if (!acknowledgementsCleared) {
+    try {
+      const orderGid = `gid://shopify/Order/${numericOrderId}`;
+      await addHoldNoteToOrder(admin, orderGid);
+      console.log("[CHECK-HOLD] Added hold warning note to order (first-time hold)");
+    } catch (noteError) {
+      console.error("[CHECK-HOLD] Failed to add hold note:", noteError);
+    }
+  } else {
+    console.log("[CHECK-HOLD] Skipping note - this is a re-application after session change");
+  }
+
+  return json({ holdApplied: true, acknowledgementsCleared, reason: "hold re-applied" });
+}
+```
+
+## KEY LESSON
+
+The `acknowledgementsCleared` variable distinguishes the scenarios:
+- `false` = First time viewing order (no acknowledgments exist) → ADD NOTE
+- `true` = User previously acknowledged, left, came back → DON'T RE-ADD NOTE
+
+## USER CONFIRMATION
+"OK THAT WORKED!!"
+
+## DOCUMENTATION ADDED
+1. Updated CLAUDE.md with prominent rule to ALWAYS search transcript and troubleshooting guide first
+2. Added Section 25 to TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md documenting this bug
+3. Added this session to conversation_transcript.txt
+
+## COMMITS FROM THIS SESSION
+- `462449b` - Add error logging to order note mutation
+- `fe5b97d` - Fix: Add hold note in check-hold endpoint (initial fix - too broad)
+- `711d577` - Fix: Only add hold note on first-time hold, not re-application (CORRECT FIX)
+
+================================================================================
