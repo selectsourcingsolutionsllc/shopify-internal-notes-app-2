@@ -113,7 +113,7 @@ const PRICING_TIERS = [
 const ALL_PLANS = PRICING_TIERS.map(t => t.planKey);
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session, billing } = await authenticate.admin(request);
+  const { session, billing, admin } = await authenticate.admin(request);
 
   // Check environment variable on server only
   // IS_TEST_BILLING must be "true" for development stores (Shopify requires test mode)
@@ -129,8 +129,36 @@ export async function loader({ request }: LoaderFunctionArgs) {
     isTest: isTestBilling,
   });
 
+  // Also fetch subscription details directly from Shopify for more accurate status
+  let shopifySubscriptionStatus = null;
+  let shopifySubscriptionName = null;
+  try {
+    const subscriptionResponse = await admin.graphql(`
+      query {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            name
+            status
+            trialDays
+            createdAt
+            currentPeriodEnd
+          }
+        }
+      }
+    `);
+    const subscriptionData = await subscriptionResponse.json();
+    const activeSubscriptions = subscriptionData.data?.currentAppInstallation?.activeSubscriptions || [];
+    if (activeSubscriptions.length > 0) {
+      shopifySubscriptionStatus = activeSubscriptions[0].status;
+      shopifySubscriptionName = activeSubscriptions[0].name;
+    }
+  } catch (error) {
+    console.error("[BILLING] Error fetching subscription from Shopify:", error);
+  }
+
   // Get the plan name from Shopify, then convert to tier ID
-  const currentPlanName = appSubscriptions?.[0]?.name || subscription?.planName || null;
+  const currentPlanName = shopifySubscriptionName || appSubscriptions?.[0]?.name || subscription?.planName || null;
   const currentTierId = currentPlanName
     ? PRICING_TIERS.find(t => t.planKey === currentPlanName)?.id || null
     : null;
@@ -140,6 +168,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     hasActivePayment,
     currentTierId,
     shop: session.shop,
+    shopifySubscriptionStatus,
   });
 }
 
@@ -315,36 +344,97 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   if (actionType === "cancel") {
-    const subscription = await prisma.billingSubscription.findUnique({
-      where: { shopDomain: session.shop },
-    });
+    console.log("[BILLING] Cancel subscription request for shop:", session.shop);
 
-    if (subscription) {
-      await billing.cancel({
-        subscriptionId: subscription.subscriptionId,
-        isTest: isTestBilling,
-        prorate: true,
-      });
+    // Step 1: Get the active subscription ID directly from Shopify
+    // This is the CORRECT way - don't rely on our database having the ID
+    const subscriptionResponse = await admin.graphql(`
+      query {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            name
+            status
+          }
+        }
+      }
+    `);
 
-      await prisma.billingSubscription.update({
-        where: { shopDomain: session.shop },
-        data: { status: "CANCELLED" },
-      });
+    const subscriptionData = await subscriptionResponse.json();
+    const activeSubscriptions = subscriptionData.data?.currentAppInstallation?.activeSubscriptions || [];
+
+    console.log("[BILLING] Active subscriptions from Shopify:", JSON.stringify(activeSubscriptions, null, 2));
+
+    if (activeSubscriptions.length === 0) {
+      console.log("[BILLING] No active subscription found to cancel");
+      return redirect("/app/billing?error=no_subscription");
     }
 
-    return redirect("/app/billing?cancelled=true");
+    const subscriptionId = activeSubscriptions[0].id;
+    console.log("[BILLING] Cancelling subscription ID:", subscriptionId);
+
+    // Step 2: Cancel via Shopify GraphQL API
+    try {
+      const cancelResponse = await admin.graphql(`
+        mutation AppSubscriptionCancel($id: ID!) {
+          appSubscriptionCancel(id: $id, prorate: true) {
+            appSubscription {
+              id
+              status
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `, {
+        variables: { id: subscriptionId }
+      });
+
+      const cancelData = await cancelResponse.json();
+      console.log("[BILLING] Cancel response:", JSON.stringify(cancelData, null, 2));
+
+      // Check for errors
+      if (cancelData.data?.appSubscriptionCancel?.userErrors?.length > 0) {
+        const errors = cancelData.data.appSubscriptionCancel.userErrors;
+        console.error("[BILLING] Cancel userErrors:", JSON.stringify(errors, null, 2));
+        return redirect(`/app/billing?error=${encodeURIComponent(errors[0].message)}`);
+      }
+
+      // Step 3: Update our local database
+      const existingSubscription = await prisma.billingSubscription.findUnique({
+        where: { shopDomain: session.shop },
+      });
+
+      if (existingSubscription) {
+        await prisma.billingSubscription.update({
+          where: { shopDomain: session.shop },
+          data: { status: "CANCELLED" },
+        });
+        console.log("[BILLING] Updated local database to CANCELLED");
+      }
+
+      console.log("[BILLING] Subscription cancelled successfully");
+      return redirect("/app/billing?cancelled=true");
+
+    } catch (cancelError) {
+      console.error("[BILLING] Cancel error:", cancelError);
+      return redirect("/app/billing?error=cancel_failed");
+    }
   }
 
   return null;
 }
 
 export default function Billing() {
-  const { subscription, hasActivePayment, currentTierId } = useLoaderData<typeof loader>();
+  const { subscription, hasActivePayment, currentTierId, shopifySubscriptionStatus } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [searchParams, setSearchParams] = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "true";
+  const errorParam = searchParams.get("error");
 
   // Volume slider state (for display purposes - based on product count)
   const [productCount, setProductCount] = useState(100);
@@ -353,7 +443,8 @@ export default function Billing() {
     []
   );
 
-  const hasActiveSubscription = subscription?.status === "ACTIVE" || hasActivePayment;
+  // Check if subscription is truly active (from Shopify, not just our database)
+  const hasActiveSubscription = shopifySubscriptionStatus === "ACTIVE" || hasActivePayment;
   const currentTier = PRICING_TIERS.find((t) => t.id === currentTierId);
 
   const handleSubscribe = (tierId: string) => {
@@ -378,21 +469,45 @@ export default function Billing() {
       backAction={{ content: "Dashboard", url: "/app" }}
     >
       <Layout>
+        {/* Error banner */}
+        {errorParam && (
+          <Layout.Section>
+            <Banner
+              title="Error"
+              tone="critical"
+              onDismiss={() => setSearchParams({})}
+            >
+              <p>
+                {errorParam === "no_subscription"
+                  ? "No active subscription found to cancel."
+                  : errorParam === "cancel_failed"
+                  ? "Failed to cancel subscription. Please try again or contact support."
+                  : decodeURIComponent(errorParam)}
+              </p>
+            </Banner>
+          </Layout.Section>
+        )}
+
         {/* Cancelled banner */}
-        {cancelled && (
+        {cancelled && !hasActiveSubscription && (
           <Layout.Section>
             <Banner
               title="Subscription cancelled"
-              tone="info"
+              tone="warning"
               onDismiss={() => setSearchParams({})}
             >
-              <p>Your subscription has been cancelled. You can resubscribe at any time.</p>
+              <BlockStack gap="200">
+                <Text as="p">Your subscription has been cancelled successfully.</Text>
+                <Text as="p" tone="subdued">
+                  You can resubscribe at any time by selecting a plan below.
+                </Text>
+              </BlockStack>
             </Banner>
           </Layout.Section>
         )}
 
         {/* Active subscription banner */}
-        {hasActiveSubscription && (
+        {hasActiveSubscription && !cancelled && (
           <Layout.Section>
             <Banner
               title="You have an active subscription"
