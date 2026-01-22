@@ -119,6 +119,55 @@ cat extensions/*/shopify.extension.toml | grep module
 21. [Extension Deployment - THE NULL SESSION ID BUG](#21-extension-deployment---the-null-session-id-bug)
 22. [App Store Approval Preparation - API VERSION & BILLING FIXES](#22-app-store-approval-preparation---api-version--billing-fixes-january-13-2026)
 23. [Billing Button 500 Error and Iframe Redirect - THE TRIAL BUTTON FIX](#23-billing-button-500-error-and-iframe-redirect---the-trial-button-fix-january-21-2026)
+24. [Git Revert Without Extension Deploy - THE INVISIBLE REVERT BUG](#24-git-revert-without-extension-deploy---the-invisible-revert-bug-january-21-2026)
+
+---
+
+## 24. Git Revert Without Extension Deploy - THE INVISIBLE REVERT BUG (January 21, 2026)
+
+### THE MOST CRITICAL DEPLOYMENT LESSON
+
+**Problem**: After reverting code in git and pushing to Railway, the hold mechanism still wasn't working. The extension UI showed "Order On Hold" but the actual Shopify fulfillment hold was not being applied.
+
+**What We Did**:
+1. Reverted `OrderFulfillmentBlock.tsx` to the January 13 working version in git
+2. Pushed to Railway (server-side code updated)
+3. Tested - still broken!
+
+**Root Cause**: Extensions and server code are deployed SEPARATELY:
+- **Railway** deploys server-side code (routes, webhooks, API endpoints)
+- **Shopify** deploys extension code (UI that runs in admin)
+
+Reverting in git and pushing to Railway ONLY updates the server. The extension code running in Shopify admin was still the old broken version because **we never ran `npx shopify app deploy`**.
+
+**The Fix**:
+```bash
+# Step 1: Deploy extension to Shopify
+npx shopify app deploy --force --no-release
+
+# Step 2: Release to make it live
+npx shopify app release --version=<version-name> --force
+```
+
+**Critical Rule**:
+> **After ANY code revert that affects extensions, you MUST re-deploy the extension to Shopify.**
+> Git revert + Railway push = server updated
+> Extension deploy = extension updated
+> **BOTH are required for full revert!**
+
+**Signs You Forgot to Deploy Extension**:
+- Server logs show correct behavior
+- Extension UI shows old/broken behavior
+- Code looks correct in git but doesn't work
+- "I reverted but it's still broken"
+
+**Checklist After Any Revert**:
+- [ ] Git revert completed
+- [ ] Pushed to git (for Railway)
+- [ ] Railway shows successful deploy
+- [ ] `npx shopify app deploy --force` run
+- [ ] Extension version released
+- [ ] Hard refresh browser (Ctrl+Shift+R)
 
 ---
 
