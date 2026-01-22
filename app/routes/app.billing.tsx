@@ -18,30 +18,19 @@ import {
   Icon,
 } from "@shopify/polaris";
 import { CheckIcon } from "@shopify/polaris-icons";
-import {
-  authenticate,
-  STARTER_PLAN,
-  BASIC_PLAN,
-  PRO_PLAN,
-  TITAN_PLAN,
-  ENTERPRISE_PLAN,
-} from "../shopify.server";
+import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
 import { format } from "date-fns";
 import { useState, useCallback } from "react";
 
-// All billing plans for checking subscription status
-const ALL_PLANS = [STARTER_PLAN, BASIC_PLAN, PRO_PLAN, TITAN_PLAN, ENTERPRISE_PLAN];
-
-// isTestBilling is now checked inside loader/action only (server-side)
-// to avoid "process is not defined" error in browser
-
-// Pricing tiers configuration - planKey must match billing config in shopify.server.ts
+// Pricing tiers - planKey is a simple string (NOT imported from .server.ts)
+// This avoids hydration errors because the same strings exist on server AND client
 const PRICING_TIERS = [
   {
     id: "starter",
     name: "Starter",
+    planKey: "Starter Plan",
     price: 9.99,
     period: "month",
     productRange: "0-50 products",
@@ -53,11 +42,11 @@ const PRICING_TIERS = [
       "7-day free trial",
     ],
     recommended: false,
-    planKey: STARTER_PLAN,
   },
   {
     id: "basic",
     name: "Basic",
+    planKey: "Basic Plan",
     price: 14.99,
     period: "month",
     productRange: "50-300 products",
@@ -69,11 +58,11 @@ const PRICING_TIERS = [
       "7-day free trial",
     ],
     recommended: false,
-    planKey: BASIC_PLAN,
   },
   {
     id: "pro",
     name: "Pro",
+    planKey: "Pro Plan",
     price: 19.99,
     period: "month",
     productRange: "300-3,000 products",
@@ -85,11 +74,11 @@ const PRICING_TIERS = [
       "7-day free trial",
     ],
     recommended: true,
-    planKey: PRO_PLAN,
   },
   {
     id: "titan",
     name: "Titan",
+    planKey: "Titan Plan",
     price: 24.99,
     period: "month",
     productRange: "3,000-10,000 products",
@@ -101,11 +90,11 @@ const PRICING_TIERS = [
       "7-day free trial",
     ],
     recommended: false,
-    planKey: TITAN_PLAN,
   },
   {
     id: "enterprise",
     name: "Enterprise",
+    planKey: "Enterprise Plan",
     price: 29.99,
     period: "month",
     productRange: "10,000+ products",
@@ -117,9 +106,11 @@ const PRICING_TIERS = [
       "7-day free trial",
     ],
     recommended: false,
-    planKey: ENTERPRISE_PLAN,
   },
 ];
+
+// All plan keys for billing.check()
+const ALL_PLANS = PRICING_TIERS.map(t => t.planKey);
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, billing } = await authenticate.admin(request);
@@ -138,14 +129,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
     isTest: isTestBilling,
   });
 
-  // Find which plan they're currently on
-  const currentPlan = appSubscriptions?.[0]?.name || subscription?.planName || null;
+  // Get the plan name from Shopify, then convert to tier ID
+  const currentPlanName = appSubscriptions?.[0]?.name || subscription?.planName || null;
+  const currentTierId = currentPlanName
+    ? PRICING_TIERS.find(t => t.planKey === currentPlanName)?.id || null
+    : null;
 
   return json({
     subscription,
     hasActivePayment,
-    appSubscriptions,
-    currentPlan,
+    currentTierId,
     shop: session.shop,
   });
 }
@@ -346,7 +339,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Billing() {
-  const { subscription, hasActivePayment, currentPlan } = useLoaderData<typeof loader>();
+  const { subscription, hasActivePayment, currentTierId } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -360,9 +353,8 @@ export default function Billing() {
     []
   );
 
-  const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
   const hasActiveSubscription = subscription?.status === "ACTIVE" || hasActivePayment;
-  const currentTier = PRICING_TIERS.find((t) => t.planKey === currentPlan);
+  const currentTier = PRICING_TIERS.find((t) => t.id === currentTierId);
 
   const handleSubscribe = (tierId: string) => {
     const formData = new FormData();
@@ -412,8 +404,8 @@ export default function Billing() {
                     ? `Thank you for being a ${currentTier.name} subscriber! You have access to all features.`
                     : "Thank you for subscribing! You have access to all features."}
                 </Text>
-                {subscription?.trialEndsAt && isInTrial && (
-                  <Text as="p" tone="subdued">
+                {subscription?.trialEndsAt && (
+                  <Text as="p" tone="subdued" suppressHydrationWarning>
                     Trial ends: {format(new Date(subscription.trialEndsAt), "MMMM dd, yyyy")}
                   </Text>
                 )}
@@ -471,17 +463,29 @@ export default function Billing() {
         {/* Pricing grid */}
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 2, md: 3, lg: 5 }} gap="400">
-            {PRICING_TIERS.map((tier) => (
-              <Card key={tier.id} background={tier.recommended ? "bg-surface-secondary" : undefined}>
+            {PRICING_TIERS.map((tier) => {
+              const isCurrentPlan = tier.id === currentTierId;
+              return (
+              <div
+                key={tier.id}
+                style={isCurrentPlan ? {
+                  borderTop: '3px solid #2C6ECB',
+                  borderRadius: '8px',
+                  marginTop: '-3px',
+                } : undefined}
+              >
+              <Card background={tier.recommended ? "bg-surface-secondary" : undefined}>
                 <BlockStack gap="400">
                   {/* Header with badge */}
                   <InlineStack align="space-between" blockAlign="start">
                     <Text variant="headingMd" as="h3">
                       {tier.name}
                     </Text>
-                    {tier.recommended && (
+                    {isCurrentPlan ? (
+                      <Badge tone="info">Current</Badge>
+                    ) : tier.recommended ? (
                       <Badge tone="success">Most Popular</Badge>
-                    )}
+                    ) : null}
                   </InlineStack>
 
                   {/* Price */}
@@ -518,12 +522,8 @@ export default function Billing() {
 
                   {/* CTA Button */}
                   <Box paddingBlockStart="200">
-                    {tier.planKey === currentPlan ? (
-                      <Button
-                        fullWidth
-                        variant="primary"
-                        disabled
-                      >
+                    {isCurrentPlan ? (
+                      <Button fullWidth disabled>
                         Current Plan
                       </Button>
                     ) : hasActiveSubscription ? (
@@ -558,7 +558,9 @@ export default function Billing() {
                   </Box>
                 </BlockStack>
               </Card>
-            ))}
+              </div>
+              );
+            })}
           </InlineGrid>
         </Layout.Section>
 
