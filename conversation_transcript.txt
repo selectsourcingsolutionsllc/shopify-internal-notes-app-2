@@ -6803,3 +6803,26 @@ CONTINUE HERE: Need to test the billing fix and work through the remaining
 10 billing issues in the todo list. Current subscription needs to be cancelled
 and resubscribed for the new code to capture the subscription ID properly.
 ================================================================================
+
+================================================================================
+IMPORTANT: CORRECT TESTING ORDER
+================================================================================
+
+**STEP 1: TEST THAT SUBSCRIPTION IS BEING SAVED TO DATABASE FIRST!**
+
+Before testing the cancel button, we MUST verify the subscription is saved:
+
+1. Go to billing page and subscribe to a plan
+2. After Shopify redirects you back, check Railway logs for:
+   - "[BILLING] User returned from billing approval with charge_id: ..."
+   - "[BILLING] Active subscription from Shopify: ..."
+   - "[BILLING] Subscription saved to database successfully!"
+
+3. If you see these logs, the subscription is saved. THEN test the cancel button.
+
+4. If you DON'T see these logs, something is wrong and we need to debug BEFORE
+   testing the cancel button.
+
+**DO NOT skip to testing cancel until subscription save is confirmed working!**
+
+================================================================================
