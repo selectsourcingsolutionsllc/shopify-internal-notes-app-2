@@ -1,6 +1,6 @@
 import { json, redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useSearchParams, Form } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useSearchParams, Form, Link } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -546,13 +546,7 @@ export default function Billing() {
     submit(formData, { method: "post" });
   };
 
-  const handleCancel = () => {
-    if (confirm("Are you sure you want to cancel your subscription?")) {
-      const formData = new FormData();
-      formData.append("action", "cancel");
-      submit(formData, { method: "post" });
-    }
-  };
+  // Cancel is now handled by a dedicated page at /app/cancel-subscription
 
   return (
     <Page
@@ -593,14 +587,11 @@ export default function Billing() {
                   </Text>
                 )}
                 <Box paddingBlockStart="200">
-                  <Button
-                    tone="critical"
-                    onClick={handleCancel}
-                    loading={isSubmitting}
-                    disabled={isSubmitting}
-                  >
-                    Cancel Subscription
-                  </Button>
+                  <Link to="/app/cancel-subscription">
+                    <Button tone="critical">
+                      Cancel Subscription
+                    </Button>
+                  </Link>
                 </Box>
               </BlockStack>
             </Banner>
