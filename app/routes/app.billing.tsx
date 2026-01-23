@@ -295,16 +295,37 @@ export async function action({ request }: ActionFunctionArgs) {
       throw new Response("Invalid pricing tier selected", { status: 400 });
     }
 
-    // Build the return URL - MUST use the Railway app URL, not the Shopify admin URL
-    // SHOPIFY_APP_URL should be set to: https://product-notes-for-staff.up.railway.app
-    const rawAppUrl = process.env.SHOPIFY_APP_URL?.trim(); // IMPORTANT: trim() to remove any accidental spaces
-    console.log("[BILLING] RAW SHOPIFY_APP_URL from env:", `"${rawAppUrl}"`);
+    // Get the launchUrl from Shopify - this is the proper embedded app URL
+    // Using launchUrl ensures we return to the app within Shopify admin context
+    let returnUrl: string;
+    try {
+      const launchUrlResponse = await admin.graphql(`
+        query {
+          currentAppInstallation {
+            launchUrl
+          }
+        }
+      `);
+      const launchUrlData = await launchUrlResponse.json();
+      const launchUrl = launchUrlData.data?.currentAppInstallation?.launchUrl;
 
-    // Hardcode the correct URL as fallback to debug
-    const appUrl = rawAppUrl && rawAppUrl.includes("railway.app")
-      ? rawAppUrl
-      : "https://product-notes-for-staff.up.railway.app";
-    const returnUrl = `${appUrl}/app/billing`;
+      if (launchUrl) {
+        // launchUrl is like: https://admin.shopify.com/store/shop-name/apps/app-handle
+        // We need to append /app/billing to go to the billing page
+        returnUrl = `${launchUrl}/app/billing`;
+        console.log("[BILLING] Using launchUrl for return:", returnUrl);
+      } else {
+        // Fallback to SHOPIFY_APP_URL if launchUrl not available
+        const rawAppUrl = process.env.SHOPIFY_APP_URL?.trim();
+        returnUrl = `${rawAppUrl || "https://product-notes-for-staff.up.railway.app"}/app/billing`;
+        console.log("[BILLING] launchUrl not available, using fallback:", returnUrl);
+      }
+    } catch (error) {
+      console.error("[BILLING] Error getting launchUrl:", error);
+      const rawAppUrl = process.env.SHOPIFY_APP_URL?.trim();
+      returnUrl = `${rawAppUrl || "https://product-notes-for-staff.up.railway.app"}/app/billing`;
+      console.log("[BILLING] Error getting launchUrl, using fallback:", returnUrl);
+    }
 
     // Log billing request details for debugging
     console.log("[BILLING] Subscribe request:", {
@@ -312,8 +333,6 @@ export async function action({ request }: ActionFunctionArgs) {
       plan: tier.planKey,
       isTestBilling: isTestBilling,
       shop: session.shop,
-      rawAppUrl: rawAppUrl,
-      appUrl: appUrl,
       returnUrl: returnUrl,
       IS_TEST_BILLING_ENV: process.env.IS_TEST_BILLING,
     });
