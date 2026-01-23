@@ -6873,3 +6873,97 @@ npx shopify app deploy --force
 See TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md for full details.
 
 ================================================================================
+
+================================================================================
+SESSION: January 23, 2026 - Billing ReturnUrl Fix & Shopify Review Prep
+================================================================================
+
+## Issues Fixed This Session:
+
+### 1. Billing ReturnUrl Session Loss Fix
+**Problem:** After clicking "Approve" on Shopify's billing page, users were redirected to `/auth/login` instead of back to the app.
+
+**Root Cause:** The `returnUrl` was using the raw Railway URL (`https://product-notes-for-staff.up.railway.app/app/billing`) which loses the Shopify session context.
+
+**Solution:** Query `launchUrl` from `currentAppInstallation` GraphQL and use that as the base URL:
+```typescript
+const launchUrlResponse = await admin.graphql(`
+  query {
+    currentAppInstallation {
+      launchUrl
+    }
+  }
+`);
+const launchUrl = launchUrlData.data?.currentAppInstallation?.launchUrl;
+returnUrl = `${launchUrl}/app/billing-status`;
+```
+
+**Reference:** GitHub Issue #476 - https://github.com/Shopify/shopify-app-js/issues/476
+
+### 2. Changed Billing Approval Redirect Destination
+- Changed from `/app/billing` (pricing cards) to `/app/billing-status` (billing summary)
+- Users now see their subscription status after approving, not the pricing page again
+
+### 3. Default Settings on Install Fix
+**Problem:** Order fulfillment settings showed as checked in UI but didn't work until user clicked "Save Settings"
+
+**Root Cause:** Settings were only created in database when user visited `/app/settings` page
+
+**Solution:** Added settings creation to `afterAuth` hook in `shopify.server.ts`:
+```typescript
+afterAuth: async ({ session }) => {
+  shopify.registerWebhooks({ session });
+  
+  // Create default app settings if they don't exist
+  await prisma.appSetting.upsert({
+    where: { shopDomain: session.shop },
+    update: {}, // Don't update if exists
+    create: {
+      shopDomain: session.shop,
+      requireAcknowledgment: true,
+      requirePhotoProof: false,
+      blockFulfillment: true,
+    },
+  });
+}
+```
+
+## Shopify Billing Review Status:
+
+### Shopify AI Review Result: ✅ PASSED
+The billing implementation was reviewed and approved:
+- Pricing page structure compliant
+- Billing status page compliant  
+- Cancel subscription page compliant
+- Trial handling reads from Shopify data (not hardcoded)
+- Plan configuration matches UI copy
+
+### Plan Configuration (verified in sync):
+| Plan | Price | Trial | Interval |
+|------|-------|-------|----------|
+| Starter Plan | $9.99 | 7 days | Every30Days |
+| Basic Plan | $14.99 | 7 days | Every30Days |
+| Pro Plan | $19.99 | 7 days | Every30Days |
+| Titan Plan | $24.99 | 7 days | Every30Days |
+| Enterprise Plan | $29.99 | 7 days | Every30Days |
+
+### Before Shopify Submission Checklist:
+- [x] Billing code approved
+- [x] Plan configuration aligned with UI
+- [ ] App Store listing prices match code (verify manually)
+- [ ] IS_TEST_BILLING=true for review
+
+## Commits This Session:
+- 5741e46 - Fix: Use launchUrl for billing return URL to maintain Shopify session context
+- aa5f5cd - v1.0.5 - Fix billing returnUrl using launchUrl
+- 84fa428 - Change subscription approval redirect to billing-status page
+- afe25dc - Create default app settings on install via afterAuth hook
+
+## TODO for Next Session:
+- [ ] **TEST DEFAULT SETTINGS ON INSTALL** - Uninstall and reinstall app on test store to verify settings work immediately without clicking Save
+- [ ] Verify App Store listing prices match plan configuration
+- [ ] Submit for Shopify App Store review
+
+## Current App Version: 1.0.5
+
+================================================================================
