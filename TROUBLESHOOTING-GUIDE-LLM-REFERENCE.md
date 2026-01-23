@@ -2459,6 +2459,182 @@ style={isCurrentPlan ? {
 
 ---
 
+---
+
+# 🟢 STABLE CHECKPOINTS - REVERT HERE IF THINGS BREAK 🟢
+
+## CHECKPOINT: v1.1-checkpoint-jan22-2026-billing-complete
+
+**Tag:** `v1.1-checkpoint-jan22-2026-billing-complete`
+**Latest Commit:** `ef2a2c7` - Add dedicated cancel subscription page with proper UX
+**Date:** January 22, 2026
+**Status:** ✅ FULLY WORKING - ALL FEATURES FUNCTIONAL
+
+### HOW TO REVERT TO THIS CHECKPOINT
+
+```bash
+# Option 1: Hard reset (loses all changes after this point)
+git fetch origin
+git reset --hard v1.1-checkpoint-jan22-2026-billing-complete
+git push origin master --force
+
+# Option 2: Create new branch from checkpoint
+git checkout -b recovery-branch v1.1-checkpoint-jan22-2026-billing-complete
+
+# Option 3: Just view what was different
+git diff v1.1-checkpoint-jan22-2026-billing-complete HEAD
+```
+
+### WHAT'S WORKING AT THIS CHECKPOINT
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Billing - Subscribe** | ✅ Working | 5 tiers ($9.99-$29.99), 7-day trial |
+| **Billing - Cancel** | ✅ Working | Dedicated cancel page with confirmation |
+| **Billing - Current Plan** | ✅ Working | Subtle blue highlight, "Current" badge |
+| **Billing - Save to DB** | ✅ Working | Subscription saved after Shopify approval |
+| **Hold Notes** | ✅ Working | Warning note added to orders |
+| **Hold Enforcement** | ✅ Working | Re-applies hold if released without acknowledgment |
+| **Session-Based Reset** | ✅ Working | Acknowledgments reset when user leaves page |
+| **Photo Uploads** | ✅ Working | Railway Volume storage, thumbnails |
+| **Product Notes Extension** | ✅ Working | Add/edit notes on product pages |
+| **Order Fulfillment Extension** | ✅ Working | Acknowledge notes before fulfilling |
+
+### EXACT FILE VERSIONS
+
+#### Core App Files
+| File | Description |
+|------|-------------|
+| `app/routes/app.billing.tsx` | Main billing/pricing page (28,784 bytes) |
+| `app/routes/app.cancel-subscription.tsx` | Cancel subscription page (12,013 bytes) |
+| `app/routes/app.billing-status.tsx` | Billing status display (10,097 bytes) |
+| `app/shopify.server.ts` | Shopify config with 5 billing plans |
+
+#### Extension Files
+| File | Description |
+|------|-------------|
+| `extensions/order-fulfillment-ui/src/OrderFulfillmentBlock.tsx` | Order page extension (18,215 bytes) |
+| `extensions/product-notes-ui/src/ProductNotesBlock.tsx` | Product page extension (14,728 bytes) |
+
+### PACKAGE VERSIONS
+
+```json
+{
+  "name": "product-notes-for-staff",
+  "version": "1.0.4",
+  "@remix-run/express": "^2.7.1",
+  "@remix-run/node": "^2.7.1",
+  "@remix-run/react": "^2.7.1",
+  "@shopify/shopify-app-remix": "^4.0.1",
+  "@shopify/polaris": "^12.0.0",
+  "@shopify/ui-extensions": "^2025.7.1",
+  "@shopify/ui-extensions-react": "^2025.7.1",
+  "prisma": "5.22.0"
+}
+```
+
+### API VERSIONS
+
+| Component | Version |
+|-----------|---------|
+| shopify.app.toml | 2025-01 |
+| shopify.server.ts | ApiVersion.January25 |
+| product-notes-ui extension | 2025-04 |
+| order-fulfillment-ui extension | 2025-04 |
+
+### DATABASE MODELS (Prisma)
+
+```
+model Session
+model ProductNote
+model ProductNotePhoto
+model OrderAcknowledgment
+model AuditLog
+model AppSetting
+model BillingSubscription  ← Has chargeId, test, trialStartedAt fields
+model OrderReleaseAuthorization
+model ShopInstallation
+model WebhookEvent
+```
+
+### RAILWAY ENVIRONMENT VARIABLES REQUIRED
+
+| Variable | Value | Notes |
+|----------|-------|-------|
+| `SHOPIFY_APP_URL` | `https://product-notes-for-staff.up.railway.app` | NO trailing slash, NO spaces! |
+| `SHOPIFY_API_KEY` | `759aead17dfbcb721121009dacc43ce2` | From Shopify Partners |
+| `SHOPIFY_API_SECRET` | (stored in Railway) | From Shopify Partners |
+| `IS_TEST_BILLING` | `true` | Set to `false` for production |
+| `DATABASE_URL` | (auto from Railway Postgres) | Railway provides this |
+| `PORT` | `3000` | Required for Railway |
+| `UPLOAD_DIR` | `/data/uploads` | For Railway Volume |
+
+### BILLING PLANS CONFIGURED
+
+| Tier ID | Plan Name | Price | Products |
+|---------|-----------|-------|----------|
+| starter | Starter Plan | $9.99/mo | 0-50 |
+| basic | Basic Plan | $14.99/mo | 50-300 |
+| pro | Pro Plan | $19.99/mo | 300-3,000 |
+| titan | Titan Plan | $24.99/mo | 3,000-10,000 |
+| enterprise | Enterprise Plan | $29.99/mo | 10,000+ |
+
+All plans have: 7-day trial, BillingInterval.Every30Days
+
+### COMMITS INCLUDED IN THIS CHECKPOINT
+
+```
+ef2a2c7 Add dedicated cancel subscription page with proper UX
+067d14e Fix: Save subscription to DB when Shopify has active sub not in DB
+2002671 Add correct testing order - verify subscription save FIRST
+051a7c4 Document billing fix in conversation transcript
+889a131 Fix: Save subscription to database after billing approval
+d02a5df Add billing subscription fields and tracking tables
+a63d464 Add current plan highlighting with tier ID approach (subtle styling)
+181dd93 Fix: Always add hold note when hold is applied
+711d577 Fix: Only add hold note on first-time hold
+```
+
+### AFTER REVERTING - DON'T FORGET
+
+1. **Push to Railway:**
+   ```bash
+   git push origin master --force
+   ```
+
+2. **Deploy extensions to Shopify:**
+   ```bash
+   npx shopify app deploy --force
+   ```
+
+3. **Verify Railway environment variables** match the table above
+
+4. **Test these flows:**
+   - Subscribe to a plan → Should save to database
+   - Cancel subscription → Should work with confirmation page
+   - Create order with noted product → Should apply hold
+   - Acknowledge all notes → Should release hold
+
+---
+
+## CHECKPOINT: v1.0-checkpoint-jan21-2026
+
+**Tag:** `v1.0-checkpoint-jan21-2026`
+**Commit:** `4dfd7c8`
+**Date:** January 21, 2026
+**Status:** ✅ Working (but missing cancel subscription feature)
+
+This was the previous stable checkpoint BEFORE billing cancel was implemented.
+
+### HOW TO REVERT
+
+```bash
+git reset --hard v1.0-checkpoint-jan21-2026
+git push origin master --force
+```
+
+---
+
 *Last Updated: January 22, 2026*
-*Based on 90+ commits of debugging sessions*
+*Based on 100+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*

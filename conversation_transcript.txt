@@ -6826,3 +6826,50 @@ Before testing the cancel button, we MUST verify the subscription is saved:
 **DO NOT skip to testing cancel until subscription save is confirmed working!**
 
 ================================================================================
+
+================================================================================
+🟢 CHECKPOINT CREATED: January 22, 2026 🟢
+================================================================================
+
+## Tag: v1.1-checkpoint-jan22-2026-billing-complete
+
+**Latest Commit:** ef2a2c7 - Add dedicated cancel subscription page with proper UX
+**Status:** ✅ FULLY WORKING - ALL FEATURES FUNCTIONAL
+
+### WHAT'S WORKING:
+- Billing Subscribe (5 tiers, 7-day trial)
+- Billing Cancel (dedicated page with confirmation)
+- Current Plan Highlighting (subtle blue, "Current" badge)
+- Subscription Saved to Database after approval
+- Hold Notes on Orders
+- Hold Enforcement (re-applies if bypassed)
+- Session-Based Acknowledgment Reset
+- Photo Uploads (Railway Volume)
+- Product Notes Extension
+- Order Fulfillment Extension
+
+### HOW TO REVERT:
+```bash
+git fetch origin
+git reset --hard v1.1-checkpoint-jan22-2026-billing-complete
+git push origin master --force
+npx shopify app deploy --force
+```
+
+### KEY VERSIONS:
+- App Version: 1.0.4
+- Remix: 2.7.1
+- Shopify App Remix: 4.0.1
+- Polaris: 12.0.0
+- API Version: 2025-01 (extensions: 2025-04)
+- Prisma: 5.22.0
+
+### ENVIRONMENT VARIABLES NEEDED:
+- SHOPIFY_APP_URL=https://product-notes-for-staff.up.railway.app
+- IS_TEST_BILLING=true (false for production)
+- PORT=3000
+- UPLOAD_DIR=/data/uploads
+
+See TROUBLESHOOTING-GUIDE-LLM-REFERENCE.md for full details.
+
+================================================================================
