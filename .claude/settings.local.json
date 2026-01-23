@@ -85,7 +85,10 @@
       "Bash(claude mcp remove:*)",
       "mcp__context7__resolve-library-id",
       "mcp__context7__query-docs",
-      "Bash(git cherry-pick:*)"
+      "Bash(git cherry-pick:*)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:docs.gadget.dev)",
+      "WebFetch(domain:dev.to)"
     ],
     "deny": []
   }

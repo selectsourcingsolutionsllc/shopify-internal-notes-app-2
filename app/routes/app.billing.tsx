@@ -129,11 +129,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
     isTest: isTestBilling,
   });
 
-  // If user just returned from billing approval, save subscription to database
-  if (chargeId && hasActivePayment && appSubscriptions && appSubscriptions.length > 0) {
+  // Fetch the current subscription from database FIRST
+  const existingSubscription = await prisma.billingSubscription.findUnique({
+    where: { shopDomain: session.shop },
+  });
+
+  // If Shopify shows an active subscription that's NOT in our database (or has different ID), save it
+  // This handles both: returning from billing approval AND syncing any missing subscriptions
+  const shopifySubscriptionId = appSubscriptions?.[0]?.id || null;
+  const needsSync = hasActivePayment &&
+                    appSubscriptions &&
+                    appSubscriptions.length > 0 &&
+                    (!existingSubscription || existingSubscription.subscriptionId !== shopifySubscriptionId);
+
+  if (needsSync) {
     const activeSubscription = appSubscriptions[0];
-    console.log("[BILLING] User returned from billing approval with charge_id:", chargeId);
-    console.log("[BILLING] Active subscription from Shopify:", JSON.stringify(activeSubscription, null, 2));
+    console.log("[BILLING] Syncing subscription to database - Shopify has subscription not in DB");
+    console.log("[BILLING] Shopify subscription:", JSON.stringify(activeSubscription, null, 2));
+    if (chargeId) {
+      console.log("[BILLING] charge_id from URL:", chargeId);
+    }
 
     try {
       // Query Shopify for full subscription details (including test status)
@@ -198,9 +213,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   // Fetch the subscription from database (after potential save above)
-  const subscription = await prisma.billingSubscription.findUnique({
-    where: { shopDomain: session.shop },
-  });
+  // Re-query to get the updated data if we just saved
+  const subscription = needsSync
+    ? await prisma.billingSubscription.findUnique({ where: { shopDomain: session.shop } })
+    : existingSubscription;
 
   // ========== DEBUG: Log all subscription info ==========
   console.log("\n========== BILLING DEBUG ==========");
