@@ -311,19 +311,19 @@ export async function action({ request }: ActionFunctionArgs) {
 
       if (launchUrl) {
         // launchUrl is like: https://admin.shopify.com/store/shop-name/apps/app-handle
-        // We need to append /app/billing to go to the billing page
-        returnUrl = `${launchUrl}/app/billing`;
+        // We append /app/billing-status to show billing summary after approval
+        returnUrl = `${launchUrl}/app/billing-status`;
         console.log("[BILLING] Using launchUrl for return:", returnUrl);
       } else {
         // Fallback to SHOPIFY_APP_URL if launchUrl not available
         const rawAppUrl = process.env.SHOPIFY_APP_URL?.trim();
-        returnUrl = `${rawAppUrl || "https://product-notes-for-staff.up.railway.app"}/app/billing`;
+        returnUrl = `${rawAppUrl || "https://product-notes-for-staff.up.railway.app"}/app/billing-status`;
         console.log("[BILLING] launchUrl not available, using fallback:", returnUrl);
       }
     } catch (error) {
       console.error("[BILLING] Error getting launchUrl:", error);
       const rawAppUrl = process.env.SHOPIFY_APP_URL?.trim();
-      returnUrl = `${rawAppUrl || "https://product-notes-for-staff.up.railway.app"}/app/billing`;
+      returnUrl = `${rawAppUrl || "https://product-notes-for-staff.up.railway.app"}/app/billing-status`;
       console.log("[BILLING] Error getting launchUrl, using fallback:", returnUrl);
     }
 
