@@ -89,7 +89,8 @@
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:docs.gadget.dev)",
       "WebFetch(domain:dev.to)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": []
   }

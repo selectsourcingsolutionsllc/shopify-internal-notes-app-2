@@ -24,7 +24,7 @@ import prisma from "../db.server";
 import { format } from "date-fns";
 import { useState, useCallback } from "react";
 
-// Pricing tiers - planKey is a simple string (NOT imported from .server.ts)
+// Pricing tiers - planKey is a simple string (NOT imported from .server.ts) - v2
 // This avoids hydration errors because the same strings exist on server AND client
 const PRICING_TIERS = [
   {
