@@ -49,7 +49,26 @@ const shopify = shopifyApp({
   },
   hooks: {
     afterAuth: async ({ session }) => {
+      // Register webhooks
       shopify.registerWebhooks({ session });
+
+      // Create default app settings if they don't exist
+      // This ensures settings are active immediately after install without needing to visit settings page
+      try {
+        await prisma.appSetting.upsert({
+          where: { shopDomain: session.shop },
+          update: {}, // Don't update if exists - preserve user's settings
+          create: {
+            shopDomain: session.shop,
+            requireAcknowledgment: true,
+            requirePhotoProof: false,
+            blockFulfillment: true,
+          },
+        });
+        console.log(`[AFTER_AUTH] Default settings created/verified for ${session.shop}`);
+      } catch (error) {
+        console.error(`[AFTER_AUTH] Error creating default settings for ${session.shop}:`, error);
+      }
     },
   },
   billing: {
