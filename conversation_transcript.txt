@@ -7357,3 +7357,45 @@ export async function loader({ request }: LoaderFunctionArgs) {
 - Adding/editing notes: ❌ Blocked without subscription (API returns error, extension shows warning)
 
 ================================================================================
+
+--------------------------------------------------------------------------------
+SESSION: January 25, 2026 - Context-Specific Subscription Messages
+--------------------------------------------------------------------------------
+
+## Feature Added: Context-Specific Subscription Warning Messages
+
+### The Problem:
+When a user without a subscription tried to add a note, they saw a generic message:
+"A subscription is required to add or edit notes."
+
+This didn't help users understand WHY they couldn't add notes (never subscribed? trial ended? expired?)
+
+### The Solution:
+Updated the API and extension to show different messages based on the subscription status:
+
+| Scenario | Message | Link Text |
+|----------|---------|-----------|
+| Never had subscription | "Start your free trial to add product notes. Visit the app to get started!" | Start Free Trial |
+| Trial ended | "Your free trial has ended. Subscribe to a plan to continue adding notes." | Choose a Plan |
+| Subscription expired | "Your subscription has expired. Please renew to continue adding notes." | Renew Subscription |
+| Subscription inactive | "Your subscription is no longer active. Please resubscribe to continue adding notes." | Resubscribe |
+
+### Files Modified:
+
+**1. app/routes/api.public.products.$productId.notes.tsx**
+- Replaced `hasActiveSubscription()` with `checkSubscriptionStatus()`
+- New function returns `{ hasAccess, reason, message }`
+- Reason can be: `no_subscription`, `trial_ended`, `subscription_expired`, `subscription_inactive`
+
+**2. extensions/product-notes-ui/src/ProductNotesBlock.tsx**
+- Added `subscriptionReason` state
+- Warning banner now shows context-specific link text based on reason
+- Link always goes to `/app/billing` page
+
+### Commits:
+- f0299a6 - Add billing page link to subscription warning banner
+- 9921ddf - Show context-specific messages for subscription status (trial ended, expired, etc.)
+
+### Extension Version: product-notes-for-staff-219
+
+================================================================================
