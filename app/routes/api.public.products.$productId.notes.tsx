@@ -7,35 +7,6 @@ import { getVerifiedShop } from "../utils/shop-validation.server";
 // Session token contains shop domain in the 'dest' claim
 // NOTE: CORS headers are handled by Express middleware in server.js
 
-// Helper to check if shop has active subscription
-async function checkSubscription(shop: string): Promise<{ hasSubscription: boolean; message?: string }> {
-  const subscription = await prisma.billingSubscription.findUnique({
-    where: { shopDomain: shop },
-  });
-
-  if (!subscription) {
-    return {
-      hasSubscription: false,
-      message: "Start your free trial to add product notes. Visit the app to get started!",
-    };
-  }
-
-  if (subscription.status !== "ACTIVE") {
-    return {
-      hasSubscription: false,
-      message: "Your subscription is inactive. Please renew to continue adding notes.",
-    };
-  }
-
-  // Check if trial has expired (if trialEndsAt exists and is in the past)
-  if (subscription.trialEndsAt && new Date(subscription.trialEndsAt) < new Date()) {
-    // Trial expired but status is still ACTIVE means they're paying - allow it
-    // This check is just informational
-  }
-
-  return { hasSubscription: true };
-}
-
 export async function loader({ request, params }: LoaderFunctionArgs) {
   // SECURITY: Verify the session token signature before trusting claims
   const { shop, verified, error } = await getVerifiedShop(request);
@@ -82,17 +53,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (!shop || !productId) {
     return json({ error: error || "Missing required parameters" }, { status: 400 });
-  }
-
-  // Check subscription before allowing note creation/editing
-  const { hasSubscription, message } = await checkSubscription(shop);
-  if (!hasSubscription) {
-    console.log("[PUBLIC API] Subscription required for shop:", shop);
-    return json({
-      error: "subscription_required",
-      message: message,
-      requiresSubscription: true
-    }, { status: 403 });
   }
 
   try {
