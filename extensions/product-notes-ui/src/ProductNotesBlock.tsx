@@ -254,7 +254,12 @@ function ProductNotesBlock() {
       {/* Subscription warning */}
       {subscriptionMessage && (
         <Banner tone="warning">
-          <Text>{subscriptionMessage}</Text>
+          <BlockStack gap="tight">
+            <Text>{subscriptionMessage}</Text>
+            <Link href={`https://${shopDomain}/admin/apps/product-notes-for-staff/app/billing`} target="_blank">
+              Start Free Trial
+            </Link>
+          </BlockStack>
         </Banner>
       )}
 
