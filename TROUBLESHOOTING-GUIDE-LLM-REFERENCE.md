@@ -2735,7 +2735,7 @@ git push origin master --force
 
 ## BILLING & SUBSCRIPTION ISSUES (January 24-25, 2026)
 
-This section documents 14 issues related to billing, subscriptions, trials, and plan selection that were fixed.
+This section documents 15 issues related to billing, subscriptions, trials, and plan selection that were fixed.
 
 ---
 
@@ -3005,6 +3005,28 @@ const trialDaysToGive = hasHadTrialBefore ? 0 : 7;
 
 ---
 
+### Issue #15: Billing Status Page Not in Side Panel Navigation
+
+**Problem:** The billing-status page existed but users had no way to access it from the app's side panel navigation. They could only reach it by manually typing the URL.
+
+**Why it matters:** The billing-status page shows detailed subscription information and syncs with Shopify. Users need easy access to check their billing status.
+
+**Solution:** Added link to `app/routes/app.tsx` in the `<ui-nav-menu>` component.
+
+**File changed:** `app/routes/app.tsx`
+
+**Key code:**
+```jsx
+<ui-nav-menu>
+  <a href="/app" rel="home">Home</a>
+  <a href="/app/billing">Subscription</a>
+  <a href="/app/billing-status">Billing Status</a>  {/* Added */}
+  <a href="/app/settings">Settings</a>
+</ui-nav-menu>
+```
+
+---
+
 ### Summary: Billing System Logic
 
 **Trial Flow:**
@@ -3022,6 +3044,7 @@ const trialDaysToGive = hasHadTrialBefore ? 0 : 7;
 
 **Commits for these fixes:**
 ```
+bf39194 Add Billing Status link to side panel navigation
 521f8b4 Update transcript: billing gate removal correction
 592e5a9 Remove billing gate from app pages - only block note creation
 bc88ffe Update transcript: subscription enforcement re-implementation
