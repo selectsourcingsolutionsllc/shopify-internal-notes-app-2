@@ -7,6 +7,30 @@ import { getVerifiedShop } from "../utils/shop-validation.server";
 // Session token contains shop domain in the 'dest' claim
 // NOTE: CORS headers are handled by Express middleware in server.js
 
+// Helper to check if shop has active subscription
+async function hasActiveSubscription(shopDomain: string): Promise<boolean> {
+  const subscription = await prisma.billingSubscription.findUnique({
+    where: { shopDomain },
+  });
+
+  if (!subscription) return false;
+
+  // Check if status is ACTIVE
+  if (subscription.status !== "ACTIVE") return false;
+
+  // Check if still in trial period (trial is valid subscription)
+  if (subscription.trialEndsAt && new Date() < subscription.trialEndsAt) {
+    return true;
+  }
+
+  // Check if current period hasn't ended
+  if (subscription.currentPeriodEnd && new Date() > subscription.currentPeriodEnd) {
+    return false;
+  }
+
+  return true;
+}
+
 export async function loader({ request, params }: LoaderFunctionArgs) {
   // SECURITY: Verify the session token signature before trusting claims
   const { shop, verified, error } = await getVerifiedShop(request);
@@ -53,6 +77,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (!shop || !productId) {
     return json({ error: error || "Missing required parameters" }, { status: 400 });
+  }
+
+  // Check subscription before allowing note creation/editing
+  const hasSubscription = await hasActiveSubscription(shop);
+  if (!hasSubscription) {
+    console.log("[PUBLIC API] No active subscription for", shop, "- blocking note operation");
+    return json({
+      error: "subscription_required",
+      message: "A subscription is required to add or edit notes. Please subscribe to continue using this feature.",
+      requiresSubscription: true,
+    }, { status: 403 });
   }
 
   try {
