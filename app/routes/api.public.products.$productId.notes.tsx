@@ -7,28 +7,63 @@ import { getVerifiedShop } from "../utils/shop-validation.server";
 // Session token contains shop domain in the 'dest' claim
 // NOTE: CORS headers are handled by Express middleware in server.js
 
-// Helper to check if shop has active subscription
-async function hasActiveSubscription(shopDomain: string): Promise<boolean> {
+// Helper to check subscription status and return appropriate message
+type SubscriptionCheck = {
+  hasAccess: boolean;
+  reason?: "no_subscription" | "trial_ended" | "subscription_expired" | "subscription_inactive";
+  message?: string;
+};
+
+async function checkSubscriptionStatus(shopDomain: string): Promise<SubscriptionCheck> {
   const subscription = await prisma.billingSubscription.findUnique({
     where: { shopDomain },
   });
 
-  if (!subscription) return false;
+  // No subscription record at all
+  if (!subscription) {
+    return {
+      hasAccess: false,
+      reason: "no_subscription",
+      message: "Start your free trial to add product notes. Visit the app to get started!",
+    };
+  }
 
-  // Check if status is ACTIVE
-  if (subscription.status !== "ACTIVE") return false;
+  // Subscription exists but status is not ACTIVE (cancelled, etc.)
+  if (subscription.status !== "ACTIVE") {
+    return {
+      hasAccess: false,
+      reason: "subscription_inactive",
+      message: "Your subscription is no longer active. Please resubscribe to continue adding notes.",
+    };
+  }
 
   // Check if still in trial period (trial is valid subscription)
   if (subscription.trialEndsAt && new Date() < subscription.trialEndsAt) {
-    return true;
+    return { hasAccess: true };
   }
 
-  // Check if current period hasn't ended
+  // Trial ended but no paid subscription
+  if (subscription.trialEndsAt && new Date() >= subscription.trialEndsAt) {
+    // Check if they have an ongoing paid period
+    if (!subscription.currentPeriodEnd || new Date() > subscription.currentPeriodEnd) {
+      return {
+        hasAccess: false,
+        reason: "trial_ended",
+        message: "Your free trial has ended. Subscribe to a plan to continue adding notes.",
+      };
+    }
+  }
+
+  // Check if current paid period has ended
   if (subscription.currentPeriodEnd && new Date() > subscription.currentPeriodEnd) {
-    return false;
+    return {
+      hasAccess: false,
+      reason: "subscription_expired",
+      message: "Your subscription has expired. Please renew to continue adding notes.",
+    };
   }
 
-  return true;
+  return { hasAccess: true };
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -80,12 +115,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   // Check subscription before allowing note creation/editing
-  const hasSubscription = await hasActiveSubscription(shop);
-  if (!hasSubscription) {
-    console.log("[PUBLIC API] No active subscription for", shop, "- blocking note operation");
+  const subscriptionStatus = await checkSubscriptionStatus(shop);
+  if (!subscriptionStatus.hasAccess) {
+    console.log("[PUBLIC API] Subscription check failed for", shop, "- reason:", subscriptionStatus.reason);
     return json({
       error: "subscription_required",
-      message: "A subscription is required to add or edit notes. Please subscribe to continue using this feature.",
+      reason: subscriptionStatus.reason,
+      message: subscriptionStatus.message,
       requiresSubscription: true,
     }, { status: 403 });
   }
