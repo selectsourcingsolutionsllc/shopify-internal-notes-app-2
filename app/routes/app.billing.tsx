@@ -643,11 +643,14 @@ export default function Billing() {
               return (
               <div
                 key={tier.id}
-                style={isCurrentPlan ? {
-                  borderTop: '3px solid #2C6ECB',
-                  borderRadius: '8px',
-                  marginTop: '-3px',
-                } : undefined}
+                style={{
+                  height: '100%',
+                  ...(isCurrentPlan ? {
+                    borderTop: '3px solid #2C6ECB',
+                    borderRadius: '8px',
+                    marginTop: '-3px',
+                  } : {}),
+                }}
               >
               <Card background={tier.recommended ? "bg-surface-secondary" : undefined}>
                 <BlockStack gap="400">
