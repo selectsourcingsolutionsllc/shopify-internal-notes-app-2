@@ -7305,3 +7305,55 @@ The auth parameters (hmac, host, id_token, session, shop, timestamp) MUST be pre
 - Railway: Will auto-deploy from push
 
 ================================================================================
+
+--------------------------------------------------------------------------------
+CORRECTION: January 25, 2026 - Remove Billing Gate from App Pages
+--------------------------------------------------------------------------------
+
+## Issue:
+User reported that the billing gate was blocking access to Settings and other app pages.
+User clarification: "I DID NOT tell you to block the PAGES. ONLY THE FUNCTIONALITY OF THE ADDING THE NOTE BUTTON!"
+
+## What Was Wrong:
+The billing gate in `app/routes/app.tsx` was redirecting users without subscription away from ALL app pages (Settings, Dashboard, etc.)
+
+## Fix Applied:
+Reverted `app/routes/app.tsx` back to original - NO billing gate on pages.
+
+### app/routes/app.tsx (reverted to simple version):
+```typescript
+import { Outlet, useLoaderData } from "@remix-run/react";
+import { AppProvider as ShopifyAppProvider } from "@shopify/shopify-app-remix/react";
+import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
+import { json } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
+import { authenticate } from "../shopify.server";
+import enTranslations from "@shopify/polaris/locales/en.json";
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  try {
+    await authenticate.admin(request);
+    return json({
+      apiKey: process.env.SHOPIFY_API_KEY || "",
+    });
+  } catch (error) {
+    console.error("[APP.TSX] Auth error:", error);
+    throw error;
+  }
+}
+```
+
+## What Remains (Correct Behavior):
+1. **All app pages accessible** - Settings, Dashboard, Billing, etc. work without subscription
+2. **API subscription check** - `api.public.products.$productId.notes.tsx` blocks POST/PUT without subscription
+3. **Warning banner** - ProductNotesBlock shows warning when user tries to add/edit note without subscription
+
+## Commits:
+- 592e5a9 - Remove billing gate from app pages - only block note creation
+
+## Current Subscription Enforcement:
+- Pages: ✅ All accessible (no gate)
+- Viewing notes: ✅ Always works
+- Adding/editing notes: ❌ Blocked without subscription (API returns error, extension shows warning)
+
+================================================================================
