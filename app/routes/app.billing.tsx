@@ -608,7 +608,8 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Billing() {
-  const { subscription, hasActivePayment, currentTierId, productCount: storeProductCount, requiredTier } = useLoaderData<typeof loader>();
+  const loaderData = useLoaderData<typeof loader>();
+  const { subscription, hasActivePayment, currentTierId, productCount: storeProductCount, requiredTier: serverRequiredTier } = loaderData;
   const actionData = useActionData<{ error?: string; productCount?: number; requiredTier?: string }>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -616,14 +617,30 @@ export default function Billing() {
   const [searchParams, setSearchParams] = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "true";
 
-  const hasActiveSubscription = subscription?.status === "ACTIVE" || hasActivePayment;
-  const currentTier = PRICING_TIERS.find((t) => t.id === currentTierId);
-  const requiredTierData = PRICING_TIERS.find((t) => t.id === requiredTier);
+  // DEBUG: Log raw loader data
+  console.log("[BILLING CLIENT] Raw loaderData:", JSON.stringify(loaderData));
+
+  // Calculate required tier on client as fallback if server didn't provide it
+  const clientCalculatedTier = (() => {
+    const count = storeProductCount || 0;
+    if (count <= 50) return "starter";
+    if (count <= 300) return "basic";
+    if (count <= 3000) return "pro";
+    return "titan";
+  })();
+
+  // Use server-provided tier, or fallback to client calculation
+  const requiredTier = serverRequiredTier || clientCalculatedTier;
 
   // DEBUG: Log what the client is receiving
   console.log("[BILLING CLIENT] storeProductCount:", storeProductCount);
-  console.log("[BILLING CLIENT] requiredTier from loader:", requiredTier);
-  console.log("[BILLING CLIENT] typeof requiredTier:", typeof requiredTier);
+  console.log("[BILLING CLIENT] serverRequiredTier from loader:", serverRequiredTier);
+  console.log("[BILLING CLIENT] clientCalculatedTier:", clientCalculatedTier);
+  console.log("[BILLING CLIENT] Final requiredTier being used:", requiredTier);
+
+  const hasActiveSubscription = subscription?.status === "ACTIVE" || hasActivePayment;
+  const currentTier = PRICING_TIERS.find((t) => t.id === currentTierId);
+  const requiredTierData = PRICING_TIERS.find((t) => t.id === requiredTier);
 
   // Helper to check if a tier is the CORRECT tier for the store's product count
   // Only ONE plan is allowed - the one that matches the product range
