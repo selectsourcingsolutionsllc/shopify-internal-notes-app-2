@@ -458,7 +458,7 @@ function OrderFulfillmentBlock() {
         {/* Show acknowledgment UI only if requireAcknowledgment is enabled */}
         {settings?.requireAcknowledgment ? (
           <Banner tone="warning" title="Check box to acknowledge">
-            <BlockStack gap="tight">
+            <BlockStack gap="extraTight">
               {/* Checkbox with note content - always visible */}
               <Checkbox
                 label={currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}
@@ -472,10 +472,10 @@ function OrderFulfillmentBlock() {
               />
 
               {/* Photo and acknowledged timestamp on same row */}
-              <InlineStack gap="tight" blockAlignment="center" inlineAlignment="space-between">
+              <InlineStack gap="extraTight" blockAlignment="center" inlineAlignment="space-between">
                 {/* Photo thumbnail on left */}
                 {currentNote.photos && currentNote.photos.length > 0 ? (
-                  <InlineStack gap="tight" blockAlignment="center">
+                  <InlineStack gap="extraTight" blockAlignment="center">
                     <Link href={currentNote.photos[0].url} external>
                       <Image
                         source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
@@ -492,7 +492,7 @@ function OrderFulfillmentBlock() {
 
                 {/* Acknowledged timestamp on right */}
                 {isAcknowledged && ack.acknowledgedAt && (
-                  <InlineStack gap="tight">
+                  <InlineStack gap="extraTight">
                     <Badge tone="success">Acknowledged</Badge>
                     <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
                   </InlineStack>
@@ -503,12 +503,12 @@ function OrderFulfillmentBlock() {
         ) : (
           /* Show notes as info-only when acknowledgment is NOT required */
           <Banner tone="info" title="Product Note">
-            <BlockStack gap="tight">
+            <BlockStack gap="extraTight">
               <Text>{currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}</Text>
 
               {/* Photo thumbnail below */}
               {currentNote.photos && currentNote.photos.length > 0 && (
-                <InlineStack gap="tight" blockAlignment="center">
+                <InlineStack gap="extraTight" blockAlignment="center">
                   <Link href={currentNote.photos[0].url} external>
                     <Image
                       source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
