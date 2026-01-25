@@ -91,22 +91,6 @@ const PRICING_TIERS = [
     ],
     recommended: false,
   },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    planKey: "Enterprise Plan",
-    price: 29.99,
-    period: "month",
-    productRange: "10,000+ products",
-    description: "Unlimited scale",
-    features: [
-      "Unlimited products on store",
-      "Unlimited notes",
-      "Photo attachments",
-      "7-day free trial",
-    ],
-    recommended: false,
-  },
 ];
 
 // All plan keys for billing.check()
