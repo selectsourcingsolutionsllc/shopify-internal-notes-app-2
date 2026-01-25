@@ -18,6 +18,7 @@ import {
 } from "@shopify/polaris";
 import type { BadgeProps } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 import {
   getSubscriptionStatus,
   formatPrice,
@@ -49,10 +50,78 @@ export async function loader({ request }: LoaderFunctionArgs) {
   console.log("[BILLING-STATUS] Loader starting...");
 
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
     console.log("[BILLING-STATUS] Auth successful, fetching subscription...");
 
+    // Check for charge_id in URL - this indicates user just approved billing
+    const url = new URL(request.url);
+    const chargeId = url.searchParams.get("charge_id");
+
+    if (chargeId) {
+      console.log("[BILLING-STATUS] User returned from billing approval with charge_id:", chargeId);
+    }
+
     const subscriptionData = await getSubscriptionStatus(admin);
+
+    // If user just approved billing (charge_id present) or there's an active subscription,
+    // make sure it's saved to our database
+    if (subscriptionData.activeSubscription) {
+      const shopifySubscription = subscriptionData.activeSubscription;
+      console.log("[BILLING-STATUS] Active subscription from Shopify:", JSON.stringify(shopifySubscription, null, 2));
+
+      // Check if we need to save/update the subscription in database
+      const existingSubscription = await prisma.billingSubscription.findUnique({
+        where: { shopDomain: session.shop },
+      });
+
+      const needsSync = !existingSubscription ||
+                        existingSubscription.subscriptionId !== shopifySubscription.id ||
+                        existingSubscription.status !== shopifySubscription.status;
+
+      if (needsSync) {
+        console.log("[BILLING-STATUS] Syncing subscription to database...");
+
+        // Calculate trial end date if trial days exist
+        let trialEndsAt = null;
+        if (shopifySubscription.trialDays && shopifySubscription.trialDays > 0) {
+          const createdAt = new Date(shopifySubscription.createdAt);
+          trialEndsAt = new Date(createdAt);
+          trialEndsAt.setDate(trialEndsAt.getDate() + shopifySubscription.trialDays);
+        }
+
+        try {
+          await prisma.billingSubscription.upsert({
+            where: { shopDomain: session.shop },
+            update: {
+              subscriptionId: shopifySubscription.id,
+              chargeId: chargeId,
+              planName: shopifySubscription.name,
+              status: shopifySubscription.status,
+              test: shopifySubscription.test || false,
+              trialStartedAt: shopifySubscription.trialDays > 0 ? new Date(shopifySubscription.createdAt) : null,
+              trialEndsAt: trialEndsAt,
+              currentPeriodEnd: shopifySubscription.currentPeriodEnd ? new Date(shopifySubscription.currentPeriodEnd) : null,
+            },
+            create: {
+              shopDomain: session.shop,
+              subscriptionId: shopifySubscription.id,
+              chargeId: chargeId,
+              planName: shopifySubscription.name,
+              status: shopifySubscription.status,
+              test: shopifySubscription.test || false,
+              trialStartedAt: shopifySubscription.trialDays > 0 ? new Date(shopifySubscription.createdAt) : null,
+              trialEndsAt: trialEndsAt,
+              currentPeriodEnd: shopifySubscription.currentPeriodEnd ? new Date(shopifySubscription.currentPeriodEnd) : null,
+            },
+          });
+          console.log("[BILLING-STATUS] Subscription saved to database successfully!");
+        } catch (dbError) {
+          console.error("[BILLING-STATUS] Error saving subscription to database:", dbError);
+        }
+      } else {
+        console.log("[BILLING-STATUS] Subscription already in sync with database");
+      }
+    }
     console.log("[BILLING-STATUS] Got subscription data");
 
     // Format all data server-side before sending to client
