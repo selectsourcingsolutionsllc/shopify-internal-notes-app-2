@@ -616,10 +616,17 @@ export default function Billing() {
   const currentTier = PRICING_TIERS.find((t) => t.id === currentTierId);
   const requiredTierData = PRICING_TIERS.find((t) => t.id === requiredTier);
 
+  // DEBUG: Log what the client is receiving
+  console.log("[BILLING CLIENT] storeProductCount:", storeProductCount);
+  console.log("[BILLING CLIENT] requiredTier from loader:", requiredTier);
+  console.log("[BILLING CLIENT] typeof requiredTier:", typeof requiredTier);
+
   // Helper to check if a tier is the CORRECT tier for the store's product count
   // Only ONE plan is allowed - the one that matches the product range
   const isTierAllowed = (tierId: string): boolean => {
-    return tierId === requiredTier;
+    const allowed = tierId === requiredTier;
+    console.log("[BILLING CLIENT] isTierAllowed check:", tierId, "===", requiredTier, "=", allowed);
+    return allowed;
   };
 
   // Cancel is now handled by a dedicated page at /app/cancel-subscription
