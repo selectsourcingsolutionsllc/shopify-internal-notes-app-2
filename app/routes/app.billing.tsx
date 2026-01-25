@@ -701,7 +701,7 @@ export default function Billing() {
       backAction={{ content: "Dashboard", url: "/app" }}
     >
       <Layout>
-        {/* Cancelled banner */}
+        {/* Just cancelled banner (temporary, dismissible) */}
         {cancelled && (
           <Layout.Section>
             <Banner
@@ -710,6 +710,51 @@ export default function Billing() {
               onDismiss={() => setSearchParams({})}
             >
               <p>Your subscription has been cancelled. You can resubscribe at any time.</p>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Cancelled but still in trial period banner (persistent) */}
+        {subscription?.status === "CANCELLED" && subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date() && (
+          <Layout.Section>
+            <Banner
+              title="Your subscription is cancelled"
+              tone="warning"
+            >
+              <BlockStack gap="200">
+                <Text as="p">
+                  You cancelled your subscription, but don't worry - you can still use all features until your free trial ends on{" "}
+                  <Text as="span" fontWeight="semibold">
+                    {format(new Date(subscription.trialEndsAt), "MMMM dd, yyyy")}
+                  </Text>.
+                </Text>
+                <Text as="p">
+                  Since you cancelled during your free trial, you will not be charged. If you'd like to continue using the app after your trial ends, simply resubscribe below.
+                </Text>
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Cancelled and trial has ended banner */}
+        {subscription?.status === "CANCELLED" && subscription?.trialEndsAt && new Date(subscription.trialEndsAt) <= new Date() && (
+          <Layout.Section>
+            <Banner
+              title="Your free trial has ended"
+              tone="critical"
+            >
+              <BlockStack gap="200">
+                <Text as="p">
+                  Your free trial ended on{" "}
+                  <Text as="span" fontWeight="semibold">
+                    {format(new Date(subscription.trialEndsAt), "MMMM dd, yyyy")}
+                  </Text>.
+                  Since you cancelled during the trial, you were not charged.
+                </Text>
+                <Text as="p">
+                  To continue using Product Notes, please subscribe to a plan below.
+                </Text>
+              </BlockStack>
             </Banner>
           </Layout.Section>
         )}
