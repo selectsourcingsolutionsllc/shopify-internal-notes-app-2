@@ -2735,7 +2735,7 @@ git push origin master --force
 
 ## BILLING & SUBSCRIPTION ISSUES (January 24-25, 2026)
 
-This section documents 13 issues related to billing, subscriptions, trials, and plan selection that were fixed.
+This section documents 14 issues related to billing, subscriptions, trials, and plan selection that were fixed.
 
 ---
 
@@ -2945,6 +2945,66 @@ const trialDaysToGive = hasHadTrialBefore ? 0 : 7;
 
 ---
 
+### Issue #14: No Banner Showing Cancelled Subscription Status
+
+**Problem:** After user cancelled their subscription during the free trial, there was no visual indication on the billing page telling them:
+- They can still use the app until trial ends
+- They won't be charged
+- When their trial will end
+
+**User confusion:** Without this information, users didn't know if they still had access or what would happen next.
+
+**Solution:** Added two persistent banners to `app.billing.tsx`:
+
+1. **Yellow warning banner** (cancelled but still in trial):
+   - Shows when `status === "CANCELLED"` AND `trialEndsAt > now`
+   - Message: "You cancelled your subscription, but don't worry - you can still use all features until your free trial ends on [date]."
+   - Reassures: "Since you cancelled during your free trial, you will not be charged."
+
+2. **Red critical banner** (trial has ended):
+   - Shows when `status === "CANCELLED"` AND trial has ended
+   - Message: "Your free trial has ended. Subscribe to continue using Product Notes."
+
+**File changed:** `app/routes/app.billing.tsx`
+
+**Key code:**
+```typescript
+{/* Cancelled but still in trial period banner */}
+{subscription?.status === "CANCELLED" && subscription?.trialEndsAt &&
+ new Date(subscription.trialEndsAt) > new Date() && (
+  <Layout.Section>
+    <Banner title="Your subscription is cancelled" tone="warning">
+      <BlockStack gap="200">
+        <Text as="p">
+          You cancelled your subscription, but don't worry - you can still
+          use all features until your free trial ends on{" "}
+          <Text as="span" fontWeight="semibold">
+            {format(new Date(subscription.trialEndsAt), "MMMM dd, yyyy")}
+          </Text>.
+        </Text>
+        <Text as="p">
+          Since you cancelled during your free trial, you will not be charged.
+        </Text>
+      </BlockStack>
+    </Banner>
+  </Layout.Section>
+)}
+
+{/* Trial ended banner */}
+{subscription?.status === "CANCELLED" && subscription?.trialEndsAt &&
+ new Date(subscription.trialEndsAt) <= new Date() && (
+  <Layout.Section>
+    <Banner title="Your free trial has ended" tone="critical">
+      <Text as="p">
+        Subscribe to continue using Product Notes.
+      </Text>
+    </Banner>
+  </Layout.Section>
+)}
+```
+
+---
+
 ### Summary: Billing System Logic
 
 **Trial Flow:**
@@ -2962,6 +3022,11 @@ const trialDaysToGive = hasHadTrialBefore ? 0 : 7;
 
 **Commits for these fixes:**
 ```
+521f8b4 Update transcript: billing gate removal correction
+592e5a9 Remove billing gate from app pages - only block note creation
+bc88ffe Update transcript: subscription enforcement re-implementation
+025e075 Force Railway rebuild for subscription enforcement
+3ae2eae Implement subscription enforcement (fresh implementation)
 aec7f5b Implement trial logic: continue during cancel + prevent abuse
 68ae159 Fix: Only show 'Current Plan' for ACTIVE subscriptions
 9f26827 Update cancel page with softer language
