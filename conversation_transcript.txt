@@ -7127,3 +7127,181 @@ Verified app passes requirements:
 - Partner Dashboard Submission: https://apps.shopify.com/services/partner-app-submissions/759aead17dfbcb721121009dacc43ce2/en
 
 ================================================================================
+
+================================================================================
+SESSION: January 25, 2026 (Continuation - Subscription Enforcement Re-implementation)
+================================================================================
+
+## Context:
+Previous session implemented billing gate but caused "{}" rendering issue due to lost auth parameters.
+User requested full revert, then fresh re-implementation following troubleshooting guide.
+
+## Issue #25 from Troubleshooting Guide:
+**Problem:** Billing gate redirect causes "{}" to render instead of app
+**Root Cause:** `redirect("/app/billing")` loses Shopify auth query parameters
+**Solution:** `redirect(`/app/billing${url.search}`)` - MUST preserve query params
+
+## What Was Re-implemented (Fresh, Following Troubleshooting Guide):
+
+### 1. Billing Gate in `app/routes/app.tsx`
+```typescript
+// Routes that don't require subscription (billing pages must be accessible to subscribe!)
+const BILLING_EXEMPT_PATHS = ["/app/billing", "/app/billing-status"];
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  try {
+    const { billing, session } = await authenticate.admin(request);
+    const url = new URL(request.url);
+
+    // Check if this route is exempt from billing requirement
+    const isExempt = BILLING_EXEMPT_PATHS.some(path => url.pathname.startsWith(path));
+
+    // If not exempt, check for active subscription
+    if (!isExempt) {
+      const { hasActivePayment } = await billing.check({
+        plans: ["Starter Plan", "Basic Plan", "Pro Plan", "Titan Plan"],
+        isTest: process.env.IS_TEST_BILLING === "true",
+      });
+
+      // No subscription? Redirect to billing (MUST preserve query params for auth!)
+      if (!hasActivePayment) {
+        console.log("[BILLING GATE] No subscription for", session.shop, "- redirecting to billing");
+        return redirect(`/app/billing${url.search}`);  // <-- CRITICAL: preserve query params!
+      }
+    }
+
+    return json({
+      apiKey: process.env.SHOPIFY_API_KEY || "",
+    });
+  } catch (error) {
+    console.error("[APP.TSX] Auth error:", error);
+    throw error;
+  }
+}
+```
+
+### 2. Subscription Check in `app/routes/api.public.products.$productId.notes.tsx`
+Added helper function to check BillingSubscription table:
+```typescript
+async function hasActiveSubscription(shopDomain: string): Promise<boolean> {
+  const subscription = await prisma.billingSubscription.findUnique({
+    where: { shopDomain },
+  });
+
+  if (!subscription) return false;
+  if (subscription.status !== "ACTIVE") return false;
+
+  // Trial period counts as valid subscription
+  if (subscription.trialEndsAt && new Date() < subscription.trialEndsAt) {
+    return true;
+  }
+
+  // Check current period hasn't ended
+  if (subscription.currentPeriodEnd && new Date() > subscription.currentPeriodEnd) {
+    return false;
+  }
+
+  return true;
+}
+```
+
+Added subscription check before POST/PUT:
+```typescript
+// Check subscription before allowing note creation/editing
+const hasSubscription = await hasActiveSubscription(shop);
+if (!hasSubscription) {
+  console.log("[PUBLIC API] No active subscription for", shop, "- blocking note operation");
+  return json({
+    error: "subscription_required",
+    message: "A subscription is required to add or edit notes. Please subscribe to continue using this feature.",
+    requiresSubscription: true,
+  }, { status: 403 });
+}
+```
+
+### 3. Warning Banner in `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
+Added state for subscription message:
+```typescript
+const [subscriptionMessage, setSubscriptionMessage] = useState<string | null>(null);
+```
+
+Updated handleSaveNote to handle subscription error:
+```typescript
+if (!response.ok) {
+  const errorData = await response.json().catch(() => ({}));
+
+  // Check for subscription required error
+  if (errorData.requiresSubscription) {
+    setSubscriptionMessage(errorData.message || 'A subscription is required to add or edit notes.');
+    setShowForm(false);
+    setNewNote('');
+    setEditingNote(null);
+    return;
+  }
+
+  throw new Error(errorData.error || 'Failed to save note');
+}
+```
+
+Added warning banner in UI:
+```tsx
+{/* Subscription warning */}
+{subscriptionMessage && (
+  <Banner tone="warning">
+    <Text>{subscriptionMessage}</Text>
+  </Banner>
+)}
+```
+
+## Commits This Session:
+- 696c5c2 - Revert subscription enforcement - app works without subscription
+- 3ae2eae - Implement subscription enforcement (fresh implementation)
+- 025e075 - Force Railway rebuild for subscription enforcement
+
+## How It Works Now:
+
+### Main App Dashboard/Settings:
+- Requires active subscription
+- No subscription → redirects to /app/billing (with auth params preserved!)
+- Billing page accessible without subscription (so users can subscribe)
+
+### Product Notes Extension (on product pages):
+- Block always visible (even without subscription)
+- Can VIEW existing notes
+- Trying to ADD/EDIT a note without subscription → shows warning banner
+- Warning message: "A subscription is required to add or edit notes..."
+
+### Order Fulfillment Extension (on order pages):
+- Always visible
+- Shows existing notes
+- Acknowledgment still works
+
+## Files Modified:
+1. `app/routes/app.tsx` - Billing gate with proper query param preservation
+2. `app/routes/api.public.products.$productId.notes.tsx` - Subscription check for note creation
+3. `extensions/product-notes-ui/src/ProductNotesBlock.tsx` - Warning banner for subscription required
+
+## CRITICAL LESSON LEARNED:
+**ALWAYS preserve query parameters when redirecting in Shopify embedded apps!**
+- Wrong: `redirect("/app/billing")`
+- Right: `redirect(`/app/billing${url.search}`)`
+
+The auth parameters (hmac, host, id_token, session, shop, timestamp) MUST be preserved or the app will render "{}" because Shopify can't authenticate the embedded iframe.
+
+## TODO for Next Session:
+- [ ] **TEST THE BILLING GATE** - User will test tomorrow:
+  - Verify app redirects to billing page on first open (no subscription)
+  - Starting trial allows access to dashboard
+  - Extension shows warning when trying to add note without subscription
+  - No "{}" rendering issue
+- [ ] Upload app icon (1200x1200px)
+- [ ] Take screenshots for App Store listing
+- [ ] Submit for Shopify App Store review
+
+## Current Git State:
+- Branch: master
+- Latest commit: 025e075 (Force Railway rebuild for subscription enforcement)
+- Pushed to origin: Yes
+- Railway: Will auto-deploy from push
+
+================================================================================
