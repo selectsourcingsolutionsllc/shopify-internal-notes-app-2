@@ -455,25 +455,6 @@ function OrderFulfillmentBlock() {
           <Badge tone="warning">{currentNoteIndex + 1} / {productNotes.length}</Badge>
         </InlineStack>
 
-        {productNotes.length > 1 && (
-          <InlineStack inlineAlignment="center">
-            <Button
-              variant="tertiary"
-              disabled={currentNoteIndex === 0}
-              onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="tertiary"
-              disabled={currentNoteIndex === productNotes.length - 1}
-              onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
-            >
-              Next
-            </Button>
-          </InlineStack>
-        )}
-
         {/* Show acknowledgment UI only if requireAcknowledgment is enabled */}
         {settings?.requireAcknowledgment ? (
           <Banner tone="warning">
@@ -490,7 +471,15 @@ function OrderFulfillmentBlock() {
                 }}
               />
 
-              {/* Photo and acknowledged timestamp on same row */}
+              {/* Acknowledged timestamp */}
+              {isAcknowledged && ack.acknowledgedAt && (
+                <InlineStack gap="extraTight">
+                  <Badge tone="success">Acknowledged</Badge>
+                  <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
+                </InlineStack>
+              )}
+
+              {/* Photo on left, navigation buttons on right */}
               <InlineStack gap="extraTight" blockAlignment="center" inlineAlignment="space-between">
                 {/* Photo thumbnail on left */}
                 {currentNote.photos && currentNote.photos.length > 0 ? (
@@ -509,11 +498,23 @@ function OrderFulfillmentBlock() {
                   <Text></Text>
                 )}
 
-                {/* Acknowledged timestamp on right */}
-                {isAcknowledged && ack.acknowledgedAt && (
+                {/* Previous/Next buttons on right */}
+                {productNotes.length > 1 && (
                   <InlineStack gap="extraTight">
-                    <Badge tone="success">Acknowledged</Badge>
-                    <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
+                    <Button
+                      variant="tertiary"
+                      disabled={currentNoteIndex === 0}
+                      onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="tertiary"
+                      disabled={currentNoteIndex === productNotes.length - 1}
+                      onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
+                    >
+                      Next
+                    </Button>
                   </InlineStack>
                 )}
               </InlineStack>
@@ -525,20 +526,45 @@ function OrderFulfillmentBlock() {
             <BlockStack gap="extraTight">
               <Text>{currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}</Text>
 
-              {/* Photo thumbnail below */}
-              {currentNote.photos && currentNote.photos.length > 0 && (
-                <InlineStack gap="extraTight" blockAlignment="center">
-                  <Link href={currentNote.photos[0].url} external>
-                    <Image
-                      source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
-                      alt="Note photo"
-                    />
-                  </Link>
-                  {currentNote.photos.length > 1 && (
-                    <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
-                  )}
-                </InlineStack>
-              )}
+              {/* Photo on left, navigation buttons on right */}
+              <InlineStack gap="extraTight" blockAlignment="center" inlineAlignment="space-between">
+                {/* Photo thumbnail on left */}
+                {currentNote.photos && currentNote.photos.length > 0 ? (
+                  <InlineStack gap="extraTight" blockAlignment="center">
+                    <Link href={currentNote.photos[0].url} external>
+                      <Image
+                        source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
+                        alt="Note photo"
+                      />
+                    </Link>
+                    {currentNote.photos.length > 1 && (
+                      <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
+                    )}
+                  </InlineStack>
+                ) : (
+                  <Text></Text>
+                )}
+
+                {/* Previous/Next buttons on right */}
+                {productNotes.length > 1 && (
+                  <InlineStack gap="extraTight">
+                    <Button
+                      variant="tertiary"
+                      disabled={currentNoteIndex === 0}
+                      onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="tertiary"
+                      disabled={currentNoteIndex === productNotes.length - 1}
+                      onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
+                    >
+                      Next
+                    </Button>
+                  </InlineStack>
+                )}
+              </InlineStack>
             </BlockStack>
           </Banner>
         )}
