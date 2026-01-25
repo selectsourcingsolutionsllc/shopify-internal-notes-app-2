@@ -498,14 +498,14 @@ function OrderFulfillmentBlock() {
               {productNotes.length > 1 && (
                 <InlineStack gap="tight" inlineAlignment="center">
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     disabled={currentNoteIndex === 0}
                     onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
                   >
                     Previous
                   </Button>
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     disabled={currentNoteIndex === productNotes.length - 1}
                     onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
                   >
@@ -540,14 +540,14 @@ function OrderFulfillmentBlock() {
               {productNotes.length > 1 && (
                 <InlineStack gap="tight" inlineAlignment="center">
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     disabled={currentNoteIndex === 0}
                     onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
                   >
                     Previous
                   </Button>
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     disabled={currentNoteIndex === productNotes.length - 1}
                     onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
                   >
