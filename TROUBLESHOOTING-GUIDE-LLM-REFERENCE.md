@@ -2733,6 +2733,245 @@ git push origin master --force
 
 ---
 
-*Last Updated: January 22, 2026*
+## BILLING & SUBSCRIPTION ISSUES (January 24-25, 2026)
+
+This section documents 13 issues related to billing, subscriptions, trials, and plan selection that were fixed.
+
+---
+
+### Issue #1: No Restriction on Adding Notes Without Subscription
+
+**Problem:** Users could add/edit notes without an active subscription.
+
+**Solution:** Added `checkSubscriptionStatus()` function to `api.public.products.$productId.notes.tsx` that blocks POST/PUT requests without active subscription.
+
+**First iteration:** Worked correctly on first implementation.
+
+**File changed:** `app/routes/api.public.products.$productId.notes.tsx`
+
+---
+
+### Issue #2: Subscription Warning Missing Billing Page Link
+
+**Problem:** When users saw the subscription warning in the extension, there was no way to navigate to the billing page.
+
+**Solution:** Added Link component to ProductNotesBlock warning banner pointing to `/app/billing`.
+
+**First iteration:** Worked correctly on first implementation.
+
+**File changed:** `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
+
+---
+
+### Issue #3: Generic Subscription Error Messages Not Helpful
+
+**Problem:** All subscription errors showed the same generic message. Users didn't know if they never had a subscription, trial ended, or subscription expired.
+
+**Solution:** Added reason codes (`no_subscription`, `trial_ended`, `subscription_expired`, `subscription_inactive`) with context-specific messages and dynamic link text.
+
+**First iteration:** Worked correctly on first implementation.
+
+**Files changed:**
+- `app/routes/api.public.products.$productId.notes.tsx`
+- `extensions/product-notes-ui/src/ProductNotesBlock.tsx`
+
+---
+
+### Issue #4: Subscription Not Saving to Database
+
+**Problem:** User subscribed but still got "subscription required" warning because subscription wasn't saved to database.
+
+**First iteration:** Only billing-status page had sync logic, but user wasn't visiting that page after approval.
+
+**Fix:** Added subscription sync logic to billing page loader as well.
+
+**File changed:** `app/routes/app.billing.tsx`
+
+---
+
+### Issue #5: Users Could Select Any Pricing Tier
+
+**Problem:** Users could select any plan regardless of their store's product count.
+
+**First iteration:** Logic allowed users to select any plan >= their required tier.
+
+**User correction:** Should ONLY allow exact matching plan, not higher plans.
+
+**Fix:** Changed `canTierHandleProducts()` to `isTierCorrectForProducts()` with exact tier matching based on product count ranges.
+
+**File changed:** `app/routes/app.billing.tsx`
+
+---
+
+### Issue #6: All Plan Buttons Showing "Not Available"
+
+**Problem:** All tier buttons were disabled even though server correctly identified the required tier.
+
+**First iteration:** `requiredTier` from server was undefined on client side.
+
+**First fix:** Added client-side fallback calculation using `storeProductCount`.
+
+**Still broken:** All buttons still disabled.
+
+**Second fix:** Added safeguard in `isTierAllowed()` - if `requiredTier` is undefined, allow all tiers so user can always subscribe.
+
+**File changed:** `app/routes/app.billing.tsx`
+
+**Key code:**
+```typescript
+const isTierAllowed = (tierId: string): boolean => {
+  if (!requiredTier) {
+    console.log("[BILLING CLIENT] WARNING: requiredTier is undefined/null, allowing all tiers");
+    return true;
+  }
+  return tierId === requiredTier;
+};
+```
+
+---
+
+### Issue #7: Cancel Button Not Navigating to Page
+
+**Problem:** Clicking cancel button did nothing - didn't navigate to cancel subscription page.
+
+**First iteration:** Used `<Link to="/app/cancel-subscription"><Button>` wrapper.
+
+**Root cause:** Link wrapped around Button doesn't work in Shopify embedded apps (iframe issue).
+
+**Fix:** Changed to `<Button onClick={() => navigate("/app/cancel-subscription")}>` using `useNavigate()` hook.
+
+**File changed:** `app/routes/app.billing.tsx`
+
+---
+
+### Issue #8: Debug Section Showing Duplicate Cancel Button
+
+**Problem:** Added debug section with subscription state info for troubleshooting, but it created a second cancel button.
+
+**User feedback:** "I don't like the cancel button that shows all the debugging shit"
+
+**Fix:** Removed entire debug section, kept only original cancel button in green banner.
+
+**File changed:** `app/routes/app.billing.tsx`
+
+---
+
+### Issue #9: Cancel Page Language Too Aggressive
+
+**Problem:** Cancel page text was too harsh: "You'll lose access", "Staff won't see reminders", etc.
+
+**User feedback:** Wanted softer language.
+
+**Fix:**
+- Changed "You'll lose access to all Product Notes features" → "Your access to Product Notes will pause"
+- Changed "notes won't display" → "notes safely stored and available if you resubscribe"
+- Removed: fulfillment holds bullet, staff reminders bullet
+- Removed: "View Other Plans" section (users can't choose another plan anyway)
+
+**File changed:** `app/routes/app.cancel-subscription.tsx`
+
+---
+
+### Issue #10: Buttons Disabled After Canceling Subscription
+
+**Problem:** After canceling, user couldn't resubscribe - all buttons showed "Not Available".
+
+**Root cause:** Database still had subscription record with plan name, so `currentTierId` was still set, making button show "Current Plan" (disabled).
+
+**Fix:** Only set `currentTierId` if `hasActiveSubscription` is true.
+
+**File changed:** `app/routes/app.billing.tsx`
+
+**Key code:**
+```typescript
+const hasActiveSubscription = hasActivePayment || subscription?.status === "ACTIVE";
+const currentPlanName = hasActiveSubscription
+  ? (appSubscriptions?.[0]?.name || subscription?.planName || null)
+  : null;
+```
+
+---
+
+### Issue #11: "Current Plan" Showing on Cancelled Subscriptions
+
+**Problem:** Same as #10 - cancelled subscription's tier was still showing as "Current".
+
+**Fix:** Same as #10 - check `hasActiveSubscription` before setting `currentTierId`.
+
+---
+
+### Issue #12: Trial Access Lost Immediately After Cancel
+
+**Problem:** If user cancelled during free trial, they immediately lost access even with trial days remaining.
+
+**First iteration:** `checkSubscriptionStatus()` checked `status === "ACTIVE"` first, so cancelled subscriptions were blocked.
+
+**User requirement:** Trial countdown should continue after cancel. User can still use app until trial naturally ends.
+
+**Fix:** Check `trialEndsAt` FIRST regardless of status. If still within trial period, allow access even if status is "CANCELLED".
+
+**File changed:** `app/routes/api.public.products.$productId.notes.tsx`
+
+**Key code:**
+```typescript
+// Check trial period FIRST, regardless of subscription status
+if (subscription.trialEndsAt && new Date() < subscription.trialEndsAt) {
+  // Still within trial period - allow access even if status is CANCELLED
+  return { hasAccess: true };
+}
+```
+
+---
+
+### Issue #13: Users Could Abuse Free Trial Repeatedly
+
+**Problem:** Users could cancel and resubscribe to get unlimited free trials.
+
+**First iteration:** Always passed `trialDays: 7` when creating subscription.
+
+**Fix:** Check if `trialStartedAt` exists in database before creating subscription:
+- If exists → `trialDays: 0` (no new trial, charged immediately)
+- If not exists → `trialDays: 7` (first-time trial)
+
+**UI update:** Button shows "Subscribe Now" instead of "Start Trial" if they've already used a trial.
+
+**File changed:** `app/routes/app.billing.tsx`
+
+**Key code:**
+```typescript
+const hasHadTrialBefore = existingSubscription?.trialStartedAt != null;
+const trialDaysToGive = hasHadTrialBefore ? 0 : 7;
+```
+
+---
+
+### Summary: Billing System Logic
+
+**Trial Flow:**
+1. New customer → 7-day free trial
+2. Cancel during trial → Trial continues, access until trial ends
+3. Trial ends → Access stops, no charge
+4. Resubscribe after trial → No new trial, charged immediately
+
+**Plan Selection:**
+- Users can ONLY select the plan matching their product count
+- Starter: 0-50 products
+- Basic: 51-300 products
+- Pro: 301-3,000 products
+- Titan: 3,001+ products
+
+**Commits for these fixes:**
+```
+aec7f5b Implement trial logic: continue during cancel + prevent abuse
+68ae159 Fix: Only show 'Current Plan' for ACTIVE subscriptions
+9f26827 Update cancel page with softer language
+3f9142f Remove debug section from billing page
+5db19b4 Fix: Allow subscription when requiredTier is undefined
+5af572c Fix cancel button navigation - use onClick with navigate
+```
+
+---
+
+*Last Updated: January 25, 2026*
 *Based on 100+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
