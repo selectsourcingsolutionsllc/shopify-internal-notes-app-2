@@ -35,6 +35,7 @@ function ProductNotesBlock() {
   const [shopDomain, setShopDomain] = useState<string>('');
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [subscriptionMessage, setSubscriptionMessage] = useState<string | null>(null);
+  const [subscriptionReason, setSubscriptionReason] = useState<string | null>(null);
 
   const productId = api.data.selected?.[0]?.id;
 
@@ -169,6 +170,7 @@ function ProductNotesBlock() {
         // Check for subscription required error
         if (errorData.requiresSubscription) {
           setSubscriptionMessage(errorData.message || 'A subscription is required to add or edit notes.');
+          setSubscriptionReason(errorData.reason || 'no_subscription');
           setShowForm(false);
           setNewNote('');
           setEditingNote(null);
@@ -183,6 +185,7 @@ function ProductNotesBlock() {
       setEditingNote(null);
       setShowForm(false);
       setSubscriptionMessage(null); // Clear any previous subscription message
+      setSubscriptionReason(null);
     } catch (err: any) {
       setError(err.message);
     }
@@ -257,7 +260,11 @@ function ProductNotesBlock() {
           <BlockStack gap="tight">
             <Text>{subscriptionMessage}</Text>
             <Link href={`https://${shopDomain}/admin/apps/product-notes-for-staff/app/billing`} target="_blank">
-              Start Free Trial
+              {subscriptionReason === 'no_subscription' && 'Start Free Trial'}
+              {subscriptionReason === 'trial_ended' && 'Choose a Plan'}
+              {subscriptionReason === 'subscription_expired' && 'Renew Subscription'}
+              {subscriptionReason === 'subscription_inactive' && 'Resubscribe'}
+              {!subscriptionReason && 'View Plans'}
             </Link>
           </BlockStack>
         </Banner>
