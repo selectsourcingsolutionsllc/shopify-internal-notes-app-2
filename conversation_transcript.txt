@@ -6967,3 +6967,163 @@ The billing implementation was reviewed and approved:
 ## Current App Version: 1.0.5
 
 ================================================================================
+
+================================================================================
+SESSION: January 25, 2026 - App Store Submission & Billing Gate Implementation
+================================================================================
+
+## Summary
+Prepared app for Shopify App Store submission, renamed app, adjusted billing plans,
+and implemented subscription requirement for note creation.
+
+## Changes Made This Session
+
+### 1. App Rename
+- **Old name:** Product Notes for Staff
+- **New name:** Notey‑ Product Notes for Staff
+- Updated in:
+  - shopify.app.toml
+  - privacy-policy.tsx
+  - terms-of-service.tsx
+  - data-processing-agreement.tsx
+  - app._index.tsx (dashboard title)
+  - test.tsx
+- **Note:** The app handle remains `product-notes-for-staff` (handles can't change)
+
+### 2. Billing Plans Updated
+- **Removed:** Enterprise Plan ($29.99)
+- **Updated Titan Plan:**
+  - Product range: "3,000+ products"
+  - Feature: "Unlimited products on store" (was "Up to 10,000")
+- **Grid layout:** Changed from 5 columns to 4 columns (lg: 4)
+- **Volume slider:** Updated to recommend Titan for 3000+ products
+
+### Final Plan Configuration:
+| Plan | Price | Product Range | Trial |
+|------|-------|---------------|-------|
+| Starter Plan | $9.99 | 0-50 products | 7 days |
+| Basic Plan | $14.99 | 50-300 products | 7 days |
+| Pro Plan | $19.99 | 300-3,000 products | 7 days |
+| Titan Plan | $24.99 | 3,000+ products (unlimited) | 7 days |
+
+### 3. Billing Gate Implemented
+Added subscription requirement in `app/routes/app.tsx`:
+- Checks for active subscription before allowing access to app
+- Exempt routes: /app/billing, /app/billing-status
+- Redirects to /app/billing if no subscription
+
+### 4. Subscription Check for Note Creation
+Added to `api.public.products.$productId.notes.tsx`:
+- `checkSubscription()` helper function queries BillingSubscription table
+- Returns error with `requiresSubscription: true` if no active subscription
+- Messages:
+  - No subscription: "Start your free trial to add product notes. Visit the app to get started!"
+  - Inactive: "Your subscription is inactive. Please renew to continue adding notes."
+
+Updated `ProductNotesBlock.tsx`:
+- Added `subscriptionMessage` state
+- Shows warning banner when subscription required
+- Extension remains visible but note creation blocked
+
+### 5. Card Height Fix
+- Added `height: '100%'` to pricing card wrapper div
+- Ensures all 4 plan cards have consistent heights
+
+### 6. Shopify App Store Submission Prep
+Verified app passes requirements:
+- ✅ OAuth Flow (immediate auth after install)
+- ✅ Session Tokens (not cookies)
+- ✅ Shopify Billing API
+- ✅ Admin Extensions feature-complete
+- ✅ Scopes properly used
+- ✅ Post-install redirects to app UI
+- ✅ Plan changes allowed
+- ✅ No promotions in admin extensions
+- ✅ TLS/SSL (HTTPS)
+- ✅ No external agency links
+
+### App Store Listing Info Provided:
+- **Subtitle:** "Add product notes your staff must see and acknowledge before fulfilling orders."
+- **Test account:** Not required (uses Shopify auth)
+- **Sales channel requirement:** Neither Online Store nor POS required
+- **External billing:** Not used (100% Shopify Billing API)
+
+### Testing Instructions for Reviewers:
+```
+### Test 1: Add a Product Note
+1. Go to Products in Shopify admin
+2. Click on any product
+3. Scroll down to find the "Product Notes" block on the right side
+4. Type a note like "FRAGILE - wrap in bubble wrap"
+5. Click Save Note
+6. (Optional) Click Add Photo to attach an image
+
+### Test 2: Create an Order with a Noted Product
+1. Go to Orders → Create order
+2. Add the product that has a note attached
+3. Add a test customer
+4. Click Create order
+5. Notice the order note says "⚠️ FULFILLMENT BLOCKED"
+
+### Test 3: Acknowledge Notes Before Fulfillment
+1. Open the order you just created
+2. Scroll down to find the "Order Fulfillment Notes" block
+3. You will see a red banner: "ORDER ON HOLD"
+4. Check the checkbox next to each note to acknowledge
+5. Click "Release Hold & Proceed to Fulfillment"
+6. The banner turns green: "Ready to ship!"
+7. You can now fulfill the order normally
+
+### Test 4: Verify Settings
+1. Open the app from Apps → Product Notes for Staff
+2. Go to Settings
+3. Toggle "Block fulfillment until acknowledged" on/off
+4. Save and verify behavior changes
+```
+
+## Commits This Session:
+- 5dd375d - Remove Enterprise plan and update Titan to unlimited products
+- ff1578b - Update volume slider to recommend Titan for 3000+ products
+- f4e8272 - Rename app to Notey‑ Product Notes for Staff
+- 838e6d9 - Update remaining display names to Notey‑ Product Notes for Staff
+- ec1cc17 - Adjust pricing grid to 4 columns for 4 plans
+- 89cf8c3 - Update Titan plan to unlimited products
+- 6e7dccc - Fix pricing card heights to match
+- 185a727 - Add billing gate - require subscription to use app
+- 4d66cf8 - Add subscription check for note creation
+
+## How Subscription/Billing Works Now:
+
+### Main App (Dashboard, Settings):
+- Requires active subscription to access
+- No subscription → redirects to /app/billing
+- Billing page accessible without subscription (to start trial)
+
+### Product Notes Extension (on product pages):
+- Always visible (even without subscription)
+- Trying to ADD a note without subscription → shows warning banner
+- Message tells them to start free trial
+
+### Order Fulfillment Extension (on order pages):
+- Always visible
+- Shows existing notes
+- Acknowledgment still works (doesn't create new data)
+
+## TODO for Next Session:
+- [ ] **TEST THE BILLING GATE** - Uninstall app and reinstall to verify:
+  - App redirects to billing page on first open
+  - Starting trial allows access to dashboard
+  - Extension shows warning when trying to add note without subscription
+- [ ] Upload app icon (1200x1200px)
+- [ ] Take screenshots for App Store listing
+- [ ] Record demo screencast (recommended)
+- [ ] Submit for Shopify App Store review
+- [ ] Verify prices in Partner Dashboard match code
+
+## Current App Version: 1.0.6 (post-session)
+
+## Important URLs:
+- App: https://product-notes-for-staff.up.railway.app/
+- Partner Dashboard Submission: https://apps.shopify.com/services/partner-app-submissions/759aead17dfbcb721121009dacc43ce2/en
+
+================================================================================
