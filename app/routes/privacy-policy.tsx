@@ -1,13 +1,13 @@
 export default function PrivacyPolicy() {
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "40px 20px", fontFamily: "system-ui, sans-serif" }}>
-      <h1>Privacy Policy for Product Notes for Staff</h1>
+      <h1>Privacy Policy for Notey‑ Product Notes for Staff</h1>
       <p><strong>Last updated:</strong> January 13, 2026</p>
 
       <h2>1. Who We Are</h2>
       <p>
         This privacy policy explains how Select Sourcing Solutions LLC ("we", "us", or "our")
-        collects, uses, and protects information in connection with the Product Notes for Staff for
+        collects, uses, and protects information in connection with the Notey‑ Product Notes for Staff for
         Shopify ("the App").
       </p>
       <p>
@@ -18,7 +18,7 @@ export default function PrivacyPolicy() {
       </p>
 
       <h2>2. Information We Collect</h2>
-      <p>We collect information you provide directly to us when using the Product Notes for Staff, including:</p>
+      <p>We collect information you provide directly to us when using the Notey‑ Product Notes for Staff, including:</p>
       <ul>
         <li>Product notes and content you create</li>
         <li>Photos you upload as attachments to notes</li>
@@ -46,7 +46,7 @@ export default function PrivacyPolicy() {
       <h2>3. How We Use Your Information</h2>
       <p>We use the information we collect to:</p>
       <ul>
-        <li>Provide, maintain, and improve the Product Notes for Staff and its features</li>
+        <li>Provide, maintain, and improve the Notey‑ Product Notes for Staff and its features</li>
         <li>Store and manage your product notes, photos, and related data</li>
         <li>Generate audit logs for compliance, accountability, and training purposes</li>
         <li>Provide customer support and respond to inquiries</li>

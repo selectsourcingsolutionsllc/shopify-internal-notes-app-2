@@ -6,7 +6,7 @@ export default function DataProcessingAgreement() {
       
       <h2>1. Definitions</h2>
       <ul>
-        <li><strong>"Controller"</strong> means the Shopify merchant using the Product Notes for Staff</li>
+        <li><strong>"Controller"</strong> means the Shopify merchant using the Notey‑ Product Notes for Staff</li>
         <li><strong>"Processor"</strong> means Select Sourcing Solutions LLC</li>
         <li><strong>"Personal Data"</strong> has the meaning set forth in the GDPR</li>
         <li><strong>"Processing"</strong> has the meaning set forth in the GDPR</li>
@@ -15,7 +15,7 @@ export default function DataProcessingAgreement() {
       <h2>2. Scope and Purpose</h2>
       <p>
         This DPA governs the processing of Personal Data by the Processor on behalf of the Controller 
-        in connection with the Product Notes for Staff. The processing is limited to the following purposes:
+        in connection with the Notey‑ Product Notes for Staff. The processing is limited to the following purposes:
       </p>
       <ul>
         <li>Storing and managing product notes created by the Controller</li>

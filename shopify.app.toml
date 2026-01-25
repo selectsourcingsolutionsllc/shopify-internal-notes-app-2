@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "759aead17dfbcb721121009dacc43ce2"
-name = "Product Notes for Staff"
+name = "Notey‑ Product Notes for Staff"
 handle = "product-notes-for-staff"
 application_url = "https://product-notes-for-staff.up.railway.app/"
 embedded = true
