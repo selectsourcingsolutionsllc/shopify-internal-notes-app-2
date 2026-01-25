@@ -7399,3 +7399,76 @@ Updated the API and extension to show different messages based on the subscripti
 ### Extension Version: product-notes-for-staff-219
 
 ================================================================================
+
+--------------------------------------------------------------------------------
+SESSION: January 25, 2026 - Product Count Validation for Plan Selection
+--------------------------------------------------------------------------------
+
+## Feature Added: Product Count Validation
+
+### The Problem:
+Users could select ANY pricing tier regardless of how many products they had in their store.
+This meant a store with 25 products could subscribe to the Titan plan ($24.99/month) which is designed for 3,001+ products.
+
+### The Solution:
+Each pricing tier now has an EXACT product range. Users can ONLY select the plan that matches their product count.
+
+| Tier | Product Range | Price |
+|------|---------------|-------|
+| Starter | 0-50 | $9.99/month |
+| Basic | 51-300 | $14.99/month |
+| Pro | 301-3,000 | $19.99/month |
+| Titan | 3,001+ | $24.99/month |
+
+### Implementation Details:
+
+**1. app/routes/app.billing.tsx (Loader)**
+- Queries Shopify for store's product count: `productsCount { count }`
+- Computes `requiredTier` using `getRequiredTier(productCount)`
+- Returns `productCount` and `requiredTier` to the client
+
+**2. app/routes/app.billing.tsx (Action)**
+- Validates selected plan matches required tier
+- Returns error if user tries to select wrong plan (prevents server-side bypass)
+
+**3. app/routes/app.billing.tsx (UI)**
+- Shows "Your Store" card with product count
+- Displays which plan is required based on product count
+- Disables all buttons EXCEPT the required tier
+- Disabled buttons show "Not Available" with product range
+
+### Bug Found & Fixed:
+
+**Bug:** All plan buttons were showing "Not Available" even the correct tier (Starter for 25 products).
+
+**Root Cause:** The `requiredTier` value from the server loader was not reaching the client properly. The `isTierAllowed()` function was comparing `tierId === undefined` which always returned `false`.
+
+**Fix:** Added client-side fallback calculation:
+```typescript
+// Calculate required tier on client as fallback if server didn't provide it
+const clientCalculatedTier = (() => {
+  const count = storeProductCount || 0;
+  if (count <= 50) return "starter";
+  if (count <= 300) return "basic";
+  if (count <= 3000) return "pro";
+  return "titan";
+})();
+
+// Use server-provided tier, or fallback to client calculation
+const requiredTier = serverRequiredTier || clientCalculatedTier;
+```
+
+### Commits:
+- fc66490 - Add client-side fallback calculation for requiredTier
+- 6ef4e87 - Add more explicit server-side logging for billing loader response
+- 407727b - Add client-side debugging to billing page
+
+### How It Works Now:
+1. User visits billing page
+2. Server queries Shopify for product count
+3. Server determines required tier
+4. Client receives data (with fallback if data transfer fails)
+5. Only the correct tier's button is enabled
+6. If user somehow bypasses UI, server-side validation blocks incorrect plan selection
+
+================================================================================
