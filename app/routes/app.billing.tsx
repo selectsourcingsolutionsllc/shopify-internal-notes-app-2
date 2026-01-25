@@ -629,9 +629,7 @@ export default function Billing() {
                   ? "We recommend the Basic plan for your catalog size."
                   : productCount <= 3000
                   ? "The Pro plan is ideal for your store."
-                  : productCount <= 10000
-                  ? "The Titan plan is built for catalogs your size."
-                  : "Enterprise plan offers unlimited scale for your business."}
+                  : "The Titan plan offers unlimited scale for your business."}
               </Text>
             </BlockStack>
           </Card>
