@@ -625,16 +625,22 @@ export default function Billing() {
   console.log("[BILLING CLIENT] hasActivePayment:", hasActivePayment);
 
   // Calculate required tier on client as fallback if server didn't provide it
+  const productCountValue = storeProductCount ?? 0;
   const clientCalculatedTier = (() => {
-    const count = storeProductCount || 0;
-    if (count <= 50) return "starter";
-    if (count <= 300) return "basic";
-    if (count <= 3000) return "pro";
+    if (productCountValue <= 50) return "starter";
+    if (productCountValue <= 300) return "basic";
+    if (productCountValue <= 3000) return "pro";
     return "titan";
   })();
 
   // Use server-provided tier, or fallback to client calculation
+  // This ensures users can ALWAYS subscribe even if server data is missing
   const requiredTier = serverRequiredTier || clientCalculatedTier;
+
+  console.log("[BILLING CLIENT] Product count value:", productCountValue);
+  console.log("[BILLING CLIENT] Server requiredTier:", serverRequiredTier);
+  console.log("[BILLING CLIENT] Client calculated tier:", clientCalculatedTier);
+  console.log("[BILLING CLIENT] Final requiredTier:", requiredTier);
 
   // DEBUG: Log what the client is receiving
   console.log("[BILLING CLIENT] storeProductCount:", storeProductCount);
@@ -648,7 +654,12 @@ export default function Billing() {
 
   // Helper to check if a tier is the CORRECT tier for the store's product count
   // Only ONE plan is allowed - the one that matches the product range
+  // SAFEGUARD: If requiredTier is somehow undefined, allow all tiers so user can subscribe
   const isTierAllowed = (tierId: string): boolean => {
+    if (!requiredTier) {
+      console.log("[BILLING CLIENT] WARNING: requiredTier is undefined/null, allowing all tiers");
+      return true;
+    }
     const allowed = tierId === requiredTier;
     console.log("[BILLING CLIENT] isTierAllowed check:", tierId, "===", requiredTier, "=", allowed);
     return allowed;
