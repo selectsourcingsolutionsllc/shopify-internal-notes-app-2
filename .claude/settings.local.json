@@ -90,7 +90,8 @@
       "WebFetch(domain:docs.gadget.dev)",
       "WebFetch(domain:dev.to)",
       "Bash(git tag:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(railway status:*)"
     ],
     "deny": []
   }
