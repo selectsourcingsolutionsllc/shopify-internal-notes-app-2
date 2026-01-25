@@ -619,6 +619,9 @@ export default function Billing() {
 
   // DEBUG: Log raw loader data
   console.log("[BILLING CLIENT] Raw loaderData:", JSON.stringify(loaderData));
+  console.log("[BILLING CLIENT] subscription:", subscription);
+  console.log("[BILLING CLIENT] subscription?.status:", subscription?.status);
+  console.log("[BILLING CLIENT] hasActivePayment:", hasActivePayment);
 
   // Calculate required tier on client as fallback if server didn't provide it
   const clientCalculatedTier = (() => {
@@ -701,6 +704,36 @@ export default function Billing() {
             </Banner>
           </Layout.Section>
         )}
+
+        {/* DEBUG: Show subscription state (remove after debugging) */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="200">
+              <Text variant="headingSm" as="h3">Debug: Subscription State</Text>
+              <Text as="p" tone="subdued">
+                hasActiveSubscription: {hasActiveSubscription ? "true" : "false"}
+              </Text>
+              <Text as="p" tone="subdued">
+                subscription?.status: {subscription?.status || "null"}
+              </Text>
+              <Text as="p" tone="subdued">
+                hasActivePayment: {hasActivePayment ? "true" : "false"}
+              </Text>
+              <Text as="p" tone="subdued">
+                currentTierId: {currentTierId || "null"}
+              </Text>
+              {(subscription || hasActivePayment) && (
+                <Box paddingBlockStart="200">
+                  <Link to="/app/cancel-subscription">
+                    <Button tone="critical">
+                      Cancel Subscription
+                    </Button>
+                  </Link>
+                </Box>
+              )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
 
         {/* Error banner from action */}
         {actionData?.error && (
