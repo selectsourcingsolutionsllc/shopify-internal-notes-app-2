@@ -271,7 +271,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // ========== END DEBUG ==========
 
   // Get the plan name from Shopify, then convert to tier ID
-  const currentPlanName = appSubscriptions?.[0]?.name || subscription?.planName || null;
+  // IMPORTANT: Only set currentTierId if there's an ACTIVE subscription
+  // Otherwise cancelled subscriptions would still show as "Current Plan"
+  const hasActiveSubscription = hasActivePayment || subscription?.status === "ACTIVE";
+  const currentPlanName = hasActiveSubscription
+    ? (appSubscriptions?.[0]?.name || subscription?.planName || null)
+    : null;
   const currentTierId = currentPlanName
     ? PRICING_TIERS.find(t => t.planKey === currentPlanName)?.id || null
     : null;
