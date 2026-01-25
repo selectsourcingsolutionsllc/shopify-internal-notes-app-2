@@ -496,7 +496,7 @@ function OrderFulfillmentBlock() {
 
               {/* Previous/Next buttons - always at bottom right, fixed position */}
               {productNotes.length > 1 && (
-                <InlineStack gap="tight" inlineAlignment="end">
+                <InlineStack gap="tight" inlineAlignment="center">
                   <Button
                     variant="secondary"
                     disabled={currentNoteIndex === 0}
@@ -538,7 +538,7 @@ function OrderFulfillmentBlock() {
 
               {/* Previous/Next buttons - always at bottom right, fixed position */}
               {productNotes.length > 1 && (
-                <InlineStack gap="tight" inlineAlignment="end">
+                <InlineStack gap="tight" inlineAlignment="center">
                   <Button
                     variant="secondary"
                     disabled={currentNoteIndex === 0}
