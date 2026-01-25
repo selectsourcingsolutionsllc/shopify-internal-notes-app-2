@@ -718,43 +718,6 @@ export default function Billing() {
           </Layout.Section>
         )}
 
-        {/* DEBUG: Show subscription state (remove after debugging) */}
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="200">
-              <Text variant="headingSm" as="h3">Debug: Subscription State</Text>
-              <Text as="p" tone="subdued">
-                hasActiveSubscription: {hasActiveSubscription ? "true" : "false"}
-              </Text>
-              <Text as="p" tone="subdued">
-                subscription?.status: {subscription?.status || "null"}
-              </Text>
-              <Text as="p" tone="subdued">
-                hasActivePayment: {hasActivePayment ? "true" : "false"}
-              </Text>
-              <Text as="p" tone="subdued">
-                currentTierId: {currentTierId || "null"}
-              </Text>
-              {/* Only show cancel button if there's actually an ACTIVE subscription */}
-              {hasActiveSubscription && (
-                <Box paddingBlockStart="200">
-                  <Button
-                    tone="critical"
-                    onClick={() => navigate("/app/cancel-subscription")}
-                  >
-                    Cancel Subscription
-                  </Button>
-                </Box>
-              )}
-              {!hasActiveSubscription && subscription && (
-                <Text as="p" tone="caution">
-                  No active subscription to cancel (status: {subscription.status})
-                </Text>
-              )}
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-
         {/* Error banner from action */}
         {actionData?.error && (
           <Layout.Section>
