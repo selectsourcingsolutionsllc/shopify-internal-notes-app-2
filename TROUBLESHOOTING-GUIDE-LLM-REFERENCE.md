@@ -2459,6 +2459,104 @@ style={isCurrentPlan ? {
 
 ---
 
+## 25. Billing Gate Redirect Causes {} (Lost Auth Parameters)
+
+### THE PROBLEM
+
+**Date:** January 25, 2026
+
+**Symptom:** After implementing a billing gate (redirect to `/app/billing` if no subscription), the app showed just `{}` instead of the billing page.
+
+**Logs showed:**
+```
+[BILLING GATE] No active subscription for test-app-projects.myshopify.com - redirecting to billing
+[REMIX] Incoming request: GET /app/billing
+[APP.TSX] Auth error: Response {
+  status: 302,
+  headers: Headers { Location: '/auth/login' },
+  ...
+}
+```
+
+### ROOT CAUSE
+
+The billing gate used a simple redirect:
+
+```typescript
+// WRONG - Loses Shopify auth parameters!
+return redirect("/app/billing");
+```
+
+This redirect **lost all the Shopify authentication query parameters** (embedded, hmac, host, id_token, session, shop, timestamp). Without these parameters, `authenticate.admin(request)` fails and redirects to `/auth/login`, which causes the `{}` rendering issue.
+
+### THE SOLUTION
+
+Preserve the query string when redirecting:
+
+```typescript
+// CORRECT - Preserves auth parameters
+const url = new URL(request.url);
+const billingUrl = `/app/billing${url.search}`;
+return redirect(billingUrl);
+```
+
+### THE FIX IN CONTEXT
+
+**File:** `app/routes/app.tsx`
+
+```typescript
+export async function loader({ request }: LoaderFunctionArgs) {
+  try {
+    const { billing, session } = await authenticate.admin(request);
+    const url = new URL(request.url);
+
+    // Check if current route is exempt from billing check
+    const isExemptRoute = BILLING_EXEMPT_ROUTES.some(route =>
+      url.pathname.startsWith(route)
+    );
+
+    if (!isExemptRoute) {
+      const { hasActivePayment } = await billing.check({
+        plans: ["Starter Plan", "Basic Plan", "Pro Plan", "Titan Plan"],
+        isTest: process.env.IS_TEST_BILLING === "true",
+      });
+
+      if (!hasActivePayment) {
+        // IMPORTANT: Preserve query params for auth to work!
+        const billingUrl = `/app/billing${url.search}`;
+        return redirect(billingUrl);
+      }
+    }
+
+    return json({ apiKey: process.env.SHOPIFY_API_KEY || "" });
+  } catch (error) {
+    console.error("[APP.TSX] Auth error:", error);
+    throw error;
+  }
+}
+```
+
+### KEY LESSON
+
+> **ALWAYS preserve Shopify query parameters when doing server-side redirects!**
+>
+> Shopify embedded apps rely on these parameters for authentication:
+> - `embedded` - Whether app is embedded in admin
+> - `hmac` - Request signature for verification
+> - `host` - Base64 encoded shop admin URL
+> - `id_token` - JWT session token
+> - `session` - Session identifier
+> - `shop` - Shop domain
+> - `timestamp` - Request timestamp
+>
+> Losing any of these can cause auth failures and the `{}` rendering issue.
+
+### COMMIT
+
+- `33494c0` - Fix billing gate redirect - preserve auth query params
+
+---
+
 ---
 
 # 🟢 STABLE CHECKPOINTS - REVERT HERE IF THINGS BREAK 🟢
