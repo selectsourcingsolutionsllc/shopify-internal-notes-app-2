@@ -637,7 +637,7 @@ export default function Billing() {
 
         {/* Pricing grid */}
         <Layout.Section>
-          <InlineGrid columns={{ xs: 1, sm: 2, md: 3, lg: 5 }} gap="400">
+          <InlineGrid columns={{ xs: 1, sm: 2, md: 2, lg: 4 }} gap="400">
             {PRICING_TIERS.map((tier) => {
               const isCurrentPlan = tier.id === currentTierId;
               return (
