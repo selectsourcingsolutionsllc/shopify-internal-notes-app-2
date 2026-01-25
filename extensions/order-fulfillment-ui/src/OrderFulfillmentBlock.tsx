@@ -458,7 +458,7 @@ function OrderFulfillmentBlock() {
         {/* Show acknowledgment UI only if requireAcknowledgment is enabled */}
         {settings?.requireAcknowledgment ? (
           <Banner tone="warning" title="Check box to acknowledge">
-            <BlockStack gap="extraTight">
+            <BlockStack gap="none">
               {/* Checkbox with note content - always visible */}
               <Checkbox
                 label={currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}
@@ -518,7 +518,7 @@ function OrderFulfillmentBlock() {
         ) : (
           /* Show notes as info-only when acknowledgment is NOT required */
           <Banner tone="info" title="Product Note">
-            <BlockStack gap="extraTight">
+            <BlockStack gap="none">
               <Text>{currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}</Text>
 
               {/* Photo thumbnail (if exists) */}
