@@ -471,9 +471,9 @@ function OrderFulfillmentBlock() {
                 }}
               />
 
-              {/* Acknowledged timestamp */}
+              {/* Acknowledged timestamp - aligned right */}
               {isAcknowledged && ack.acknowledgedAt && (
-                <InlineStack gap="extraTight">
+                <InlineStack gap="extraTight" inlineAlignment="end">
                   <Badge tone="success">Acknowledged</Badge>
                   <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
                 </InlineStack>
