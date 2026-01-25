@@ -1,6 +1,6 @@
 import { json, redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useSearchParams, Form, Link } from "@remix-run/react";
+import { useLoaderData, useActionData, useSubmit, useNavigation, useSearchParams, Form, Link } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -11,7 +11,6 @@ import {
   BlockStack,
   InlineStack,
   InlineGrid,
-  RangeSlider,
   Badge,
   Box,
   Divider,
@@ -22,10 +21,10 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
 import { format } from "date-fns";
-import { useState, useCallback } from "react";
 
 // Pricing tiers - planKey is a simple string (NOT imported from .server.ts) - v2
 // This avoids hydration errors because the same strings exist on server AND client
+// minProducts/maxProducts define the product count range for each plan
 const PRICING_TIERS = [
   {
     id: "starter",
@@ -34,6 +33,8 @@ const PRICING_TIERS = [
     price: 9.99,
     period: "month",
     productRange: "0-50 products",
+    minProducts: 0,
+    maxProducts: 50,
     description: "Perfect for new stores",
     features: [
       "Up to 50 products on store",
@@ -50,6 +51,8 @@ const PRICING_TIERS = [
     price: 14.99,
     period: "month",
     productRange: "50-300 products",
+    minProducts: 0,
+    maxProducts: 300,
     description: "For growing stores",
     features: [
       "Up to 300 products on store",
@@ -66,6 +69,8 @@ const PRICING_TIERS = [
     price: 19.99,
     period: "month",
     productRange: "300-3,000 products",
+    minProducts: 0,
+    maxProducts: 3000,
     description: "Most popular choice",
     features: [
       "Up to 3,000 products on store",
@@ -82,6 +87,8 @@ const PRICING_TIERS = [
     price: 24.99,
     period: "month",
     productRange: "3,000+ products",
+    minProducts: 0,
+    maxProducts: Infinity,  // Unlimited
     description: "For large catalogs",
     features: [
       "Unlimited products on store",
@@ -92,6 +99,21 @@ const PRICING_TIERS = [
     recommended: false,
   },
 ];
+
+// Helper to find the minimum required plan for a given product count
+function getMinimumRequiredTier(productCount: number) {
+  if (productCount <= 50) return "starter";
+  if (productCount <= 300) return "basic";
+  if (productCount <= 3000) return "pro";
+  return "titan";
+}
+
+// Helper to check if a tier can handle the product count
+function canTierHandleProducts(tierId: string, productCount: number): boolean {
+  const tier = PRICING_TIERS.find(t => t.id === tierId);
+  if (!tier) return false;
+  return productCount <= tier.maxProducts;
+}
 
 // All plan keys for billing.check()
 const ALL_PLANS = PRICING_TIERS.map(t => t.planKey);
@@ -253,11 +275,34 @@ export async function loader({ request }: LoaderFunctionArgs) {
     ? PRICING_TIERS.find(t => t.planKey === currentPlanName)?.id || null
     : null;
 
+  // Query Shopify for the store's product count
+  let productCount = 0;
+  try {
+    const productCountResponse = await admin.graphql(`
+      query {
+        productsCount {
+          count
+        }
+      }
+    `);
+    const productCountData = await productCountResponse.json();
+    productCount = productCountData.data?.productsCount?.count || 0;
+    console.log("[BILLING] Store product count:", productCount);
+  } catch (error) {
+    console.error("[BILLING] Error fetching product count:", error);
+  }
+
+  // Determine which tier is required based on product count
+  const minimumRequiredTier = getMinimumRequiredTier(productCount);
+  console.log("[BILLING] Minimum required tier for", productCount, "products:", minimumRequiredTier);
+
   return json({
     subscription,
     hasActivePayment,
     currentTierId,
     shop: session.shop,
+    productCount,
+    minimumRequiredTier,
   });
 }
 
@@ -278,6 +323,38 @@ export async function action({ request }: ActionFunctionArgs) {
     if (!tier) {
       throw new Response("Invalid pricing tier selected", { status: 400 });
     }
+
+    // Query Shopify for the store's product count to validate plan selection
+    let productCount = 0;
+    try {
+      const productCountResponse = await admin.graphql(`
+        query {
+          productsCount {
+            count
+          }
+        }
+      `);
+      const productCountData = await productCountResponse.json();
+      productCount = productCountData.data?.productsCount?.count || 0;
+      console.log("[BILLING] Validating subscription - Store has", productCount, "products");
+    } catch (error) {
+      console.error("[BILLING] Error fetching product count for validation:", error);
+    }
+
+    // Validate that the selected plan can handle the store's product count
+    if (!canTierHandleProducts(tier.id, productCount)) {
+      const minimumTier = getMinimumRequiredTier(productCount);
+      const minimumTierName = PRICING_TIERS.find(t => t.id === minimumTier)?.name || "higher";
+      console.log("[BILLING] Plan validation failed:", tier.name, "cannot handle", productCount, "products. Minimum required:", minimumTierName);
+
+      return json({
+        error: `Your store has ${productCount.toLocaleString()} products. The ${tier.name} plan only supports up to ${tier.maxProducts.toLocaleString()} products. Please select the ${minimumTierName} plan or higher.`,
+        productCount,
+        minimumRequiredTier: minimumTier,
+      }, { status: 400 });
+    }
+
+    console.log("[BILLING] Plan validation passed:", tier.name, "can handle", productCount, "products");
 
     // Get the launchUrl from Shopify - this is the proper embedded app URL
     // Using launchUrl ensures we return to the app within Shopify admin context
@@ -525,28 +602,22 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Billing() {
-  const { subscription, hasActivePayment, currentTierId } = useLoaderData<typeof loader>();
+  const { subscription, hasActivePayment, currentTierId, productCount: storeProductCount, minimumRequiredTier } = useLoaderData<typeof loader>();
+  const actionData = useActionData<{ error?: string; productCount?: number; minimumRequiredTier?: string }>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [searchParams, setSearchParams] = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "true";
 
-  // Volume slider state (for display purposes - based on product count)
-  const [productCount, setProductCount] = useState(100);
-  const handleVolumeChange = useCallback(
-    (value: number) => setProductCount(value),
-    []
-  );
-
   const hasActiveSubscription = subscription?.status === "ACTIVE" || hasActivePayment;
   const currentTier = PRICING_TIERS.find((t) => t.id === currentTierId);
 
-  const handleSubscribe = (tierId: string) => {
-    const formData = new FormData();
-    formData.append("action", "subscribe");
-    formData.append("tierId", tierId);
-    submit(formData, { method: "post" });
+  // Helper to check if a tier can handle the store's product count
+  const isTierEligible = (tierId: string): boolean => {
+    const tier = PRICING_TIERS.find(t => t.id === tierId);
+    if (!tier) return false;
+    return storeProductCount <= tier.maxProducts;
   };
 
   // Cancel is now handled by a dedicated page at /app/cancel-subscription
@@ -601,35 +672,41 @@ export default function Billing() {
           </Layout.Section>
         )}
 
-        {/* Volume selector */}
+        {/* Error banner from action */}
+        {actionData?.error && (
+          <Layout.Section>
+            <Banner
+              title="Unable to select this plan"
+              tone="critical"
+            >
+              <p>{actionData.error}</p>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Store product count info */}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
               <Text variant="headingMd" as="h2">
-                How many products do you have?
+                Your Store
               </Text>
-              <RangeSlider
-                label="Number of products"
-                value={productCount}
-                onChange={handleVolumeChange}
-                min={0}
-                max={15000}
-                step={50}
-                output
-                suffix={
-                  <Text as="span" variant="bodyMd">
-                    {productCount.toLocaleString()} products
-                  </Text>
-                }
-              />
+              <InlineStack gap="200" blockAlign="center">
+                <Text variant="headingLg" as="p">
+                  {storeProductCount.toLocaleString()}
+                </Text>
+                <Text as="span" tone="subdued">
+                  products in your store
+                </Text>
+              </InlineStack>
               <Text as="p" tone="subdued">
-                {productCount <= 50
-                  ? "The Starter plan is perfect for you!"
-                  : productCount <= 300
-                  ? "We recommend the Basic plan for your catalog size."
-                  : productCount <= 3000
-                  ? "The Pro plan is ideal for your store."
-                  : "The Titan plan offers unlimited scale for your business."}
+                {storeProductCount <= 50
+                  ? "You can choose any plan. The Starter plan is perfect for your store size!"
+                  : storeProductCount <= 300
+                  ? "Based on your product count, you need the Basic plan or higher."
+                  : storeProductCount <= 3000
+                  ? "Based on your product count, you need the Pro plan or higher."
+                  : "Based on your product count, you need the Titan plan for unlimited products."}
               </Text>
             </BlockStack>
           </Card>
@@ -704,6 +781,15 @@ export default function Billing() {
                       <Button fullWidth disabled>
                         Current Plan
                       </Button>
+                    ) : !isTierEligible(tier.id) ? (
+                      <BlockStack gap="100">
+                        <Button fullWidth disabled tone="critical">
+                          Not Enough Capacity
+                        </Button>
+                        <Text as="p" tone="critical" alignment="center">
+                          Max {tier.maxProducts.toLocaleString()} products
+                        </Text>
+                      </BlockStack>
                     ) : hasActiveSubscription ? (
                       <Form method="post">
                         <input type="hidden" name="action" value="subscribe" />
