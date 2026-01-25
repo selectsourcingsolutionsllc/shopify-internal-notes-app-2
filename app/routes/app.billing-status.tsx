@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link } from "@remix-run/react";
+import { useLoaderData, Link, useNavigate } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -179,6 +179,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function BillingStatus() {
   const { subscription, history, trialStatus, error } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
 
   // Build subscription details for DescriptionList
   const subscriptionDetails = subscription
@@ -259,6 +260,12 @@ export default function BillingStatus() {
                     <Link to="/app/billing">
                       <Button>Change Plan</Button>
                     </Link>
+                    <Button
+                      tone="critical"
+                      onClick={() => navigate("/app/cancel-subscription")}
+                    >
+                      Cancel Subscription
+                    </Button>
                   </InlineStack>
                 </>
               ) : (
