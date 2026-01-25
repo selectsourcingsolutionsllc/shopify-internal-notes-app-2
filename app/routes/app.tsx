@@ -32,10 +32,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
         isTest: isTestBilling,
       });
 
-      // If no active subscription, redirect to billing page
+      // If no active subscription, redirect to billing page (preserve query params for auth)
       if (!hasActivePayment) {
         console.log("[BILLING GATE] No active subscription for", session.shop, "- redirecting to billing");
-        return redirect("/app/billing");
+        const billingUrl = `/app/billing${url.search}`;
+        return redirect(billingUrl);
       }
     }
 
