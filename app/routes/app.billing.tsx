@@ -297,14 +297,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const requiredTier = getRequiredTier(productCount);
   console.log("[BILLING] Required tier for", productCount, "products:", requiredTier);
 
-  return json({
+  // Explicitly construct the response object to ensure requiredTier is included
+  const loaderResponse = {
     subscription,
     hasActivePayment,
     currentTierId,
     shop: session.shop,
     productCount,
-    requiredTier,
-  });
+    requiredTier: requiredTier,  // Explicitly assign to ensure it's in the response
+  };
+  console.log("[BILLING] Loader response object:", JSON.stringify({ productCount: loaderResponse.productCount, requiredTier: loaderResponse.requiredTier }));
+
+  return json(loaderResponse);
 }
 
 export async function action({ request }: ActionFunctionArgs) {
