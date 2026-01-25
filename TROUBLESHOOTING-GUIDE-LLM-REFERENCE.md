@@ -2735,7 +2735,7 @@ git push origin master --force
 
 ## BILLING & SUBSCRIPTION ISSUES (January 24-25, 2026)
 
-This section documents 16 issues related to billing, subscriptions, trials, and plan selection that were fixed.
+This section documents 17 issues related to billing, subscriptions, trials, and plan selection that were fixed.
 
 ---
 
@@ -3060,6 +3060,35 @@ const navigate = useNavigate();
 
 ---
 
+### Issue #17: Duplicate Cancel Buttons on Multiple Pages
+
+**Problem:** Cancel button appeared on both the "Choose Your Plan" page (`app.billing.tsx`) and the new "Billing Status" page (`app.billing-status.tsx`). This was redundant and cluttered the UI.
+
+**Decision:** Keep cancel button only on the Billing Status page since that's the natural place for managing subscription status.
+
+**Solution:** Removed the cancel button from `app.billing.tsx` while keeping all cancellation logic and banners intact.
+
+**File changed:** `app/routes/app.billing.tsx`
+
+**What was removed:**
+```tsx
+<Box paddingBlockStart="200">
+  <Button
+    tone="critical"
+    onClick={() => navigate("/app/cancel-subscription")}
+  >
+    Cancel Subscription
+  </Button>
+</Box>
+```
+
+**What was kept:**
+- All cancellation banners (yellow warning for cancelled-but-in-trial, red for trial-ended)
+- All subscription status logic
+- Navigation and cancel page functionality
+
+---
+
 ### Summary: Billing System Logic
 
 **Trial Flow:**
@@ -3077,6 +3106,7 @@ const navigate = useNavigate();
 
 **Commits for these fixes:**
 ```
+08d0de0 Remove cancel button from billing page
 e55784a Add cancel subscription button to billing-status page
 bf39194 Add Billing Status link to side panel navigation
 521f8b4 Update transcript: billing gate removal correction
