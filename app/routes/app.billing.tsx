@@ -777,14 +777,6 @@ export default function Billing() {
                     Trial ends: {format(new Date(subscription.trialEndsAt), "MMMM dd, yyyy")}
                   </Text>
                 )}
-                <Box paddingBlockStart="200">
-                  <Button
-                    tone="critical"
-                    onClick={() => navigate("/app/cancel-subscription")}
-                  >
-                    Cancel Subscription
-                  </Button>
-                </Box>
               </BlockStack>
             </Banner>
           </Layout.Section>
