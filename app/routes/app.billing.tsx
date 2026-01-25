@@ -722,7 +722,8 @@ export default function Billing() {
               <Text as="p" tone="subdued">
                 currentTierId: {currentTierId || "null"}
               </Text>
-              {(subscription || hasActivePayment) && (
+              {/* Only show cancel button if there's actually an ACTIVE subscription */}
+              {hasActiveSubscription && (
                 <Box paddingBlockStart="200">
                   <Link to="/app/cancel-subscription">
                     <Button tone="critical">
@@ -730,6 +731,11 @@ export default function Billing() {
                     </Button>
                   </Link>
                 </Box>
+              )}
+              {!hasActiveSubscription && subscription && (
+                <Text as="p" tone="caution">
+                  No active subscription to cancel (status: {subscription.status})
+                </Text>
               )}
             </BlockStack>
           </Card>
