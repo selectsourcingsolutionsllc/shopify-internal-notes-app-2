@@ -81,10 +81,10 @@ const PRICING_TIERS = [
     planKey: "Titan Plan",
     price: 24.99,
     period: "month",
-    productRange: "3,000-10,000 products",
+    productRange: "3,000+ products",
     description: "For large catalogs",
     features: [
-      "Up to 10,000 products on store",
+      "Unlimited products on store",
       "Unlimited notes",
       "Photo attachments",
       "7-day free trial",
