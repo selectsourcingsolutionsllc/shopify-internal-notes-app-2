@@ -457,7 +457,7 @@ function OrderFulfillmentBlock() {
 
         {/* Show acknowledgment UI only if requireAcknowledgment is enabled */}
         {settings?.requireAcknowledgment ? (
-          <Banner tone="warning">
+          <Banner tone="warning" title="Check box to acknowledge">
             <BlockStack gap="extraTight">
               {/* Checkbox with note content - always visible */}
               <Checkbox
@@ -479,92 +479,82 @@ function OrderFulfillmentBlock() {
                 </InlineStack>
               )}
 
-              {/* Photo on left, navigation buttons on right */}
-              <InlineStack gap="extraTight" blockAlignment="center" inlineAlignment="space-between">
-                {/* Photo thumbnail on left */}
-                {currentNote.photos && currentNote.photos.length > 0 ? (
-                  <InlineStack gap="extraTight" blockAlignment="center">
-                    <Link href={currentNote.photos[0].url} external>
-                      <Image
-                        source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
-                        alt="Note photo"
-                      />
-                    </Link>
-                    {currentNote.photos.length > 1 && (
-                      <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
-                    )}
-                  </InlineStack>
-                ) : (
-                  <Text></Text>
-                )}
+              {/* Photo thumbnail (if exists) */}
+              {currentNote.photos && currentNote.photos.length > 0 && (
+                <InlineStack gap="extraTight" blockAlignment="center">
+                  <Link href={currentNote.photos[0].url} external>
+                    <Image
+                      source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
+                      alt="Note photo"
+                    />
+                  </Link>
+                  {currentNote.photos.length > 1 && (
+                    <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
+                  )}
+                </InlineStack>
+              )}
 
-                {/* Previous/Next buttons on right */}
-                {productNotes.length > 1 && (
-                  <InlineStack gap="extraTight">
-                    <Button
-                      variant="tertiary"
-                      disabled={currentNoteIndex === 0}
-                      onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="tertiary"
-                      disabled={currentNoteIndex === productNotes.length - 1}
-                      onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
-                    >
-                      Next
-                    </Button>
-                  </InlineStack>
-                )}
-              </InlineStack>
+              {/* Previous/Next buttons - always at bottom right, fixed position */}
+              {productNotes.length > 1 && (
+                <InlineStack gap="tight" inlineAlignment="end">
+                  <Button
+                    variant="secondary"
+                    disabled={currentNoteIndex === 0}
+                    onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={currentNoteIndex === productNotes.length - 1}
+                    onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
+                  >
+                    Next
+                  </Button>
+                </InlineStack>
+              )}
             </BlockStack>
           </Banner>
         ) : (
           /* Show notes as info-only when acknowledgment is NOT required */
-          <Banner tone="info">
+          <Banner tone="info" title="Product Note">
             <BlockStack gap="extraTight">
               <Text>{currentNote.content.length > 211 ? currentNote.content.substring(0, 211) + '...' : currentNote.content}</Text>
 
-              {/* Photo on left, navigation buttons on right */}
-              <InlineStack gap="extraTight" blockAlignment="center" inlineAlignment="space-between">
-                {/* Photo thumbnail on left */}
-                {currentNote.photos && currentNote.photos.length > 0 ? (
-                  <InlineStack gap="extraTight" blockAlignment="center">
-                    <Link href={currentNote.photos[0].url} external>
-                      <Image
-                        source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
-                        alt="Note photo"
-                      />
-                    </Link>
-                    {currentNote.photos.length > 1 && (
-                      <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
-                    )}
-                  </InlineStack>
-                ) : (
-                  <Text></Text>
-                )}
+              {/* Photo thumbnail (if exists) */}
+              {currentNote.photos && currentNote.photos.length > 0 && (
+                <InlineStack gap="extraTight" blockAlignment="center">
+                  <Link href={currentNote.photos[0].url} external>
+                    <Image
+                      source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
+                      alt="Note photo"
+                    />
+                  </Link>
+                  {currentNote.photos.length > 1 && (
+                    <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
+                  )}
+                </InlineStack>
+              )}
 
-                {/* Previous/Next buttons on right */}
-                {productNotes.length > 1 && (
-                  <InlineStack gap="extraTight">
-                    <Button
-                      variant="tertiary"
-                      disabled={currentNoteIndex === 0}
-                      onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="tertiary"
-                      disabled={currentNoteIndex === productNotes.length - 1}
-                      onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
-                    >
-                      Next
-                    </Button>
-                  </InlineStack>
-                )}
-              </InlineStack>
+              {/* Previous/Next buttons - always at bottom right, fixed position */}
+              {productNotes.length > 1 && (
+                <InlineStack gap="tight" inlineAlignment="end">
+                  <Button
+                    variant="secondary"
+                    disabled={currentNoteIndex === 0}
+                    onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={currentNoteIndex === productNotes.length - 1}
+                    onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
+                  >
+                    Next
+                  </Button>
+                </InlineStack>
+              )}
             </BlockStack>
           </Banner>
         )}
