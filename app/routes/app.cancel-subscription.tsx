@@ -230,23 +230,17 @@ export default function CancelSubscription() {
 
               <Divider />
 
-              {/* What You'll Lose */}
+              {/* What happens when you cancel */}
               <BlockStack gap="200">
                 <Text variant="headingMd" as="h3">
                   What happens when you cancel
                 </Text>
                 <List type="bullet">
                   <List.Item>
-                    You'll lose access to all Product Notes features
+                    Your access to Product Notes will pause
                   </List.Item>
                   <List.Item>
-                    Your existing notes will be preserved but won't display on orders
-                  </List.Item>
-                  <List.Item>
-                    Fulfillment holds will no longer be applied to new orders
-                  </List.Item>
-                  <List.Item>
-                    Staff won't see note reminders when fulfilling orders
+                    Your notes are safely stored and will be available if you resubscribe
                   </List.Item>
                   {subscription.isInTrial ? (
                     <List.Item>
@@ -280,23 +274,6 @@ export default function CancelSubscription() {
               )}
 
               {subscription.currentPeriodEnd && !subscription.isInTrial && <Divider />}
-
-              {/* Alternative Option */}
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h3">
-                  Need a different plan?
-                </Text>
-                <Text as="p" tone="subdued">
-                  If the price is too high, you can downgrade to a smaller plan instead of cancelling completely.
-                </Text>
-                <Box>
-                  <Link to="/app/billing">
-                    <Button>View Other Plans</Button>
-                  </Link>
-                </Box>
-              </BlockStack>
-
-              <Divider />
 
               {/* Action Buttons */}
               <InlineStack gap="300" align="end">
