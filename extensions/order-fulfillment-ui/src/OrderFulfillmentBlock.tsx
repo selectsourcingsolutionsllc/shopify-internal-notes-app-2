@@ -471,28 +471,33 @@ function OrderFulfillmentBlock() {
                 }}
               />
 
-              {/* Acknowledged timestamp - aligned right */}
-              {isAcknowledged && ack.acknowledgedAt && (
-                <InlineStack gap="extraTight" inlineAlignment="end">
-                  <Badge tone="success">Acknowledged</Badge>
-                  <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
-                </InlineStack>
-              )}
+              {/* Photo on left, acknowledged timestamp on right - same row */}
+              <InlineStack gap="extraTight" blockAlignment="center" inlineAlignment="space-between">
+                {/* Photo thumbnail on left */}
+                {currentNote.photos && currentNote.photos.length > 0 ? (
+                  <InlineStack gap="extraTight" blockAlignment="center">
+                    <Link href={currentNote.photos[0].url} external>
+                      <Image
+                        source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
+                        alt="Note photo"
+                      />
+                    </Link>
+                    {currentNote.photos.length > 1 && (
+                      <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
+                    )}
+                  </InlineStack>
+                ) : (
+                  <Text></Text>
+                )}
 
-              {/* Photo thumbnail (if exists) */}
-              {currentNote.photos && currentNote.photos.length > 0 && (
-                <InlineStack gap="extraTight" blockAlignment="center">
-                  <Link href={currentNote.photos[0].url} external>
-                    <Image
-                      source={currentNote.photos[0].thumbnailUrl || currentNote.photos[0].url}
-                      alt="Note photo"
-                    />
-                  </Link>
-                  {currentNote.photos.length > 1 && (
-                    <Badge tone="info">+{currentNote.photos.length - 1} more</Badge>
-                  )}
-                </InlineStack>
-              )}
+                {/* Acknowledged timestamp on right */}
+                {isAcknowledged && ack.acknowledgedAt && (
+                  <InlineStack gap="extraTight">
+                    <Badge tone="success">Acknowledged</Badge>
+                    <Text emphasis="subdued">at {new Date(ack.acknowledgedAt).toLocaleString()}</Text>
+                  </InlineStack>
+                )}
+              </InlineStack>
 
               {/* Previous/Next buttons - always at bottom right, fixed position */}
               {productNotes.length > 1 && (
