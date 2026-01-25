@@ -2735,7 +2735,7 @@ git push origin master --force
 
 ## BILLING & SUBSCRIPTION ISSUES (January 24-25, 2026)
 
-This section documents 15 issues related to billing, subscriptions, trials, and plan selection that were fixed.
+This section documents 16 issues related to billing, subscriptions, trials, and plan selection that were fixed.
 
 ---
 
@@ -3027,6 +3027,39 @@ const trialDaysToGive = hasHadTrialBefore ? 0 : 7;
 
 ---
 
+### Issue #16: No Cancel Button on Billing Status Page
+
+**Problem:** The billing-status page showed subscription details but had no way to cancel. Users had to navigate elsewhere to find the cancel option.
+
+**Solution:** Added a red "Cancel Subscription" button next to the "Change Plan" button. Only shows when user has an active subscription.
+
+**Important:** Used `onClick` with `useNavigate()` instead of wrapping Button in Link (Link wrapper doesn't work in Shopify embedded apps - see Issue #7).
+
+**File changed:** `app/routes/app.billing-status.tsx`
+
+**Key code:**
+```tsx
+import { useLoaderData, Link, useNavigate } from "@remix-run/react";
+
+// In component:
+const navigate = useNavigate();
+
+// In JSX (inside the subscription card):
+<InlineStack gap="300">
+  <Link to="/app/billing">
+    <Button>Change Plan</Button>
+  </Link>
+  <Button
+    tone="critical"
+    onClick={() => navigate("/app/cancel-subscription")}
+  >
+    Cancel Subscription
+  </Button>
+</InlineStack>
+```
+
+---
+
 ### Summary: Billing System Logic
 
 **Trial Flow:**
@@ -3044,6 +3077,7 @@ const trialDaysToGive = hasHadTrialBefore ? 0 : 7;
 
 **Commits for these fixes:**
 ```
+e55784a Add cancel subscription button to billing-status page
 bf39194 Add Billing Status link to side panel navigation
 521f8b4 Update transcript: billing gate removal correction
 592e5a9 Remove billing gate from app pages - only block note creation
