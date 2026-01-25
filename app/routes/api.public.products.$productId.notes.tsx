@@ -28,23 +28,24 @@ async function checkSubscriptionStatus(shopDomain: string): Promise<Subscription
     };
   }
 
-  // Subscription exists but status is not ACTIVE (cancelled, etc.)
-  if (subscription.status !== "ACTIVE") {
-    return {
-      hasAccess: false,
-      reason: "subscription_inactive",
-      message: "Your subscription is no longer active. Please resubscribe to continue adding notes.",
-    };
-  }
-
-  // Check if still in trial period (trial is valid subscription)
+  // IMPORTANT: Check trial period FIRST, regardless of subscription status
+  // If they cancelled during trial, they can still use the app until trial ends
   if (subscription.trialEndsAt && new Date() < subscription.trialEndsAt) {
+    // Still within trial period - allow access even if status is CANCELLED
     return { hasAccess: true };
   }
 
-  // Trial ended but no paid subscription
+  // Trial has ended - check if they had a trial
   if (subscription.trialEndsAt && new Date() >= subscription.trialEndsAt) {
-    // Check if they have an ongoing paid period
+    // If subscription is not ACTIVE and trial is over, no access
+    if (subscription.status !== "ACTIVE") {
+      return {
+        hasAccess: false,
+        reason: "trial_ended",
+        message: "Your free trial has ended. Subscribe to a plan to continue adding notes.",
+      };
+    }
+    // If ACTIVE, check if they have an ongoing paid period
     if (!subscription.currentPeriodEnd || new Date() > subscription.currentPeriodEnd) {
       return {
         hasAccess: false,
@@ -52,6 +53,15 @@ async function checkSubscriptionStatus(shopDomain: string): Promise<Subscription
         message: "Your free trial has ended. Subscribe to a plan to continue adding notes.",
       };
     }
+  }
+
+  // Subscription exists but status is not ACTIVE (cancelled, etc.) and no trial
+  if (subscription.status !== "ACTIVE") {
+    return {
+      hasAccess: false,
+      reason: "subscription_inactive",
+      message: "Your subscription is no longer active. Please resubscribe to continue adding notes.",
+    };
   }
 
   // Check if current paid period has ended

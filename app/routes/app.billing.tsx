@@ -302,6 +302,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const requiredTier = getRequiredTier(productCount);
   console.log("[BILLING] Required tier for", productCount, "products:", requiredTier);
 
+  // Check if this shop has ever used a trial (for UI display)
+  const hasUsedTrial = subscription?.trialStartedAt != null;
+
   // Explicitly construct the response object to ensure requiredTier is included
   const loaderResponse = {
     subscription,
@@ -310,8 +313,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     shop: session.shop,
     productCount,
     requiredTier: requiredTier,  // Explicitly assign to ensure it's in the response
+    hasUsedTrial,  // Used to show "Start Trial" vs "Subscribe Now"
   };
-  console.log("[BILLING] Loader response object:", JSON.stringify({ productCount: loaderResponse.productCount, requiredTier: loaderResponse.requiredTier }));
+  console.log("[BILLING] Loader response object:", JSON.stringify({ productCount: loaderResponse.productCount, requiredTier: loaderResponse.requiredTier, hasUsedTrial: loaderResponse.hasUsedTrial }));
 
   return json(loaderResponse);
 }
@@ -399,6 +403,23 @@ export async function action({ request }: ActionFunctionArgs) {
       console.log("[BILLING] Error getting launchUrl, using fallback:", returnUrl);
     }
 
+    // TRIAL ABUSE PREVENTION: Check if this shop has ever had a trial before
+    // If they have, they get NO trial (trialDays: 0)
+    // If they haven't, they get the full 7-day trial
+    const existingSubscription = await prisma.billingSubscription.findUnique({
+      where: { shopDomain: session.shop },
+    });
+
+    const hasHadTrialBefore = existingSubscription?.trialStartedAt != null;
+    const trialDaysToGive = hasHadTrialBefore ? 0 : 7;
+
+    console.log("[BILLING] Trial abuse check:", {
+      shop: session.shop,
+      hasHadTrialBefore,
+      existingTrialStartedAt: existingSubscription?.trialStartedAt,
+      trialDaysToGive,
+    });
+
     // Log billing request details for debugging
     console.log("[BILLING] Subscribe request:", {
       tierId,
@@ -406,6 +427,7 @@ export async function action({ request }: ActionFunctionArgs) {
       isTestBilling: isTestBilling,
       shop: session.shop,
       returnUrl: returnUrl,
+      trialDays: trialDaysToGive,
       IS_TEST_BILLING_ENV: process.env.IS_TEST_BILLING,
     });
 
@@ -438,7 +460,7 @@ export async function action({ request }: ActionFunctionArgs) {
           name: tier.planKey,
           returnUrl: returnUrl,
           test: isTestBilling,
-          trialDays: 7,
+          trialDays: trialDaysToGive,
           lineItems: [
             {
               plan: {
@@ -614,7 +636,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function Billing() {
   const loaderData = useLoaderData<typeof loader>();
-  const { subscription, hasActivePayment, currentTierId, productCount: storeProductCount, requiredTier: serverRequiredTier } = loaderData;
+  const { subscription, hasActivePayment, currentTierId, productCount: storeProductCount, requiredTier: serverRequiredTier, hasUsedTrial } = loaderData;
   const actionData = useActionData<{ error?: string; productCount?: number; requiredTier?: string }>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -862,7 +884,9 @@ export default function Billing() {
                           loading={isSubmitting}
                           disabled={isSubmitting}
                         >
-                          {tier.recommended ? "Start 7-Day Trial" : "Start Trial"}
+                          {hasUsedTrial
+                            ? "Subscribe Now"
+                            : (tier.recommended ? "Start 7-Day Trial" : "Start Trial")}
                         </Button>
                       </Form>
                     )}
