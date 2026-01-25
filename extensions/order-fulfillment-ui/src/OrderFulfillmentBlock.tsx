@@ -455,6 +455,25 @@ function OrderFulfillmentBlock() {
           <Badge tone="warning">{currentNoteIndex + 1} / {productNotes.length}</Badge>
         </InlineStack>
 
+        {productNotes.length > 1 && (
+          <InlineStack inlineAlignment="center">
+            <Button
+              variant="tertiary"
+              disabled={currentNoteIndex === 0}
+              onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="tertiary"
+              disabled={currentNoteIndex === productNotes.length - 1}
+              onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
+            >
+              Next
+            </Button>
+          </InlineStack>
+        )}
+
         {/* Show acknowledgment UI only if requireAcknowledgment is enabled */}
         {settings?.requireAcknowledgment ? (
           <Banner tone="warning">
@@ -522,25 +541,6 @@ function OrderFulfillmentBlock() {
               )}
             </BlockStack>
           </Banner>
-        )}
-
-        {productNotes.length > 1 && (
-          <InlineStack inlineAlignment="center">
-            <Button
-              variant="tertiary"
-              disabled={currentNoteIndex === 0}
-              onPress={() => setCurrentNoteIndex(currentNoteIndex - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="tertiary"
-              disabled={currentNoteIndex === productNotes.length - 1}
-              onPress={() => setCurrentNoteIndex(currentNoteIndex + 1)}
-            >
-              Next
-            </Button>
-          </InlineStack>
         )}
       </BlockStack>
     </Box>
