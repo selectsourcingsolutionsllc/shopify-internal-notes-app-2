@@ -1,6 +1,6 @@
 import { json, redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useActionData, useSubmit, useNavigation, useSearchParams, Form, Link } from "@remix-run/react";
+import { useLoaderData, useActionData, useSubmit, useNavigation, useSearchParams, Form, Link, useNavigate } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -613,6 +613,7 @@ export default function Billing() {
   const actionData = useActionData<{ error?: string; productCount?: number; requiredTier?: string }>();
   const submit = useSubmit();
   const navigation = useNavigation();
+  const navigate = useNavigate();
   const isSubmitting = navigation.state === "submitting";
   const [searchParams, setSearchParams] = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "true";
@@ -694,11 +695,12 @@ export default function Billing() {
                   </Text>
                 )}
                 <Box paddingBlockStart="200">
-                  <Link to="/app/cancel-subscription">
-                    <Button tone="critical">
-                      Cancel Subscription
-                    </Button>
-                  </Link>
+                  <Button
+                    tone="critical"
+                    onClick={() => navigate("/app/cancel-subscription")}
+                  >
+                    Cancel Subscription
+                  </Button>
                 </Box>
               </BlockStack>
             </Banner>
@@ -725,11 +727,12 @@ export default function Billing() {
               {/* Only show cancel button if there's actually an ACTIVE subscription */}
               {hasActiveSubscription && (
                 <Box paddingBlockStart="200">
-                  <Link to="/app/cancel-subscription">
-                    <Button tone="critical">
-                      Cancel Subscription
-                    </Button>
-                  </Link>
+                  <Button
+                    tone="critical"
+                    onClick={() => navigate("/app/cancel-subscription")}
+                  >
+                    Cancel Subscription
+                  </Button>
                 </Box>
               )}
               {!hasActiveSubscription && subscription && (
