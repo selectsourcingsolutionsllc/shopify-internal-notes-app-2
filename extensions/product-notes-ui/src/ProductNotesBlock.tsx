@@ -32,7 +32,6 @@ function ProductNotesBlock() {
   const [editingNote, setEditingNote] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [subscriptionMessage, setSubscriptionMessage] = useState<string | null>(null);
   const [shopDomain, setShopDomain] = useState<string>('');
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
 
@@ -163,16 +162,8 @@ function ProductNotesBlock() {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (errorData.requiresSubscription) {
-          setSubscriptionMessage(errorData.message || 'A subscription is required to add notes.');
-          return;
-        }
-        throw new Error(errorData.error || 'Failed to save note');
-      }
+      if (!response.ok) throw new Error('Failed to save note');
 
-      setSubscriptionMessage(null); // Clear any previous subscription message
       await fetchNotes();
       setNewNote('');
       setEditingNote(null);
@@ -245,13 +236,6 @@ function ProductNotesBlock() {
 
   return (
     <BlockStack gap="tight">
-      {/* Subscription required banner */}
-      {subscriptionMessage && (
-        <Banner tone="warning" title="Subscription Required">
-          <Text>{subscriptionMessage}</Text>
-        </Banner>
-      )}
-
       {/* Header */}
       <InlineStack gap="base" blockAlignment="center">
         <Text fontWeight="bold">Product Notes</Text>
