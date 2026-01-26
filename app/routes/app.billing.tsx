@@ -823,13 +823,15 @@ export default function Billing() {
 
         {/* Pricing grid */}
         <Layout.Section>
-          <InlineGrid columns={{ xs: 1, sm: 2, md: 2, lg: 4 }} gap="400">
+          <InlineGrid columns={{ xs: 1, sm: 2, md: 2, lg: 4 }} gap="400" alignItems="stretch">
             {PRICING_TIERS.map((tier) => {
               const isCurrentPlan = tier.id === currentTierId;
               return (
               <div
                 key={tier.id}
                 style={{
+                  display: 'flex',
+                  flexDirection: 'column',
                   height: '100%',
                   ...(isCurrentPlan ? {
                     borderTop: '3px solid #2C6ECB',
@@ -838,6 +840,7 @@ export default function Billing() {
                   } : {}),
                 }}
               >
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <Card background={tier.recommended ? "bg-surface-secondary" : undefined}>
                 <BlockStack gap="400">
                   {/* Header with badge */}
@@ -933,6 +936,7 @@ export default function Billing() {
                   </Box>
                 </BlockStack>
               </Card>
+              </div>
               </div>
               );
             })}
