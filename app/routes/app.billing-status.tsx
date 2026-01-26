@@ -125,14 +125,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
     console.log("[BILLING-STATUS] Got subscription data");
 
     // Format all data server-side before sending to client
+    // IMPORTANT: During trial, show trial end date as "next billing date" (that's when first charge happens)
+    // After trial, show currentPeriodEnd
+    const nextBillingDate = subscriptionData.trialStatus.inTrial && subscriptionData.trialStatus.trialEndsAt
+      ? subscriptionData.trialStatus.trialEndsAt.toISOString()
+      : subscriptionData.activeSubscription?.currentPeriodEnd;
+
     const formattedSubscription: FormattedSubscription | null = subscriptionData.activeSubscription
       ? {
           name: subscriptionData.activeSubscription.name,
           status: subscriptionData.activeSubscription.status,
           statusTone: getStatusBadgeTone(subscriptionData.activeSubscription.status),
           priceFormatted: formatPrice(subscriptionData.activeSubscription),
-          nextBillingFormatted: subscriptionData.activeSubscription.currentPeriodEnd
-            ? formatDate(subscriptionData.activeSubscription.currentPeriodEnd)
+          nextBillingFormatted: nextBillingDate
+            ? formatDate(nextBillingDate)
             : "N/A",
           startedFormatted: formatDate(subscriptionData.activeSubscription.createdAt),
           isTest: subscriptionData.activeSubscription.test,
