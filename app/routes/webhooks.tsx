@@ -464,6 +464,20 @@ async function handleFulfillmentCreated(shop: string, payload: any) {
   }
 }
 
+// Simple in-memory cache to track recently processed webhook events
+// This prevents duplicate webhooks from re-adding notes that were just removed
+const recentlyProcessedHoldReleases = new Map<string, number>();
+
+// Clean up old entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of recentlyProcessedHoldReleases) {
+    if (now - timestamp > 60000) { // Remove entries older than 1 minute
+      recentlyProcessedHoldReleases.delete(key);
+    }
+  }
+}, 300000);
+
 async function handleHoldReleased(shop: string, payload: any) {
   console.log(`[Webhook] Hold released for shop: ${shop}`);
   console.log(`[Webhook] Payload:`, JSON.stringify(payload, null, 2));
@@ -483,6 +497,20 @@ async function handleHoldReleased(shop: string, payload: any) {
     const fulfillmentOrderNumericId = foMatch ? foMatch[1] : fulfillmentOrderId;
 
     console.log(`[Webhook] Fulfillment order ID: ${fulfillmentOrderNumericId}`);
+
+    // Deduplication: Check if we already processed this fulfillment order recently
+    const dedupeKey = `${shop}:${fulfillmentOrderNumericId}`;
+    const lastProcessed = recentlyProcessedHoldReleases.get(dedupeKey);
+    const now = Date.now();
+
+    if (lastProcessed && (now - lastProcessed) < 10000) {
+      // Processed within last 10 seconds - this is a duplicate webhook
+      console.log(`[Webhook] DUPLICATE WEBHOOK - Already processed ${dedupeKey} within last 10 seconds, skipping`);
+      return;
+    }
+
+    // Mark this as processed
+    recentlyProcessedHoldReleases.set(dedupeKey, now);
 
     // Get admin API client for this shop
     let admin;
