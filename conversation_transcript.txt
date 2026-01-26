@@ -7472,3 +7472,79 @@ const requiredTier = serverRequiredTier || clientCalculatedTier;
 6. If user somehow bypasses UI, server-side validation blocks incorrect plan selection
 
 ================================================================================
+
+================================================================================
+🟢 CHECKPOINT CREATED: January 25, 2026 - PRE API UPGRADE 🟢
+================================================================================
+
+## Tag: v1.2-checkpoint-jan25-2026-pre-api-upgrade
+
+**Latest Commit:** e481ed6 - Add limit: null to productsCount query for API 2025-07 compatibility
+**Status:** ✅ FULLY WORKING - ALL FEATURES FUNCTIONAL (before API version upgrade)
+
+### WHY THIS CHECKPOINT EXISTS:
+Shopify App Store submission is blocking due to "Querying deprecated APIs" warning.
+Must upgrade API version from 2025-01 to 2025-07.
+This checkpoint preserves the working state BEFORE the upgrade in case something breaks.
+
+### CURRENT API VERSIONS (BEFORE UPGRADE):
+| File | Current Version |
+|------|-----------------|
+| shopify.server.ts | ApiVersion.January25 (2025-01) |
+| shopify.app.toml | 2025-01 |
+| extensions/product-notes-ui/shopify.extension.toml | 2025-04 |
+| extensions/order-fulfillment-ui/shopify.extension.toml | 2025-04 |
+
+### WHAT'S WORKING AT THIS CHECKPOINT:
+- ✅ Product Notes Extension (add/edit/delete notes with photos)
+- ✅ Order Fulfillment Extension (acknowledge notes, release holds)
+- ✅ Fulfillment Blocking (holds applied, warning notes added)
+- ✅ Session-Based Acknowledgment Reset
+- ✅ Photo Uploads (Railway Volume storage)
+- ✅ Billing Subscribe (4 tiers with 7-day trial)
+- ✅ Billing Cancel (dedicated page)
+- ✅ Current Plan Highlighting
+- ✅ Subscription Enforcement (blocks note creation without subscription)
+- ✅ Product Count Validation (only correct tier selectable)
+- ✅ Context-Specific Subscription Messages
+
+### KEY PACKAGE VERSIONS:
+| Package | Version |
+|---------|---------|
+| @shopify/shopify-app-remix | ^4.0.1 |
+| @shopify/cli | ^3.88.1 |
+| @shopify/polaris | ^12.0.0 |
+| @shopify/ui-extensions | ^2025.7.1 |
+| @shopify/ui-extensions-react | ^2025.7.1 |
+| prisma | 5.22.0 |
+| remix (via build) | 2.7.1 |
+
+### ENVIRONMENT VARIABLES:
+| Variable | Value |
+|----------|-------|
+| SHOPIFY_APP_URL | https://product-notes-for-staff.up.railway.app |
+| IS_TEST_BILLING | true (set to false for production) |
+| PORT | 3000 |
+| UPLOAD_DIR | /data/uploads |
+
+### PRICING TIERS:
+| Plan | Price | Products |
+|------|-------|----------|
+| Starter | $9.99/mo | 0-50 |
+| Basic | $14.99/mo | 51-300 |
+| Pro | $19.99/mo | 301-3,000 |
+| Titan | $24.99/mo | 3,001+ (unlimited) |
+
+### HOW TO REVERT TO THIS CHECKPOINT:
+```bash
+git fetch origin
+git reset --hard v1.2-checkpoint-jan25-2026-pre-api-upgrade
+git push origin master --force
+npx shopify app deploy --force
+```
+
+### RAILWAY REDEPLOYMENT:
+After reverting, Railway will auto-deploy from the push.
+If Railway doesn't pick it up, manually trigger a deploy in Railway dashboard.
+
+================================================================================
