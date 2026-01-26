@@ -282,11 +282,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     : null;
 
   // Query Shopify for the store's product count
+  // Note: limit: null ensures we get the full count (not capped at 10,000)
+  // This is required for API version 2025-07+
   let productCount = 0;
   try {
     const productCountResponse = await admin.graphql(`
       query {
-        productsCount {
+        productsCount(limit: null) {
           count
         }
       }
@@ -339,11 +341,12 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Query Shopify for the store's product count to validate plan selection
+    // Note: limit: null ensures we get the full count (not capped at 10,000)
     let productCount = 0;
     try {
       const productCountResponse = await admin.graphql(`
         query {
-          productsCount {
+          productsCount(limit: null) {
             count
           }
         }
