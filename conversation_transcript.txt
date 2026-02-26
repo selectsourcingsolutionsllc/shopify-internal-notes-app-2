@@ -7610,4 +7610,13 @@ Commit: b9c8f95 - "Migrate from Custom Billing API to Shopify Managed Pricing"
 2. Run `shopify app deploy` to register the new webhook with Shopify
 3. Test the full flow: Manage Subscription → Shopify pricing page → select plan → webhook fires → DB updated
 
+### STATUS (2026-02-25):
+- Code changes are DONE and pushed to git (commit ae0f9c8)
+- Railway will auto-deploy the code changes
+- **BLOCKED**: Need to update Shopify to apply the new pricing structure
+  - Must configure the 4 managed pricing plans in the Partner Dashboard BEFORE the app will work
+  - Must run `shopify app deploy` to register the APP_SUBSCRIPTIONS_UPDATE webhook
+  - Until these steps are done, the "Manage Subscription" / "Choose a Plan" buttons will
+    lead to a Shopify page with no plans configured
+
 ================================================================================
