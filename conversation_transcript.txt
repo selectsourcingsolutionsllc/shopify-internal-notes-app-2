@@ -7548,3 +7548,66 @@ After reverting, Railway will auto-deploy from the push.
 If Railway doesn't pick it up, manually trigger a deploy in Railway dashboard.
 
 ================================================================================
+
+================================================================================
+SESSION: 2026-02-25 - MIGRATE FROM CUSTOM BILLING API TO SHOPIFY MANAGED PRICING
+================================================================================
+
+### CONTEXT:
+Shopify told the user they must switch from their custom pricing page to Shopify
+Managed Pricing. With Managed Pricing, plans are configured in the Partner Dashboard
+and Shopify hosts the plan selection page — no custom billing UI needed.
+
+### WHAT WAS DONE:
+Commit: b9c8f95 - "Migrate from Custom Billing API to Shopify Managed Pricing"
+
+### FILES CHANGED:
+
+| File | Action | What Changed |
+|------|--------|--------------|
+| shopify.app.toml | Modified | Added `app_subscriptions/update` webhook subscription |
+| app/shopify.server.ts | Modified | Removed `billing: {...}` config block (50 lines) and `BillingInterval` import; added `APP_SUBSCRIPTIONS_UPDATE` webhook registration |
+| app/routes/webhooks.tsx | Modified | Added `APP_SUBSCRIPTIONS_UPDATE` case + `handleAppSubscriptionsUpdate()` handler that upserts subscription status to database |
+| app/routes/app.billing.tsx | Replaced | 984-line custom pricing page → ~170-line simple page showing current plan + "Manage Subscription" button pointing to Shopify managed pricing |
+| app/routes/app.billing-status.tsx | Simplified | Removed "Cancel Subscription" button and "Change Plan" link; replaced with single "Manage Plan" button pointing to Shopify managed pricing URL |
+| app/routes/app.cancel-subscription.tsx | DELETED | Shopify handles cancellation now |
+| app/routes/app.tsx | Simplified | Removed "Billing Status" nav link; renamed "Subscription" to "Billing" |
+| app/routes/app._index.tsx | Updated | Changed "Start 7-day trial" button text to "Choose a Plan" |
+
+### KEY DETAILS:
+
+1. **Managed Pricing URL format**: `shopify:admin/charges/product-notes-for-staff/pricing_plans`
+   - This is an App Bridge navigation URL that opens Shopify's hosted pricing page
+   - The app handle `product-notes-for-staff` comes from shopify.app.toml
+
+2. **APP_SUBSCRIPTIONS_UPDATE webhook**: Fires whenever a merchant's subscription changes
+   (new, upgraded, downgraded, cancelled). The handler:
+   - Receives subscription payload from Shopify
+   - Upserts into BillingSubscription database table
+   - Handles statuses: ACTIVE, CANCELLED, EXPIRED, DECLINED, FROZEN
+
+3. **What was kept unchanged**:
+   - app/utils/billing.server.ts (uses direct GraphQL, still works)
+   - api.public.products.$productId.notes.tsx (reads from DB, still works)
+   - prisma/schema.prisma (BillingSubscription table still needed)
+   - Plan name constants (STARTER_PLAN, BASIC_PLAN, etc.) kept in shopify.server.ts
+   - Billing-status page sync logic (backup sync mechanism)
+   - Billing history display on billing-status page
+
+4. **What was removed**:
+   - Entire `billing: {...}` block from shopifyApp() config
+   - `BillingInterval` import
+   - Custom pricing page with plan cards, product count validation, GraphQL mutations
+   - Cancel subscription page (325 lines)
+   - Cancel button on billing-status page
+
+### STILL NEEDED (MANUAL STEPS):
+1. Configure 4 plans in Shopify Partner Dashboard:
+   - Starter Plan: $9.99/mo, 7-day trial
+   - Basic Plan: $14.99/mo, 7-day trial
+   - Pro Plan: $19.99/mo, 7-day trial
+   - Titan Plan: $24.99/mo, 7-day trial
+2. Run `shopify app deploy` to register the new webhook with Shopify
+3. Test the full flow: Manage Subscription → Shopify pricing page → select plan → webhook fires → DB updated
+
+================================================================================
