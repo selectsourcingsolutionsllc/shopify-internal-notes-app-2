@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link, useNavigate } from "@remix-run/react";
+import { useLoaderData } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -183,9 +183,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
+// The app handle from shopify.app.toml — used to build the managed pricing URL
+const APP_HANDLE = "product-notes-for-staff";
+
 export default function BillingStatus() {
   const { subscription, history, trialStatus, error } = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
+
+  // Shopify's managed pricing page URL (App Bridge navigation format)
+  const managedPricingUrl = `shopify:admin/charges/${APP_HANDLE}/pricing_plans`;
 
   // Build subscription details for DescriptionList
   const subscriptionDetails = subscription
@@ -206,8 +211,8 @@ export default function BillingStatus() {
       backAction={{ content: "Dashboard", url: "/app" }}
       secondaryActions={[
         {
-          content: "Change Plan",
-          url: "/app/billing",
+          content: "Manage Plan",
+          url: `shopify:admin/charges/${APP_HANDLE}/pricing_plans`,
         },
       ]}
     >
@@ -263,14 +268,8 @@ export default function BillingStatus() {
                   <Divider />
 
                   <InlineStack gap="300">
-                    <Link to="/app/billing">
-                      <Button>Change Plan</Button>
-                    </Link>
-                    <Button
-                      tone="critical"
-                      onClick={() => navigate("/app/cancel-subscription")}
-                    >
-                      Cancel Subscription
+                    <Button url={managedPricingUrl} variant="primary">
+                      Manage Plan
                     </Button>
                   </InlineStack>
                 </>
@@ -279,7 +278,7 @@ export default function BillingStatus() {
                   heading="No active subscription"
                   action={{
                     content: "Choose a Plan",
-                    url: "/app/billing",
+                    url: managedPricingUrl,
                   }}
                   image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                 >
@@ -347,22 +346,12 @@ export default function BillingStatus() {
               <BlockStack gap="300">
                 <BlockStack gap="100">
                   <Text variant="headingSm" as="h3">
-                    How do I upgrade or downgrade my plan?
+                    How do I upgrade, downgrade, or cancel?
                   </Text>
                   <Text tone="subdued" as="p">
-                    Click "Change Plan" above to view all available plans and
-                    switch to a different tier. Changes take effect immediately.
-                  </Text>
-                </BlockStack>
-
-                <BlockStack gap="100">
-                  <Text variant="headingSm" as="h3">
-                    How do I cancel my subscription?
-                  </Text>
-                  <Text tone="subdued" as="p">
-                    You can cancel your subscription from the{" "}
-                    <Link to="/app/billing">billing page</Link>. You'll retain
-                    access until the end of your current billing period.
+                    Click "Manage Plan" above to view all available plans,
+                    switch tiers, or cancel. Shopify handles all plan changes
+                    and billing for you.
                   </Text>
                 </BlockStack>
 

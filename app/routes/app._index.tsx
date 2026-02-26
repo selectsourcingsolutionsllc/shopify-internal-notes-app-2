@@ -94,7 +94,7 @@ export default function AppIndex() {
           title="Start your free trial"
           tone="warning"
           action={{
-            content: "Start 7-day trial",
+            content: "Choose a Plan",
             url: "/app/billing",
           }}
         >

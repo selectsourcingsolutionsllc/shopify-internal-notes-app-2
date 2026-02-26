@@ -32,6 +32,10 @@ api_version = "2025-07"
   topics = [ "fulfillments/create" ]
   uri = "/webhooks"
 
+  [[webhooks.subscriptions]]
+  topics = [ "app_subscriptions/update" ]
+  uri = "/webhooks"
+
 [access.admin]
 direct_api_mode = "offline"
 
