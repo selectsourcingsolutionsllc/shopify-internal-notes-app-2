@@ -184,6 +184,9 @@ export async function action({ request }: ActionFunctionArgs) {
       case "FULFILLMENTS_CREATE":
         await handleFulfillmentCreated(shop, payload);
         break;
+      case "APP_SUBSCRIPTIONS_UPDATE":
+        await handleAppSubscriptionsUpdate(shop, payload);
+        break;
       case "CUSTOMERS_DATA_REQUEST":
         await handleCustomerDataRequest(shop);
         break;
@@ -461,6 +464,100 @@ async function handleFulfillmentCreated(shop: string, payload: any) {
     }
   } catch (error) {
     console.error("[Webhook] Error handling fulfillment created:", error);
+  }
+}
+
+async function handleAppSubscriptionsUpdate(shop: string, payload: any) {
+  console.log(`[Webhook] APP_SUBSCRIPTIONS_UPDATE for shop: ${shop}`);
+  console.log(`[Webhook] Subscription payload:`, JSON.stringify(payload, null, 2));
+
+  try {
+    // The payload contains the app_subscription object from Shopify
+    const subscription = payload.app_subscription || payload;
+
+    const subscriptionGid = subscription.admin_graphql_api_id || subscription.id;
+    const name = subscription.name || "Unknown Plan";
+    const status = (subscription.status || "UNKNOWN").toUpperCase();
+
+    console.log(`[Webhook] Subscription: ${name}, Status: ${status}, ID: ${subscriptionGid}`);
+
+    // Calculate trial end date from created_at + trial_days if available
+    let trialStartedAt: Date | null = null;
+    let trialEndsAt: Date | null = null;
+    const createdAt = subscription.created_at ? new Date(subscription.created_at) : new Date();
+
+    // Shopify sends trial_days in the REST webhook payload
+    // Also check for capped_amount to determine if this is a real subscription
+    if (subscription.trial_days && subscription.trial_days > 0) {
+      trialStartedAt = createdAt;
+      trialEndsAt = new Date(createdAt);
+      trialEndsAt.setDate(trialEndsAt.getDate() + subscription.trial_days);
+    }
+
+    // Handle different statuses
+    if (status === "ACTIVE") {
+      // New subscription or reactivation - upsert to database
+      await prisma.billingSubscription.upsert({
+        where: { shopDomain: shop },
+        update: {
+          subscriptionId: String(subscriptionGid),
+          planName: name,
+          status: "ACTIVE",
+          test: subscription.test || false,
+          trialStartedAt,
+          trialEndsAt,
+          currentPeriodEnd: subscription.current_period_end
+            ? new Date(subscription.current_period_end)
+            : null,
+        },
+        create: {
+          shopDomain: shop,
+          subscriptionId: String(subscriptionGid),
+          planName: name,
+          status: "ACTIVE",
+          test: subscription.test || false,
+          trialStartedAt,
+          trialEndsAt,
+          currentPeriodEnd: subscription.current_period_end
+            ? new Date(subscription.current_period_end)
+            : null,
+        },
+      });
+      console.log(`[Webhook] Subscription ACTIVE - saved to database for ${shop}`);
+
+    } else if (status === "CANCELLED" || status === "EXPIRED" || status === "DECLINED" || status === "FROZEN") {
+      // Subscription ended or paused - update status in database
+      const existing = await prisma.billingSubscription.findUnique({
+        where: { shopDomain: shop },
+      });
+
+      if (existing) {
+        await prisma.billingSubscription.update({
+          where: { shopDomain: shop },
+          data: { status },
+        });
+        console.log(`[Webhook] Subscription ${status} - updated database for ${shop}`);
+      } else {
+        // Create a record even for cancelled subscriptions so we have history
+        await prisma.billingSubscription.create({
+          data: {
+            shopDomain: shop,
+            subscriptionId: String(subscriptionGid),
+            planName: name,
+            status,
+            test: subscription.test || false,
+            trialStartedAt,
+            trialEndsAt,
+          },
+        });
+        console.log(`[Webhook] Subscription ${status} - created record in database for ${shop}`);
+      }
+
+    } else {
+      console.log(`[Webhook] Unhandled subscription status: ${status}`);
+    }
+  } catch (error) {
+    console.error("[Webhook] Error handling APP_SUBSCRIPTIONS_UPDATE:", error);
   }
 }
 

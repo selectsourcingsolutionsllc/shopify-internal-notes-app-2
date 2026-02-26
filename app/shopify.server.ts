@@ -4,7 +4,6 @@ import {
   AppDistribution,
   DeliveryMethod,
   shopifyApp,
-  BillingInterval,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
@@ -46,6 +45,10 @@ const shopify = shopifyApp({
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
+    APP_SUBSCRIPTIONS_UPDATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks",
+    },
   },
   hooks: {
     afterAuth: async ({ session }) => {
@@ -69,58 +72,6 @@ const shopify = shopifyApp({
       } catch (error) {
         console.error(`[AFTER_AUTH] Error creating default settings for ${session.shop}:`, error);
       }
-    },
-  },
-  billing: {
-    [STARTER_PLAN]: {
-      trialDays: 7,
-      lineItems: [
-        {
-          amount: 9.99,
-          currencyCode: "USD",
-          interval: BillingInterval.Every30Days,
-        },
-      ],
-    },
-    [BASIC_PLAN]: {
-      trialDays: 7,
-      lineItems: [
-        {
-          amount: 14.99,
-          currencyCode: "USD",
-          interval: BillingInterval.Every30Days,
-        },
-      ],
-    },
-    [PRO_PLAN]: {
-      trialDays: 7,
-      lineItems: [
-        {
-          amount: 19.99,
-          currencyCode: "USD",
-          interval: BillingInterval.Every30Days,
-        },
-      ],
-    },
-    [TITAN_PLAN]: {
-      trialDays: 7,
-      lineItems: [
-        {
-          amount: 24.99,
-          currencyCode: "USD",
-          interval: BillingInterval.Every30Days,
-        },
-      ],
-    },
-    [ENTERPRISE_PLAN]: {
-      trialDays: 7,
-      lineItems: [
-        {
-          amount: 29.99,
-          currencyCode: "USD",
-          interval: BillingInterval.Every30Days,
-        },
-      ],
     },
   },
   ...(process.env.SHOP_CUSTOM_DOMAIN
