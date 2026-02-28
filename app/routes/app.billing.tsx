@@ -14,6 +14,8 @@ import {
   Divider,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
+import { format } from "date-fns";
 import {
   getSubscriptionStatus,
   formatPrice,
@@ -24,9 +26,14 @@ import {
 const APP_HANDLE = "product-notes-for-staff";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
 
-  const subscriptionData = await getSubscriptionStatus(admin);
+  const [subscriptionData, dbSubscription] = await Promise.all([
+    getSubscriptionStatus(admin),
+    prisma.billingSubscription.findUnique({
+      where: { shopDomain: session.shop },
+    }),
+  ]);
 
   const activeSubscription = subscriptionData.activeSubscription;
   const trialStatus = subscriptionData.trialStatus;
@@ -44,11 +51,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       message: trialStatus.message,
     },
     appHandle: APP_HANDLE,
+    // Database subscription info for cancellation banners
+    dbStatus: dbSubscription?.status || null,
+    dbTrialEndsAt: dbSubscription?.trialEndsAt?.toISOString() || null,
   });
 }
 
 export default function Billing() {
-  const { hasSubscription, planName, status, statusTone, priceFormatted, isTest, trialStatus, appHandle } = useLoaderData<typeof loader>();
+  const { hasSubscription, planName, status, statusTone, priceFormatted, isTest, trialStatus, appHandle, dbStatus, dbTrialEndsAt } = useLoaderData<typeof loader>();
 
   // Shopify's managed pricing page URL (App Bridge navigation format)
   const managedPricingUrl = `shopify:admin/charges/${appHandle}/pricing_plans`;
@@ -69,6 +79,39 @@ export default function Billing() {
                 {trialStatus.daysRemaining !== 1 ? "s" : ""}. Your subscription
                 will automatically continue after the trial period.
               </p>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Cancelled but still in trial period banner */}
+        {dbStatus === "CANCELLED" && dbTrialEndsAt &&
+         new Date(dbTrialEndsAt) > new Date() && (
+          <Layout.Section>
+            <Banner title="Your subscription is cancelled" tone="warning">
+              <BlockStack gap="200">
+                <Text as="p">
+                  You cancelled your subscription, but don't worry - you can still
+                  use all features until your free trial ends on{" "}
+                  <Text as="span" fontWeight="semibold">
+                    {format(new Date(dbTrialEndsAt), "MMMM dd, yyyy")}
+                  </Text>.
+                </Text>
+                <Text as="p">
+                  Since you cancelled during your free trial, you will not be charged.
+                </Text>
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Trial ended banner */}
+        {dbStatus === "CANCELLED" && dbTrialEndsAt &&
+         new Date(dbTrialEndsAt) <= new Date() && (
+          <Layout.Section>
+            <Banner title="Your free trial has ended" tone="critical">
+              <Text as="p">
+                Subscribe to continue using Product Notes.
+              </Text>
             </Banner>
           </Layout.Section>
         )}
