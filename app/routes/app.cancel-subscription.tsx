@@ -1,6 +1,6 @@
 import { json, redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Form, useNavigation, Link } from "@remix-run/react";
+import { useLoaderData, Form, useNavigation, useNavigate } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -197,6 +197,7 @@ export async function action({ request }: ActionFunctionArgs) {
 export default function CancelSubscription() {
   const { subscription } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
+  const navigate = useNavigate();
   const isSubmitting = navigation.state === "submitting";
 
   const formatPrice = () => {
@@ -295,11 +296,9 @@ export default function CancelSubscription() {
 
               {/* Action Buttons */}
               <InlineStack gap="300" align="end">
-                <Link to="/app/billing">
-                  <Button size="large">
-                    Keep My Subscription
-                  </Button>
-                </Link>
+                <Button size="large" onClick={() => navigate("/app/billing")}>
+                  Keep My Subscription
+                </Button>
                 <Form method="post">
                   <input type="hidden" name="intent" value="cancel" />
                   <Button

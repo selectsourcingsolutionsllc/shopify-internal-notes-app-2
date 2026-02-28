@@ -188,6 +188,7 @@ const APP_HANDLE = "product-notes-for-staff";
 
 export default function BillingStatus() {
   const { subscription, history, trialStatus, error } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
 
   // Shopify's managed pricing page URL (App Bridge navigation format)
   const managedPricingUrl = `shopify:admin/charges/${APP_HANDLE}/pricing_plans`;
@@ -273,7 +274,7 @@ export default function BillingStatus() {
                     </Button>
                     <Button
                       tone="critical"
-                      url="/app/cancel-subscription"
+                      onClick={() => navigate("/app/cancel-subscription")}
                     >
                       Cancel Subscription
                     </Button>
