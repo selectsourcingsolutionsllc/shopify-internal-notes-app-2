@@ -121,6 +121,7 @@ cat extensions/*/shopify.extension.toml | grep module
 23. [Billing Button 500 Error and Iframe Redirect - THE TRIAL BUTTON FIX](#23-billing-button-500-error-and-iframe-redirect---the-trial-button-fix-january-21-2026)
 24. [Git Revert Without Extension Deploy - THE INVISIBLE REVERT BUG](#24-git-revert-without-extension-deploy---the-invisible-revert-bug-january-21-2026)
 25. [Hold Warning Note Not Appearing - THE MISSING addHoldNoteToOrder BUG](#25-hold-warning-note-not-appearing---the-missing-addholdnotetoorder-bug-january-21-2026)
+26. [Testing Redirect URLs - THE SEPARATE TAB TRAP](#26-testing-redirect-urls---the-separate-tab-trap-february-27-2026)
 
 ---
 
@@ -3124,6 +3125,79 @@ aec7f5b Implement trial logic: continue during cancel + prevent abuse
 
 ---
 
-*Last Updated: January 25, 2026*
+## 26. Testing Redirect URLs - THE SEPARATE TAB TRAP (February 27, 2026)
+
+### THE PROBLEM
+
+**Date:** February 27, 2026
+
+**Symptom:** User was setting up a redirect URL in the Shopify Partner Dashboard (for Managed Pricing plan selection). To test if the URL worked, they pasted it into a **separate browser tab**. The page showed `{}` — the classic empty braces rendering issue.
+
+**The user logically assumed the URL was broken. It was NOT broken.**
+
+### ROOT CAUSE
+
+This app is an **embedded Shopify app**. It can ONLY work when loaded **inside the Shopify admin iframe**. Here's why:
+
+1. When Shopify loads the app inside its admin, it adds authentication parameters to the URL:
+   - `embedded=1`
+   - `hmac=...` (request signature)
+   - `host=...` (base64 encoded shop admin URL)
+   - `id_token=...` (JWT session token)
+   - `session=...`
+   - `shop=...` (shop domain)
+   - `timestamp=...`
+
+2. The app's `authenticate.admin(request)` function **requires** these parameters to work.
+
+3. When you visit the URL in a separate browser tab, **NONE of these parameters exist**. Authentication fails. The app returns `{}`.
+
+4. This is **expected behavior** for ALL embedded Shopify apps. It is NOT a bug.
+
+### THE TRAP
+
+It seems perfectly logical to test a URL by pasting it in a browser tab. That's how you test any website. But embedded Shopify apps are NOT regular websites — they are designed to ONLY work inside Shopify's admin iframe.
+
+### HOW TO CORRECTLY TEST REDIRECT URLs
+
+**WRONG way:**
+- Copy the URL
+- Paste it in a new browser tab
+- See `{}` and think it's broken
+
+**RIGHT way:**
+- Go to your **Shopify admin** (the normal way you access your store)
+- Open the app **from inside Shopify admin**
+- Go through the **actual flow** (e.g., click "Choose a Plan" → select plan → approve)
+- Shopify will redirect you back with all the auth parameters included
+- **THAT** is the real test
+
+### WHEN THIS COMES UP
+
+This trap appears whenever you need to configure a redirect/callback URL in:
+- **Managed Pricing** - "App URL where merchants are redirected after completing plan selection"
+- **OAuth** - Redirect URLs in shopify.app.toml
+- **Billing API** - returnUrl parameter in appSubscriptionCreate
+- **Any external service** that redirects back to the app
+
+### KEY LESSON FOR LLMs
+
+> **ALWAYS tell the user HOW to test before sending them to test!**
+>
+> Don't just say "change the URL and test it." Say:
+>
+> "Change the URL to X. **Important: do NOT test by pasting this URL in a browser tab — it will show `{}` because embedded apps only work inside the Shopify admin.** To test correctly, go through the actual flow inside your Shopify admin."
+>
+> The user is new to programming and will make logical assumptions that don't apply to embedded apps. Warn them BEFORE they go try something.
+
+### THE RULE
+
+**Every time you give the user a URL or redirect to configure, include this warning:**
+
+> "Remember: this app only works inside the Shopify admin. You cannot test URLs by opening them in a separate browser tab. Always test by going through the actual flow in your Shopify admin."
+
+---
+
+*Last Updated: February 27, 2026*
 *Based on 100+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
