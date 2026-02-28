@@ -7620,3 +7620,216 @@ Commit: b9c8f95 - "Migrate from Custom Billing API to Shopify Managed Pricing"
     lead to a Shopify page with no plans configured
 
 ================================================================================
+
+================================================================================
+SESSION: 2026-02-27 - RESTORE BILLING PAGES + MANAGED PRICING REDIRECT FIX
+================================================================================
+
+### CONTEXT:
+After migrating to Shopify Managed Pricing (session 2026-02-25), several pages and
+features were removed that the user wanted back. The user explicitly stated:
+"I WANT EVERYTHING back to the way it was. we just need to connect the cancel
+button through to shopifys managed system."
+
+Additionally, selecting a plan from Shopify's managed pricing page was redirecting
+to `/auth/login` because the redirect happened outside the embedded iframe.
+
+### ISSUES FOUND AND FIXED:
+
+#### Issue 1: Redirect After Plan Selection Goes to /auth/login
+**Problem:** After a merchant selects a plan on Shopify's managed pricing page,
+Shopify redirects them to the configured URL. If the URL is a full URL
+(https://...), it redirects OUTSIDE the iframe, causing authenticate.admin() to
+fail → redirect to /auth/login.
+
+**Research:** Checked Shopify official docs (shopify.dev/docs/apps/launch/billing/managed-pricing)
+and developer community forums. Found that for embedded apps, the welcome link
+(redirect after plan selection) should be a RELATIVE PATH like `/app/billing-status`,
+NOT a full URL. Shopify keeps the merchant inside the admin iframe when using
+relative paths.
+
+**Solution:** User set the welcome link in Partner Dashboard to `/app/billing-status`
+(relative path). No code change needed — just a configuration change.
+
+**Important note:** An initial attempt was made to create an unauthenticated
+`/billing-callback` route (commit 55e70df) but this was REVERTED (commit 802fc75)
+because the user correctly insisted on researching Shopify's official approach first.
+The relative path solution from Shopify's docs was the right answer.
+
+**Sources:**
+- https://shopify.dev/docs/apps/launch/billing/managed-pricing
+- https://shopify.dev/docs/apps/launch/billing/redirect-plan-selection-page
+- https://community.shopify.com/t/managed-pricing-redirecting/347832
+
+#### Issue 2: Navigation Reduced from 4 to 3 Links
+**Problem:** During migration, nav was simplified from:
+  Home, Subscription, Billing Status, Settings (4 links)
+to:
+  Home, Billing, Settings (3 links)
+
+**Fix:** Restored to 4 links: Home, Subscription, Billing Status, Settings
+**File:** app/routes/app.tsx
+
+#### Issue 3: Cancel Subscription Page Deleted
+**Problem:** app.cancel-subscription.tsx was fully deleted during migration.
+The old cancel page used `billing.cancel()` which required the `billing: {...}`
+config block in shopify.server.ts — but that config was removed for managed pricing.
+
+**Fix:** Restored the cancel page with identical UI but replaced `billing.cancel()`
+with the GraphQL `appSubscriptionCancel` mutation directly. This works with both
+self-managed and Shopify managed pricing.
+
+**Key code change in action function:**
+```typescript
+// OLD: billing.cancel({ subscriptionId, isTest, prorate: true })
+// NEW: Direct GraphQL mutation
+const cancelResponse = await admin.graphql(`
+  mutation AppSubscriptionCancel($id: ID!, $prorate: Boolean) {
+    appSubscriptionCancel(id: $id, prorate: $prorate) {
+      userErrors { field message }
+      appSubscription { id status }
+    }
+  }
+`, { variables: { id: subscriptionId, prorate: false } });
+```
+
+**File:** app/routes/app.cancel-subscription.tsx (recreated)
+
+#### Issue 4: Cancel Button Missing from Billing Status Page
+**Problem:** During migration, the "Cancel Subscription" button and "Change Plan"
+button were replaced with a single "Manage Plan" button.
+
+**Fix:** Restored both buttons:
+- "Change Plan" → points to Shopify managed pricing URL
+- "Cancel Subscription" → uses `onClick={() => navigate("/app/cancel-subscription")}`
+
+**IMPORTANT (from Troubleshooting Guide Issue #7 & #16):** The cancel button
+MUST use `useNavigate()` with `onClick`, NOT `<Link><Button>` wrapper or `url=`
+prop. Link wrapped around Button doesn't work in Shopify embedded apps (iframe issue).
+
+**File:** app/routes/app.billing-status.tsx
+
+#### Issue 5: Cancellation Banners Missing from Billing Page
+**Problem:** Per Troubleshooting Guide Issues #14 and #17, the billing page should
+have cancellation status banners. These were removed during migration.
+
+**Fix:** Added database query to billing page loader and restored two banners:
+1. Yellow warning: "You cancelled but still have trial access until [date]"
+2. Red critical: "Your free trial has ended. Subscribe to continue."
+
+**File:** app/routes/app.billing.tsx
+
+#### Issue 6: Help Sections Merged on Billing Status Page
+**Problem:** During migration, separate help sections for "How to upgrade" and
+"How to cancel" were merged into one section.
+
+**Fix:** Restored separate help sections:
+- "How do I upgrade or downgrade my plan?" → Click "Change Plan"
+- "How do I cancel my subscription?" → Click "Cancel Subscription" button
+- "Where can I see my invoices?" → Shopify admin Settings → Billing
+
+**File:** app/routes/app.billing-status.tsx
+
+#### Issue 7: Unused Link Import
+**Problem:** After switching cancel button from `<Link><Button>` to `useNavigate()`,
+the `Link` import was left unused in billing-status.tsx.
+
+**Fix:** Removed unused `Link` import.
+**File:** app/routes/app.billing-status.tsx
+
+#### Issue 8: Proration on Cancellation
+**Problem:** Cancel page had `prorate: true` in the appSubscriptionCancel mutation.
+User only wants proration when UPGRADING tiers, not when cancelling.
+
+**Fix:** Changed to `prorate: false`. Removed "You may receive a prorated refund"
+text from cancel page UI. Upgrades/proration handled by Shopify managed pricing.
+
+**File:** app/routes/app.cancel-subscription.tsx
+
+#### Issue 9: Billing Page FAQ Didn't Match Current Flow
+**Problem:** FAQ said "Click Manage Subscription above and choose to cancel" but
+cancellation is now done via the dedicated Cancel Subscription button on the
+Billing Status page.
+
+**Fix:** Updated FAQ:
+- "How do I cancel?" now says "Go to the Billing Status page and click Cancel
+  Subscription. Your notes will be safely stored if you decide to resubscribe later."
+
+**File:** app/routes/app.billing.tsx
+
+### COMMITS THIS SESSION:
+```
+9dc5a2e Update billing FAQ to match current cancel flow
+637a601 Disable proration on cancellation, only prorate on upgrades
+7a3fc97 Remove unused Link import from billing-status page
+d38e3bc Add cancellation banners to billing page per troubleshooting guide
+305b0d5 Fix: Use useNavigate() for cancel button instead of url/Link wrapper
+96163e8 Restore billing pages: nav links, cancel page, billing-status buttons
+802fc75 Revert "Add billing callback route and restore Billing Status nav link"
+55e70df Add billing callback route and restore Billing Status nav link (REVERTED)
+```
+
+### FILES CHANGED THIS SESSION:
+
+| File | Action | What Changed |
+|------|--------|--------------|
+| app/routes/app.tsx | Modified | Restored 4 nav links: Home, Subscription, Billing Status, Settings |
+| app/routes/app.cancel-subscription.tsx | Recreated | Restored cancel page with GraphQL appSubscriptionCancel mutation (replaces billing.cancel()); prorate set to false; useNavigate() for Keep button |
+| app/routes/app.billing-status.tsx | Modified | Restored Cancel Subscription button (useNavigate), Change Plan button (managed pricing URL), separate help sections, removed unused Link import |
+| app/routes/app.billing.tsx | Modified | Added database query for subscription status, cancellation banners (yellow/red), updated FAQ to match cancel flow |
+
+### KEY LESSONS LEARNED:
+1. **ALWAYS research Shopify's official approach BEFORE writing code** — The user
+   caught us jumping to a custom solution (unauthenticated callback route) when
+   Shopify's own docs had a simpler answer (relative path for welcome link).
+2. **ALWAYS check the Troubleshooting Guide before implementing** — Found multiple
+   issues (Link+Button wrapper, useNavigate pattern, cancellation banners) that
+   were documented solutions to past bugs.
+3. **Relative paths for embedded app redirects** — Shopify handles the embedded
+   context automatically when you use `/path` format instead of full URLs.
+4. **appSubscriptionCancel GraphQL mutation** works with managed pricing — no need
+   for the billing.cancel() helper or the billing config block.
+
+### CURRENT STATE OF BILLING SYSTEM:
+
+**Navigation:** Home | Subscription | Billing Status | Settings
+
+**Subscription page (/app/billing):**
+- Shows current plan name, price, status badge
+- "Manage Subscription" button → Shopify managed pricing page
+- Cancellation banners (yellow for cancelled-in-trial, red for trial-ended)
+- FAQ section
+
+**Billing Status page (/app/billing-status):**
+- Detailed subscription info (plan, price, status, next billing date, start date)
+- "Change Plan" button → Shopify managed pricing page
+- "Cancel Subscription" button → /app/cancel-subscription
+- Billing history
+- Separate help sections
+- Syncs subscription to database when charge_id is present
+
+**Cancel Subscription page (/app/cancel-subscription):**
+- Confirmation UI with current plan info
+- "What happens when you cancel" with soft language
+- Trial-specific messaging
+- Uses GraphQL appSubscriptionCancel mutation (prorate: false)
+- Redirects to /app/billing?cancelled=true after cancellation
+
+**Redirect after plan selection:**
+- Partner Dashboard welcome link: /app/billing-status
+- Shopify appends charge_id parameter automatically
+- Billing-status page syncs subscription to database on load
+
+### WHERE WE LEFT OFF:
+- All billing pages are restored and connected to Shopify managed pricing
+- Code is pushed and Railway is deploying
+- Welcome link set to /app/billing-status in Partner Dashboard
+- Need to TEST the full flow on the test store:
+  1. Open app → see Subscription page
+  2. Click Manage Subscription → Shopify pricing page
+  3. Select a plan → should redirect to Billing Status with charge_id
+  4. Verify subscription synced to database
+  5. Test cancel flow → Cancel Subscription button → confirmation → cancel
+  6. Verify cancellation banners appear on billing page
+
+================================================================================
