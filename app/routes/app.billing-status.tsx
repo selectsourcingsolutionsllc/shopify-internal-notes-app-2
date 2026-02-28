@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, Link, useNavigate } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -211,7 +211,7 @@ export default function BillingStatus() {
       backAction={{ content: "Dashboard", url: "/app" }}
       secondaryActions={[
         {
-          content: "Manage Plan",
+          content: "Change Plan",
           url: `shopify:admin/charges/${APP_HANDLE}/pricing_plans`,
         },
       ]}
@@ -268,8 +268,14 @@ export default function BillingStatus() {
                   <Divider />
 
                   <InlineStack gap="300">
-                    <Button url={managedPricingUrl} variant="primary">
-                      Manage Plan
+                    <Button url={managedPricingUrl}>
+                      Change Plan
+                    </Button>
+                    <Button
+                      tone="critical"
+                      url="/app/cancel-subscription"
+                    >
+                      Cancel Subscription
                     </Button>
                   </InlineStack>
                 </>
@@ -346,12 +352,22 @@ export default function BillingStatus() {
               <BlockStack gap="300">
                 <BlockStack gap="100">
                   <Text variant="headingSm" as="h3">
-                    How do I upgrade, downgrade, or cancel?
+                    How do I upgrade or downgrade my plan?
                   </Text>
                   <Text tone="subdued" as="p">
-                    Click "Manage Plan" above to view all available plans,
-                    switch tiers, or cancel. Shopify handles all plan changes
-                    and billing for you.
+                    Click "Change Plan" above to view all available plans and
+                    switch to a different tier. Changes take effect immediately.
+                  </Text>
+                </BlockStack>
+
+                <BlockStack gap="100">
+                  <Text variant="headingSm" as="h3">
+                    How do I cancel my subscription?
+                  </Text>
+                  <Text tone="subdued" as="p">
+                    You can cancel your subscription by clicking the "Cancel
+                    Subscription" button above. You'll retain access until the
+                    end of your current billing period.
                   </Text>
                 </BlockStack>
 
