@@ -27,6 +27,7 @@ export default function App() {
         <ui-nav-menu>
           <a href="/app" rel="home">Home</a>
           <a href="/app/billing">Billing</a>
+          <a href="/app/billing-status">Billing Status</a>
           <a href="/app/settings">Settings</a>
         </ui-nav-menu>
         <Outlet />
