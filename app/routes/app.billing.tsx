@@ -194,8 +194,8 @@ export default function Billing() {
                     How do I change plans?
                   </Text>
                   <Text as="p" tone="subdued">
-                    Click "Manage Subscription" above. Shopify will show you all available plans
-                    and handle the switch for you. Changes take effect immediately.
+                    Click "Manage Subscription" above to view all available plans
+                    and switch to a different tier.
                   </Text>
                 </BlockStack>
 
@@ -204,8 +204,8 @@ export default function Billing() {
                     How do I cancel?
                   </Text>
                   <Text as="p" tone="subdued">
-                    Click "Manage Subscription" above and choose to cancel. You can also cancel
-                    from your Shopify admin under Settings → Billing.
+                    Go to the Billing Status page and click "Cancel Subscription."
+                    Your notes will be safely stored if you decide to resubscribe later.
                   </Text>
                 </BlockStack>
 
