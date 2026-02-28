@@ -159,7 +159,7 @@ export async function action({ request }: ActionFunctionArgs) {
         `, {
           variables: {
             id: subscriptionId,
-            prorate: true,
+            prorate: false,
           },
         });
 
@@ -261,15 +261,11 @@ export default function CancelSubscription() {
                   <List.Item>
                     Your notes are safely stored and will be available if you resubscribe
                   </List.Item>
-                  {subscription.isInTrial ? (
+                  {subscription.isInTrial && (
                     <List.Item>
                       <Text as="span" fontWeight="semibold">
                         You won't be charged - you're still in your free trial
                       </Text>
-                    </List.Item>
-                  ) : (
-                    <List.Item>
-                      You may receive a prorated refund for unused time
                     </List.Item>
                   )}
                 </List>
