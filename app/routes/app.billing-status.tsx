@@ -25,6 +25,7 @@ import {
   formatDate,
   getStatusBadgeTone,
 } from "../utils/billing.server";
+import { syncProductCount } from "../utils/product-count-sync.server";
 
 // Pre-formatted data structure for client
 interface FormattedSubscription {
@@ -61,7 +62,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       console.log("[BILLING-STATUS] User returned from billing approval with charge_id:", chargeId);
     }
 
-    const subscriptionData = await getSubscriptionStatus(admin);
+    // Sync product count in parallel with subscription status
+    const [subscriptionData] = await Promise.all([
+      getSubscriptionStatus(admin),
+      syncProductCount(admin, session.shop),
+    ]);
 
     // If user just approved billing (charge_id present) or there's an active subscription,
     // make sure it's saved to our database

@@ -264,6 +264,7 @@ function ProductNotesBlock() {
               {subscriptionReason === 'trial_ended' && 'Choose a Plan'}
               {subscriptionReason === 'subscription_expired' && 'Renew Subscription'}
               {subscriptionReason === 'subscription_inactive' && 'Resubscribe'}
+              {subscriptionReason === 'plan_insufficient' && 'Upgrade Plan'}
               {!subscriptionReason && 'View Plans'}
             </Link>
           </BlockStack>

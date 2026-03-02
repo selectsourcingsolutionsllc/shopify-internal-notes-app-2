@@ -14,11 +14,14 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { format } from "date-fns";
+import { syncProductCount } from "../utils/product-count-sync.server";
+import { getTierMismatchInfo } from "../utils/plan-tiers.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
-  
-  const [productNotes, subscription, settings] = await Promise.all([
+  const { admin, session } = await authenticate.admin(request);
+
+  // Run product count sync in parallel with DB queries (never crashes the page)
+  const [productNotes, subscription, settings, productCount] = await Promise.all([
     prisma.productNote.findMany({
       where: { shopDomain: session.shop },
       orderBy: { updatedAt: "desc" },
@@ -33,6 +36,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.appSetting.findUnique({
       where: { shopDomain: session.shop },
     }),
+    syncProductCount(admin, session.shop),
   ]);
 
   // Get all acknowledgments and filter in memory to avoid Prisma null query issues
@@ -49,20 +53,33 @@ export async function loader({ request }: LoaderFunctionArgs) {
     pendingAcknowledgments: allAcknowledgments.filter(a => a.acknowledgedAt === null).length,
   };
 
+  // Use the freshly synced product count (or fall back to DB cached value)
+  const currentProductCount = productCount ?? subscription?.productCount ?? null;
+
+  // Check for tier mismatch (only relevant for active, non-trial subscriptions)
+  const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
+  const tierMismatch = getTierMismatchInfo(subscription?.planName ?? null, currentProductCount);
+
   return json({
     productNotes,
     subscription,
     settings,
     stats,
     shop: session.shop,
+    tierMismatch,
+    isInTrial: !!isInTrial,
+    currentProductCount,
   });
 }
 
 export default function AppIndex() {
-  const { productNotes, subscription, settings, stats, shop } = useLoaderData<typeof loader>();
+  const { productNotes, subscription, settings, stats, shop, tierMismatch, isInTrial: loaderIsInTrial, currentProductCount } = useLoaderData<typeof loader>();
 
   const hasActiveSubscription = subscription?.status === "ACTIVE";
   const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
+
+  // Managed pricing URL for upgrade
+  const managedPricingUrl = "shopify:admin/charges/product-notes-for-staff/pricing_plans";
 
   const productNotesRows = productNotes.map((note) => [
     note.productId,
@@ -108,6 +125,23 @@ export default function AppIndex() {
           tone="info"
         >
           <p>Your trial ends on {format(new Date(subscription.trialEndsAt!), "MMMM dd, yyyy")}.</p>
+        </Banner>
+      )}
+
+      {/* Tier mismatch banner — red if blocking, yellow during trial */}
+      {tierMismatch && (
+        <Banner
+          title={loaderIsInTrial ? "Plan upgrade needed before trial ends" : "Plan upgrade required"}
+          tone={loaderIsInTrial ? "warning" : "critical"}
+          action={{
+            content: "Upgrade Plan",
+            url: managedPricingUrl,
+          }}
+        >
+          <p>{tierMismatch.message}</p>
+          {loaderIsInTrial && (
+            <p>Your notes will continue to work during your trial, but you'll need to upgrade before it ends.</p>
+          )}
         </Banner>
       )}
 

@@ -111,6 +111,8 @@ model BillingSubscription {
   trialStartedAt    DateTime? // When trial started (prevents reinstall exploit)
   trialEndsAt       DateTime?
   currentPeriodEnd  DateTime?
+  productCount          Int?       // Cached number of products in the store
+  productCountSyncedAt  DateTime?  // When we last checked the product count
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

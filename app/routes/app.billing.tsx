@@ -21,6 +21,8 @@ import {
   formatPrice,
   getStatusBadgeTone,
 } from "../utils/billing.server";
+import { syncProductCount } from "../utils/product-count-sync.server";
+import { getTierMismatchInfo } from "../utils/plan-tiers.server";
 
 // The app handle from shopify.app.toml — used to build the managed pricing URL
 const APP_HANDLE = "product-notes-for-staff";
@@ -28,15 +30,20 @@ const APP_HANDLE = "product-notes-for-staff";
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
 
-  const [subscriptionData, dbSubscription] = await Promise.all([
+  const [subscriptionData, dbSubscription, productCount] = await Promise.all([
     getSubscriptionStatus(admin),
     prisma.billingSubscription.findUnique({
       where: { shopDomain: session.shop },
     }),
+    syncProductCount(admin, session.shop),
   ]);
 
   const activeSubscription = subscriptionData.activeSubscription;
   const trialStatus = subscriptionData.trialStatus;
+
+  // Use fresh product count or fall back to DB cached value
+  const currentProductCount = productCount ?? dbSubscription?.productCount ?? null;
+  const tierMismatch = getTierMismatchInfo(activeSubscription?.name || null, currentProductCount);
 
   return json({
     hasSubscription: !!activeSubscription,
@@ -54,11 +61,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Database subscription info for cancellation banners
     dbStatus: dbSubscription?.status || null,
     dbTrialEndsAt: dbSubscription?.trialEndsAt?.toISOString() || null,
+    // Tier mismatch info
+    tierMismatch,
+    currentProductCount,
   });
 }
 
 export default function Billing() {
-  const { hasSubscription, planName, status, statusTone, priceFormatted, isTest, trialStatus, appHandle, dbStatus, dbTrialEndsAt } = useLoaderData<typeof loader>();
+  const { hasSubscription, planName, status, statusTone, priceFormatted, isTest, trialStatus, appHandle, dbStatus, dbTrialEndsAt, tierMismatch, currentProductCount } = useLoaderData<typeof loader>();
 
   // Shopify's managed pricing page URL (App Bridge navigation format)
   const managedPricingUrl = `shopify:admin/charges/${appHandle}/pricing_plans`;
@@ -112,6 +122,27 @@ export default function Billing() {
               <Text as="p">
                 Subscribe to continue using Product Notes.
               </Text>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Tier mismatch banner */}
+        {tierMismatch && (
+          <Layout.Section>
+            <Banner
+              title={trialStatus.inTrial ? "Plan upgrade needed before trial ends" : "Plan upgrade required"}
+              tone={trialStatus.inTrial ? "warning" : "critical"}
+              action={{
+                content: "Upgrade Plan",
+                url: managedPricingUrl,
+              }}
+            >
+              <Text as="p">{tierMismatch.message}</Text>
+              {trialStatus.inTrial && (
+                <Text as="p">
+                  Your notes will continue to work during your trial, but you'll need to upgrade before it ends.
+                </Text>
+              )}
             </Banner>
           </Layout.Section>
         )}
