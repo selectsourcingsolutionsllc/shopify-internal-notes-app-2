@@ -7833,3 +7833,184 @@ d38e3bc Add cancellation banners to billing page per troubleshooting guide
   6. Verify cancellation banners appear on billing page
 
 ================================================================================
+
+SESSION: March 1, 2026 - Re-add Product Count Enforcement for Managed Pricing
+================================================================================
+
+### CONTEXT:
+When we migrated to Shopify Managed Pricing (Feb 25), we removed the product count validation
+from the old custom billing page. Previously, our billing page counted the store's products
+and only let customers pick the matching tier. Now Shopify hosts the plan selection page, so
+customers can pick ANY plan — even the cheapest one regardless of store size.
+
+Shopify confirms this is expected behavior — managed pricing handles billing, but app gating
+(enforcing tier limits) is the developer's responsibility. Source:
+https://community.shopify.dev/t/managed-pricing-and-app-gating/29523
+
+### PLAN:
+Enforce tier limits AFTER the customer picks a plan, by:
+1. Caching the store's product count in our database
+2. Checking it against plan limits when notes/photos are created
+3. Showing upgrade banners on dashboard and billing pages
+
+### TIER CONFIGURATION:
+| Plan | Price | Max Products |
+|------|-------|-------------|
+| Starter | $9.99/mo | 0-50 |
+| Basic | $14.99/mo | 51-300 |
+| Pro | $19.99/mo | 301-3,000 |
+| Titan | $24.99/mo | 3,001+ (unlimited) |
+
+### FILES CREATED:
+
+**1. `prisma/schema.prisma`** - Added 2 columns to BillingSubscription:
+- `productCount Int?` — cached number of products in the store
+- `productCountSyncedAt DateTime?` — when we last synced
+
+**2. `prisma/migrations/20260301000000_add_product_count_to_billing/migration.sql`**
+- SQL: `ALTER TABLE "BillingSubscription" ADD COLUMN "productCount" INTEGER, ADD COLUMN "productCountSyncedAt" TIMESTAMP(3);`
+- Migration deployed to Railway database successfully
+
+**3. `app/utils/plan-tiers.server.ts`** (NEW)
+- Tier config map matching Shopify Managed Pricing plans
+- `getRequiredPlan(productCount)` — returns cheapest plan that covers the count
+- `isPlanSufficient(planName, productCount)` — boolean check
+- `getTierMismatchInfo(planName, productCount)` — returns human-readable message
+- Plan name normalization: lowercase + strip " plan" suffix (handles "Starter Plan", "starter", "STARTER" etc.)
+- Fails open if plan name or product count is null/unknown
+
+**4. `app/utils/product-count-sync.server.ts`** (NEW)
+- `syncProductCount(admin, shopDomain)` — queries `productsCount(limit: null)` from Shopify GraphQL
+  - Uses `limit: null` to avoid 10k cap (proven by commit e481ed6)
+  - Saves count + timestamp to BillingSubscription table
+  - Wrapped in try/catch — failure never crashes the page
+- `getCachedProductCount(shopDomain)` — reads from DB without API call
+
+**5. `app/utils/subscription-check.server.ts`** (NEW)
+- Extracted `checkSubscriptionStatus()` from `api.public.products.$productId.notes.tsx`
+- Same logic as before PLUS new `plan_insufficient` reason at the end
+- Check order: no_subscription → trial (skip tier check) → trial_ended → inactive → expired → plan_insufficient
+- Fails open if planName is null or productCount is null
+
+### FILES MODIFIED:
+
+**6. `app/routes/api.public.products.$productId.notes.tsx`**
+- Removed 65-line local `checkSubscriptionStatus()` function and `SubscriptionCheck` type
+- Now imports from `../utils/subscription-check.server`
+- No behavior change — same function, just moved to shared location
+
+**7. `app/routes/api.public.products.$productId.notes.$noteId.photos.tsx`**
+- Added subscription check to POST (photo upload) handler
+- Returns same `subscription_required` response format as notes route
+- DELETE handler NOT touched — customers can always delete their own photos
+
+**8. `app/routes/app._index.tsx`** (Dashboard)
+- Changed `const { session }` to `const { admin, session }` to get GraphQL access
+- Added `syncProductCount(admin, session.shop)` in parallel with existing DB queries
+- Added `tierMismatch` and `isInTrial` to loader return data
+- Added tier mismatch banner: RED (critical) when blocking, YELLOW (warning) during trial
+- Banner has "Upgrade Plan" button pointing to managed pricing URL
+
+**9. `app/routes/app.billing.tsx`**
+- Added `syncProductCount(admin, session.shop)` in parallel with existing queries
+- Added `tierMismatch` and `currentProductCount` to loader return data
+- Added tier mismatch banner between cancellation banners and current plan card
+- Same red/yellow logic as dashboard
+
+**10. `app/routes/app.billing-status.tsx`**
+- Added `syncProductCount(admin, session.shop)` in parallel with `getSubscriptionStatus()`
+- No UI changes — just ensures count stays fresh
+
+**11. `extensions/product-notes-ui/src/ProductNotesBlock.tsx`**
+- Added `plan_insufficient` to the subscription reason handler
+- Shows "Upgrade Plan" link text (alongside existing "Start Free Trial", "Choose a Plan", etc.)
+
+### ISSUES ENCOUNTERED AND FIXED:
+
+**Issue 1: Prisma migrate dev doesn't work in non-interactive environment**
+- `npx prisma migrate dev` failed because the shell is non-interactive
+- FIX: Created migration directory and SQL file manually, then used `npx prisma migrate deploy`
+- Also ran `npx prisma generate` to regenerate the Prisma client with new fields
+
+**Issue 2: Dashboard loader only destructured `session`, not `admin`**
+- The dashboard loader had `const { session } = await authenticate.admin(request)`
+- We need `admin` to call the Shopify GraphQL API for product count
+- FIX: Changed to `const { admin, session } = await authenticate.admin(request)`
+
+**Issue 3: Pre-existing TypeScript errors (NOT from our changes)**
+- `npx tsc --noEmit` showed ~30 errors, but ALL are pre-existing:
+  - OrderFulfillmentBlock.tsx: "extraTight" spacing and "emphasis" prop issues
+  - ProductNotesBlock.tsx: same "tight" spacing issues
+  - app.billing-status.tsx: `item` possibly null (from `.filter(Boolean)` not narrowing)
+  - shopify.server.ts: module resolution issues
+- CONFIRMED: No errors from our new files (`plan-tiers`, `product-count-sync`, `subscription-check`)
+- CONFIRMED: No errors from our modified files
+
+**Issue 4: Pre-existing Vite build error (NOT from our changes)**
+- `npx vite build` shows error about `api.products.$productId.notes.tsx` importing server-only module
+- This is a DIFFERENT file from `api.public.products.$productId.notes.tsx` (which we modified)
+- Pre-existing issue, not related to our changes
+
+### DESIGN DECISIONS:
+
+1. **Fail open everywhere** — if product count or plan name is unknown, access is ALLOWED.
+   Never block a paying customer incorrectly. Better to under-enforce than over-enforce.
+
+2. **Trial users bypass tier check** — during trial, the tier check is skipped entirely.
+   They see a YELLOW warning banner telling them to upgrade before trial ends, but notes still work.
+
+3. **Product count syncs on every app page visit** — runs in Promise.all() with existing
+   DB queries, so no added latency. Acceptable for v1. Can add product/create webhooks later
+   for real-time updates.
+
+4. **Plan name matching is flexible** — "Starter Plan", "starter", "STARTER" all normalize
+   to "starter" for comparison. Handles any format Shopify might use.
+
+5. **No changes to order workflow endpoints** — acknowledgments, release-hold, check-hold
+   are NEVER blocked by billing. Order fulfillment must always work.
+
+6. **No changes to note DELETE** — customers can always delete their own notes and photos
+   regardless of subscription status.
+
+7. **checkSubscriptionStatus is now shared** — moved from notes route to
+   `app/utils/subscription-check.server.ts` so both notes and photo uploads use the same logic.
+
+### WHAT WE DID NOT TOUCH (AND WHY):
+
+| File/Endpoint | Why NOT |
+|---|---|
+| `api.public.products.$productId.notes.$noteId.tsx` (DELETE) | Customers should always delete notes |
+| `api.public.orders.$orderId.notes.tsx` | Read-only — viewing notes always allowed |
+| `api.public.acknowledgments.tsx` | Order workflow must never be blocked |
+| `api.public.release-hold.tsx` | Order workflow must never be blocked |
+| `api.public.check-hold.tsx` | Order workflow must never be blocked |
+| `api.public.settings.tsx` | Settings should always be accessible |
+| `api.public.reset-acknowledgments.tsx` | Order workflow must never be blocked |
+| `app/shopify.server.ts` (afterAuth) | No admin GraphQL access in afterAuth hook |
+| `app/routes/webhooks.tsx` | Product count syncs on page visit are frequent enough |
+
+### GIT:
+- Commit: e33ce83 "Add product count enforcement for managed pricing tiers"
+- Pushed to master, Railway deploying
+
+### HOW TO TEST:
+1. Open app in test store → product count syncs to BillingSubscription table
+2. Check billing page → should show product count and current tier info
+3. If on correct tier → notes work normally
+4. To test tier enforcement: manually change productCount in DB to exceed plan limit
+   - `UPDATE "BillingSubscription" SET "productCount" = 999 WHERE "shopDomain" = 'test-app-projects.myshopify.com';`
+   - Then try to create a note → should get "plan_insufficient" error
+5. During trial → notes work regardless of tier, but warning banner shown
+6. Photo uploads blocked same as note creation when on wrong tier
+7. Deleting notes still works regardless of tier
+8. Order acknowledgments still work regardless of tier
+
+### WHERE WE LEFT OFF:
+- Product count enforcement is implemented and deployed
+- Need to verify on test store that:
+  1. Product count syncs correctly on app visit
+  2. Tier mismatch banners appear when plan doesn't match
+  3. Note creation is blocked when on wrong tier (after trial)
+  4. Upgrade Plan link goes to Shopify managed pricing page
+
+================================================================================
