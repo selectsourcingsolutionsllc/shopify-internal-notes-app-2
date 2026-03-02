@@ -2,79 +2,11 @@ import { json } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import { getVerifiedShop } from "../utils/shop-validation.server";
+import { checkSubscriptionStatus } from "../utils/subscription-check.server";
 
 // Public endpoint for UI extensions - uses session token for auth
 // Session token contains shop domain in the 'dest' claim
 // NOTE: CORS headers are handled by Express middleware in server.js
-
-// Helper to check subscription status and return appropriate message
-type SubscriptionCheck = {
-  hasAccess: boolean;
-  reason?: "no_subscription" | "trial_ended" | "subscription_expired" | "subscription_inactive";
-  message?: string;
-};
-
-async function checkSubscriptionStatus(shopDomain: string): Promise<SubscriptionCheck> {
-  const subscription = await prisma.billingSubscription.findUnique({
-    where: { shopDomain },
-  });
-
-  // No subscription record at all
-  if (!subscription) {
-    return {
-      hasAccess: false,
-      reason: "no_subscription",
-      message: "Start your free trial to add product notes. Visit the app to get started!",
-    };
-  }
-
-  // IMPORTANT: Check trial period FIRST, regardless of subscription status
-  // If they cancelled during trial, they can still use the app until trial ends
-  if (subscription.trialEndsAt && new Date() < subscription.trialEndsAt) {
-    // Still within trial period - allow access even if status is CANCELLED
-    return { hasAccess: true };
-  }
-
-  // Trial has ended - check if they had a trial
-  if (subscription.trialEndsAt && new Date() >= subscription.trialEndsAt) {
-    // If subscription is not ACTIVE and trial is over, no access
-    if (subscription.status !== "ACTIVE") {
-      return {
-        hasAccess: false,
-        reason: "trial_ended",
-        message: "Your free trial has ended. Subscribe to a plan to continue adding notes.",
-      };
-    }
-    // If ACTIVE, check if they have an ongoing paid period
-    if (!subscription.currentPeriodEnd || new Date() > subscription.currentPeriodEnd) {
-      return {
-        hasAccess: false,
-        reason: "trial_ended",
-        message: "Your free trial has ended. Subscribe to a plan to continue adding notes.",
-      };
-    }
-  }
-
-  // Subscription exists but status is not ACTIVE (cancelled, etc.) and no trial
-  if (subscription.status !== "ACTIVE") {
-    return {
-      hasAccess: false,
-      reason: "subscription_inactive",
-      message: "Your subscription is no longer active. Please resubscribe to continue adding notes.",
-    };
-  }
-
-  // Check if current paid period has ended
-  if (subscription.currentPeriodEnd && new Date() > subscription.currentPeriodEnd) {
-    return {
-      hasAccess: false,
-      reason: "subscription_expired",
-      message: "Your subscription has expired. Please renew to continue adding notes.",
-    };
-  }
-
-  return { hasAccess: true };
-}
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   // SECURITY: Verify the session token signature before trusting claims
