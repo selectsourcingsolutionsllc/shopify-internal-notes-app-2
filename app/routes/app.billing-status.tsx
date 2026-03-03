@@ -28,6 +28,7 @@ import {
 import { syncProductCount } from "../utils/product-count-sync.server";
 import { getTierMismatchInfo, getRequiredPlan } from "../utils/plan-tiers.server";
 import { APP_HANDLE, MANAGED_PRICING_URL } from "../config/app";
+import { debug } from "../utils/logger.server";
 
 // Pre-formatted data structure for client
 interface FormattedSubscription {
@@ -50,18 +51,18 @@ interface FormattedHistoryItem {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  console.log("[BILLING-STATUS] Loader starting...");
+  debug("[BILLING-STATUS] Loader starting...");
 
   try {
     const { admin, session } = await authenticate.admin(request);
-    console.log("[BILLING-STATUS] Auth successful, fetching subscription...");
+    debug("[BILLING-STATUS] Auth successful, fetching subscription...");
 
     // Check for charge_id in URL - this indicates user just approved billing
     const url = new URL(request.url);
     const chargeId = url.searchParams.get("charge_id");
 
     if (chargeId) {
-      console.log("[BILLING-STATUS] User returned from billing approval with charge_id:", chargeId);
+      debug("[BILLING-STATUS] User returned from billing approval with charge_id:", chargeId);
     }
 
     // Sync product count and fetch DB subscription in parallel with Shopify status
@@ -75,7 +76,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // make sure it's saved to our database
     if (subscriptionData.activeSubscription) {
       const shopifySubscription = subscriptionData.activeSubscription;
-      console.log("[BILLING-STATUS] Active subscription from Shopify:", JSON.stringify(shopifySubscription, null, 2));
+      debug("[BILLING-STATUS] Active subscription from Shopify:", JSON.stringify(shopifySubscription, null, 2));
 
       // Check if we need to save/update the subscription in database
       const existingSubscription = await prisma.billingSubscription.findUnique({
@@ -87,7 +88,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
                         existingSubscription.status !== shopifySubscription.status;
 
       if (needsSync) {
-        console.log("[BILLING-STATUS] Syncing subscription to database...");
+        debug("[BILLING-STATUS] Syncing subscription to database...");
 
         // Calculate trial end date if trial days exist
         let trialEndsAt = null;
@@ -122,15 +123,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
               currentPeriodEnd: shopifySubscription.currentPeriodEnd ? new Date(shopifySubscription.currentPeriodEnd) : null,
             },
           });
-          console.log("[BILLING-STATUS] Subscription saved to database successfully!");
+          debug("[BILLING-STATUS] Subscription saved to database successfully!");
         } catch (dbError) {
           console.error("[BILLING-STATUS] Error saving subscription to database:", dbError);
         }
       } else {
-        console.log("[BILLING-STATUS] Subscription already in sync with database");
+        debug("[BILLING-STATUS] Subscription already in sync with database");
       }
     }
-    console.log("[BILLING-STATUS] Got subscription data");
+    debug("[BILLING-STATUS] Got subscription data");
 
     // Format all data server-side before sending to client
     // IMPORTANT: During trial, show trial end date as "next billing date" (that's when first charge happens)

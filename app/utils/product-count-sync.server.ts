@@ -2,6 +2,7 @@
 // Queries Shopify for the store's product count and caches it in BillingSubscription
 
 import prisma from "../db.server";
+import { debug } from "./logger.server";
 
 /**
  * Sync the product count from Shopify to the BillingSubscription table.
@@ -35,7 +36,7 @@ export async function syncProductCount(admin: any, shopDomain: string): Promise<
       },
     });
 
-    console.log(`[ProductCountSync] Synced product count for ${shopDomain}: ${count}`);
+    debug(`[ProductCountSync] Synced product count for ${shopDomain}: ${count}`);
     return count;
   } catch (error) {
     console.error("[ProductCountSync] Failed to sync product count:", error);

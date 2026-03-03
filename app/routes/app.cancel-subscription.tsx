@@ -17,6 +17,7 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { format } from "date-fns";
+import { debug } from "../utils/logger.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);
@@ -139,7 +140,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (subscriptionId) {
       try {
-        console.log("[CANCEL] Cancelling subscription:", subscriptionId);
+        debug("[CANCEL] Cancelling subscription:", subscriptionId);
 
         // Use GraphQL appSubscriptionCancel mutation directly
         // This works with both self-managed and Shopify managed pricing
@@ -164,14 +165,21 @@ export async function action({ request }: ActionFunctionArgs) {
         });
 
         const cancelData = await cancelResponse.json();
-        const userErrors = cancelData.data?.appSubscriptionCancel?.userErrors;
+
+        // Guard against null response (e.g. staff user without billing permissions)
+        if (!cancelData.data || !cancelData.data.appSubscriptionCancel) {
+          console.error("[CANCEL] appSubscriptionCancel returned null:", cancelData);
+          return json({ error: "Unable to cancel subscription. Please check billing permissions in Shopify." }, { status: 400 });
+        }
+
+        const userErrors = cancelData.data.appSubscriptionCancel.userErrors;
 
         if (userErrors && userErrors.length > 0) {
           console.error("[CANCEL] GraphQL errors:", userErrors);
           return json({ error: userErrors[0].message }, { status: 400 });
         }
 
-        console.log("[CANCEL] Subscription cancelled successfully!");
+        debug("[CANCEL] Subscription cancelled successfully!");
 
         // Update database
         if (dbSubscription) {
