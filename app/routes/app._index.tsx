@@ -101,7 +101,7 @@ export default function AppIndex() {
 
   return (
     <Page
-      title="Notey‑ Product Notes for Staff"
+      title="Notey – Product Notes for Staff"
       subtitle="Add internal notes to products so your team never misses important details when fulfilling orders"
       secondaryActions={[
         {
