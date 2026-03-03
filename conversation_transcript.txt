@@ -8014,3 +8014,104 @@ Enforce tier limits AFTER the customer picks a plan, by:
   4. Upgrade Plan link goes to Shopify managed pricing page
 
 ================================================================================
+
+SESSION: March 3, 2026 — Subscription Error Map & Billing Polish
+================================================================================
+
+## What Was Done This Session
+
+### 1. Subscription Error Map for UI Extension (commit e2e2fd4)
+
+**Problem:** The ProductNotesBlock.tsx extension used `tone="warning"` for ALL
+subscription errors — even critical ones like "expired" or "plan insufficient".
+No bold title on banners, and the reason-to-CTA mapping was 6 inline JSX
+conditionals that were hard to maintain.
+
+**Solution:** Created a new error map utility and updated the banner.
+
+**NEW FILE: extensions/product-notes-ui/src/subscription-errors.ts**
+- Maps each subscription `reason` to `{ title, actionLabel, tone }`
+- Exports `getSubscriptionError(reason, apiMessage)` function
+- Error map:
+  | Reason              | Title                   | Action Label        | Tone     |
+  |---------------------|-------------------------|---------------------|----------|
+  | no_subscription     | Subscription required   | Start Free Trial    | warning  |
+  | trial_ended         | Free trial ended        | Choose a Plan       | critical |
+  | subscription_expired| Subscription expired    | Renew Subscription  | critical |
+  | subscription_inactive| Subscription inactive  | Resubscribe         | critical |
+  | plan_insufficient   | Plan upgrade required   | Upgrade Plan        | critical |
+  | Unknown/missing     | Subscription required   | View Plans          | warning  |
+
+**EDITED: extensions/product-notes-ui/src/ProductNotesBlock.tsx**
+- Added `import { getSubscriptionError } from './subscription-errors'`
+- Replaced 6 inline JSX conditionals (lines 258-272) with:
+  - `getSubscriptionError(subscriptionReason, subscriptionMessage)` call
+  - Banner now uses `errorDisplay.tone` (warning OR critical)
+  - Bold title: `errorDisplay.title`
+  - Description: `errorDisplay.description` (the API message)
+  - Link text: `errorDisplay.actionLabel`
+
+### 2. Shopify Agent Review — Confirmed Production-Ready
+
+Sent all billing code (12 files) to Shopify agent for review. Agent confirmed:
+- All Admin GraphQL usage correct (subscription queries, cancel mutation, product count)
+- Trial logic, tier enforcement, DB sync all solid
+- API gating + extension integration tightly integrated
+
+**3 optional improvements flagged:**
+A. Trial display vs access mismatch — calculateTrialStatus requires ACTIVE but
+   subscription-check.server.ts allows access during trial regardless of status
+B. Cancel mutation null guard — if appSubscriptionCancel returns null, silent failure
+C. Production logging — full subscription objects logged in production
+
+### 3. Billing Polish (commit a9df7c9)
+
+Implemented all 3 improvements:
+
+**Fix A — Trial display alignment**
+- File: `app/utils/billing.server.ts`
+- Changed: `const inTrial = remainingDays > 0 && subscription.status === "ACTIVE"`
+- To: `const inTrial = remainingDays > 0`
+- Why: A merchant who cancels mid-trial now sees "5 days remaining in trial"
+  instead of "Trial ended", matching the access logic that still lets them in
+
+**Fix B — Cancel mutation null guard**
+- File: `app/routes/app.cancel-subscription.tsx`
+- Added guard after appSubscriptionCancel mutation:
+  ```
+  if (!cancelData.data || !cancelData.data.appSubscriptionCancel) {
+    return json({ error: "Unable to cancel subscription. Please check billing permissions in Shopify." }, { status: 400 });
+  }
+  ```
+- Catches the case where a staff user without billing permissions tries to cancel
+
+**Fix C — Production logging**
+- NEW FILE: `app/utils/logger.server.ts`
+  - `debug()` function that only logs when `NODE_ENV !== "production"`
+  - `console.error` calls are NOT gated — errors always visible
+- Replaced all `console.log` with `debug()` in:
+  - `app/routes/app.billing-status.tsx` (8 occurrences)
+  - `app/routes/api.public.products.$productId.notes.tsx` (4 occurrences)
+  - `app/routes/api.public.products.$productId.notes.$noteId.photos.tsx` (1 occurrence)
+  - `app/routes/app.cancel-subscription.tsx` (2 occurrences)
+  - `app/utils/product-count-sync.server.ts` (1 occurrence)
+
+## Files Changed This Session
+
+| File | Action | Description |
+|------|--------|-------------|
+| extensions/product-notes-ui/src/subscription-errors.ts | NEW | Error reason → banner display map |
+| extensions/product-notes-ui/src/ProductNotesBlock.tsx | EDIT | Use error map instead of inline conditionals |
+| app/utils/logger.server.ts | NEW | debug() logger gated behind NODE_ENV |
+| app/utils/billing.server.ts | EDIT | Remove status === "ACTIVE" from trial check |
+| app/routes/app.cancel-subscription.tsx | EDIT | Add null guard + use debug() |
+| app/routes/app.billing-status.tsx | EDIT | Replace console.log with debug() |
+| app/routes/api.public.products.$productId.notes.tsx | EDIT | Replace console.log with debug() |
+| app/routes/api.public.products.$productId.notes.$noteId.photos.tsx | EDIT | Replace console.log with debug() |
+| app/utils/product-count-sync.server.ts | EDIT | Replace console.log with debug() |
+
+## Commits
+- e2e2fd4: Extract subscription error map for correct banner tones and titles
+- a9df7c9: Polish billing: align trial display, guard cancel mutation, gate verbose logs
+
+================================================================================
