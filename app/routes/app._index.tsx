@@ -127,7 +127,7 @@ export default function AppIndex() {
           {recommendedPlan && currentProductCount !== null && (
             <p>
               Your store has <strong>{currentProductCount.toLocaleString()} products</strong>.
-              We recommend starting with the <strong>{recommendedPlan.displayName} plan</strong> ({recommendedPlan.price}).
+              Based on your product count, your store requires the <strong>{recommendedPlan.displayName} plan</strong> ({recommendedPlan.price}).
             </p>
           )}
         </Banner>
