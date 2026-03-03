@@ -13,6 +13,7 @@ import {
   useApi,
   Link,
 } from '@shopify/ui-extensions-react/admin';
+import { getSubscriptionError } from './subscription-errors';
 
 // Hardcoded URL required for extensions (process.env not available in browser)
 const BASE_URL = "https://product-notes-for-staff.up.railway.app";
@@ -255,21 +256,20 @@ function ProductNotesBlock() {
   return (
     <BlockStack gap="tight">
       {/* Subscription warning */}
-      {subscriptionMessage && (
-        <Banner tone="warning">
-          <BlockStack gap="tight">
-            <Text>{subscriptionMessage}</Text>
-            <Link href={`https://${shopDomain}/admin/apps/product-notes-for-staff/app/billing`} target="_blank">
-              {subscriptionReason === 'no_subscription' && 'Start Free Trial'}
-              {subscriptionReason === 'trial_ended' && 'Choose a Plan'}
-              {subscriptionReason === 'subscription_expired' && 'Renew Subscription'}
-              {subscriptionReason === 'subscription_inactive' && 'Resubscribe'}
-              {subscriptionReason === 'plan_insufficient' && 'Upgrade Plan'}
-              {!subscriptionReason && 'View Plans'}
-            </Link>
-          </BlockStack>
-        </Banner>
-      )}
+      {subscriptionMessage && (() => {
+        const errorDisplay = getSubscriptionError(subscriptionReason, subscriptionMessage);
+        return (
+          <Banner tone={errorDisplay.tone}>
+            <BlockStack gap="tight">
+              <Text fontWeight="bold">{errorDisplay.title}</Text>
+              <Text>{errorDisplay.description}</Text>
+              <Link href={`https://${shopDomain}/admin/apps/product-notes-for-staff/app/billing`} target="_blank">
+                {errorDisplay.actionLabel}
+              </Link>
+            </BlockStack>
+          </Banner>
+        );
+      })()}
 
       {/* Header */}
       <InlineStack gap="base" blockAlignment="center">
