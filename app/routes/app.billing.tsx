@@ -23,9 +23,7 @@ import {
 } from "../utils/billing.server";
 import { syncProductCount } from "../utils/product-count-sync.server";
 import { getTierMismatchInfo, getRequiredPlan } from "../utils/plan-tiers.server";
-
-// The app handle from shopify.app.toml — used to build the managed pricing URL
-const APP_HANDLE = "product-notes-for-staff";
+import { APP_HANDLE, MANAGED_PRICING_URL } from "../config/app";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);

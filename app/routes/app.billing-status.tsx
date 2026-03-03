@@ -27,6 +27,7 @@ import {
 } from "../utils/billing.server";
 import { syncProductCount } from "../utils/product-count-sync.server";
 import { getTierMismatchInfo, getRequiredPlan } from "../utils/plan-tiers.server";
+import { APP_HANDLE, MANAGED_PRICING_URL } from "../config/app";
 
 // Pre-formatted data structure for client
 interface FormattedSubscription {
@@ -63,10 +64,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       console.log("[BILLING-STATUS] User returned from billing approval with charge_id:", chargeId);
     }
 
-    // Sync product count in parallel with subscription status
-    const [subscriptionData, productCount] = await Promise.all([
+    // Sync product count and fetch DB subscription in parallel with Shopify status
+    const [subscriptionData, productCount, dbSub] = await Promise.all([
       getSubscriptionStatus(admin),
       syncProductCount(admin, session.shop),
+      prisma.billingSubscription.findUnique({ where: { shopDomain: session.shop } }),
     ]);
 
     // If user just approved billing (charge_id present) or there's an active subscription,
@@ -163,9 +165,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }));
 
     // Calculate tier mismatch using active subscription name and product count
-    const dbSub = await prisma.billingSubscription.findUnique({
-      where: { shopDomain: session.shop },
-    });
     const currentProductCount = productCount ?? dbSub?.productCount ?? null;
     const tierMismatch = getTierMismatchInfo(
       subscriptionData.activeSubscription?.name || null,
@@ -203,15 +202,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
-// The app handle from shopify.app.toml — used to build the managed pricing URL
-const APP_HANDLE = "product-notes-for-staff";
-
 export default function BillingStatus() {
   const { subscription, history, trialStatus, tierMismatch, currentProductCount, error } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
 
-  // Shopify's managed pricing page URL (App Bridge navigation format)
-  const managedPricingUrl = `shopify:admin/charges/${APP_HANDLE}/pricing_plans`;
+  // Shopify's managed pricing page URL (from shared config)
+  const managedPricingUrl = MANAGED_PRICING_URL;
 
   // Build subscription details for DescriptionList
   const subscriptionDetails = subscription
@@ -233,7 +229,7 @@ export default function BillingStatus() {
       secondaryActions={[
         {
           content: "Change Plan",
-          url: `shopify:admin/charges/${APP_HANDLE}/pricing_plans`,
+          url: MANAGED_PRICING_URL,
         },
       ]}
     >
