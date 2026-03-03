@@ -44,10 +44,13 @@ export async function checkSubscriptionStatus(shopDomain: string): Promise<Subsc
     };
   }
 
+  // Capture "now" once to avoid tiny inconsistencies between comparisons
+  const now = new Date();
+
   // IMPORTANT: Check trial period FIRST, regardless of subscription status
   // If they cancelled during trial, they can still use the app until trial ends
   // BUT: Tier enforcement still applies during trial — Shopify's recommended approach
-  if (subscription.trialEndsAt && new Date() < subscription.trialEndsAt) {
+  if (subscription.trialEndsAt && now < subscription.trialEndsAt) {
     // Still within trial period — but enforce tier limits
     if (!isPlanSufficient(subscription.planName, subscription.productCount)) {
       const mismatchInfo = getTierMismatchInfo(subscription.planName, subscription.productCount);
@@ -62,7 +65,7 @@ export async function checkSubscriptionStatus(shopDomain: string): Promise<Subsc
   }
 
   // Trial has ended — check if they had a trial
-  if (subscription.trialEndsAt && new Date() >= subscription.trialEndsAt) {
+  if (subscription.trialEndsAt && now >= subscription.trialEndsAt) {
     // If subscription is not ACTIVE and trial is over, no access
     if (subscription.status !== "ACTIVE") {
       return {
@@ -72,7 +75,7 @@ export async function checkSubscriptionStatus(shopDomain: string): Promise<Subsc
       };
     }
     // If ACTIVE, check if they have an ongoing paid period
-    if (!subscription.currentPeriodEnd || new Date() > subscription.currentPeriodEnd) {
+    if (!subscription.currentPeriodEnd || now > subscription.currentPeriodEnd) {
       return {
         hasAccess: false,
         reason: "trial_ended",
@@ -91,7 +94,7 @@ export async function checkSubscriptionStatus(shopDomain: string): Promise<Subsc
   }
 
   // Check if current paid period has ended
-  if (subscription.currentPeriodEnd && new Date() > subscription.currentPeriodEnd) {
+  if (subscription.currentPeriodEnd && now > subscription.currentPeriodEnd) {
     return {
       hasAccess: false,
       reason: "subscription_expired",

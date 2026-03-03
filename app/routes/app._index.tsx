@@ -16,6 +16,7 @@ import prisma from "../db.server";
 import { format } from "date-fns";
 import { syncProductCount } from "../utils/product-count-sync.server";
 import { getTierMismatchInfo, getRequiredPlan } from "../utils/plan-tiers.server";
+import { MANAGED_PRICING_URL } from "../config/app";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
@@ -82,10 +83,11 @@ export default function AppIndex() {
   const { productNotes, subscription, settings, stats, shop, tierMismatch, isInTrial: loaderIsInTrial, currentProductCount, recommendedPlan } = useLoaderData<typeof loader>();
 
   const hasActiveSubscription = subscription?.status === "ACTIVE";
-  const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
+  // Use the loader's isInTrial (server-calculated) instead of recalculating on the client
+  const isInTrial = loaderIsInTrial;
 
-  // Managed pricing URL for upgrade
-  const managedPricingUrl = "shopify:admin/charges/product-notes-for-staff/pricing_plans";
+  // Managed pricing URL for upgrade (from shared config)
+  const managedPricingUrl = MANAGED_PRICING_URL;
 
   const productNotesRows = productNotes.map((note) => [
     note.productId,
