@@ -8115,3 +8115,37 @@ Implemented all 3 improvements:
 - a9df7c9: Polish billing: align trial display, guard cancel mutation, gate verbose logs
 
 ================================================================================
+
+================================================================================
+SESSION: March 3, 2026 — Railway "Resilient Locker" Investigation
+================================================================================
+
+## User Question
+User noticed a project on Railway called "resilient locker" (or similar) described as a "bucket" and asked what it is.
+
+## Investigation
+Searched the codebase to determine what storage the app uses.
+
+### Findings
+
+**File: app/utils/storage.server.ts**
+- The app stores product note photos on a **Railway Volume** mounted at `/data/uploads/`
+- Uses the `sharp` library to generate thumbnails
+- Includes path traversal protection via `sanitizePath()`
+- NOT using S3 — the `.env` file has S3 settings commented out (`# S3_BUCKET_NAME=`)
+
+**What the "Resilient Locker" is:**
+- It's a **Railway Volume** — persistent disk storage attached to the app
+- It stores the actual photo files that staff upload to product notes
+- Think of it as a hard drive for the app's uploaded images
+- The app code runs on Railway, the database stores text data, and this volume stores binary files (photos)
+
+**Key distinction:**
+- It is NOT an S3 bucket (those settings are commented out in .env)
+- It's Railway's built-in persistent storage
+- If the app ever moves off Railway, these photo files would need to be migrated
+
+## No Code Changes
+This was a research/explanation task only — no files were modified.
+
+================================================================================
