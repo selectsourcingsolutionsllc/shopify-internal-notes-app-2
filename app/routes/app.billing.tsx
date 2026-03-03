@@ -239,7 +239,7 @@ export default function Billing() {
                     How do I change plans?
                   </Text>
                   <Text as="p" tone="subdued">
-                    Go to "Billing Status" and click "Choose a Plan" to view all
+                    Click "Billing Status" or "Manage Subscription" to view all
                     available plans and switch to a different tier.
                   </Text>
                 </BlockStack>
