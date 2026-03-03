@@ -22,7 +22,7 @@ import {
   getStatusBadgeTone,
 } from "../utils/billing.server";
 import { syncProductCount } from "../utils/product-count-sync.server";
-import { getTierMismatchInfo } from "../utils/plan-tiers.server";
+import { getTierMismatchInfo, getRequiredPlan } from "../utils/plan-tiers.server";
 
 // The app handle from shopify.app.toml — used to build the managed pricing URL
 const APP_HANDLE = "product-notes-for-staff";
@@ -45,6 +45,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const currentProductCount = productCount ?? dbSubscription?.productCount ?? null;
   const tierMismatch = getTierMismatchInfo(activeSubscription?.name || null, currentProductCount);
 
+  // Calculate recommended plan based on product count (for pre-selection guidance)
+  const recommendedPlan = currentProductCount !== null
+    ? getRequiredPlan(currentProductCount)
+    : null;
+
   return json({
     hasSubscription: !!activeSubscription,
     planName: activeSubscription?.name || null,
@@ -64,11 +69,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Tier mismatch info
     tierMismatch,
     currentProductCount,
+    // Recommended plan for pre-selection guidance
+    recommendedPlan,
   });
 }
 
 export default function Billing() {
-  const { hasSubscription, planName, status, statusTone, priceFormatted, isTest, trialStatus, appHandle, dbStatus, dbTrialEndsAt, tierMismatch, currentProductCount } = useLoaderData<typeof loader>();
+  const { hasSubscription, planName, status, statusTone, priceFormatted, isTest, trialStatus, appHandle, dbStatus, dbTrialEndsAt, tierMismatch, currentProductCount, recommendedPlan } = useLoaderData<typeof loader>();
 
   // Shopify's managed pricing page URL (App Bridge navigation format)
   const managedPricingUrl = `shopify:admin/charges/${appHandle}/pricing_plans`;
@@ -194,6 +201,16 @@ export default function Billing() {
                 </BlockStack>
               ) : (
                 <BlockStack gap="300">
+                  {recommendedPlan && currentProductCount !== null && (
+                    <Banner tone="info" title="Plan recommendation">
+                      <Text as="p">
+                        Your store has <Text as="span" fontWeight="semibold">{currentProductCount.toLocaleString()} products</Text>.
+                        We recommend the <Text as="span" fontWeight="semibold">{recommendedPlan.displayName} plan</Text> ({recommendedPlan.price})
+                        which supports up to {recommendedPlan.maxProducts === Infinity ? "unlimited" : recommendedPlan.maxProducts.toLocaleString()} products.
+                      </Text>
+                    </Banner>
+                  )}
+
                   <Text as="p">
                     You don't have an active subscription. Choose a plan to get started
                     with all features including a 7-day free trial.

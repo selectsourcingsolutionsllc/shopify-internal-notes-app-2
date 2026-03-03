@@ -15,7 +15,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { format } from "date-fns";
 import { syncProductCount } from "../utils/product-count-sync.server";
-import { getTierMismatchInfo } from "../utils/plan-tiers.server";
+import { getTierMismatchInfo, getRequiredPlan } from "../utils/plan-tiers.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
@@ -60,6 +60,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
   const tierMismatch = getTierMismatchInfo(subscription?.planName ?? null, currentProductCount);
 
+  // Calculate recommended plan based on product count
+  const recommendedPlan = currentProductCount !== null
+    ? getRequiredPlan(currentProductCount)
+    : null;
+
   return json({
     productNotes,
     subscription,
@@ -69,11 +74,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     tierMismatch,
     isInTrial: !!isInTrial,
     currentProductCount,
+    recommendedPlan,
   });
 }
 
 export default function AppIndex() {
-  const { productNotes, subscription, settings, stats, shop, tierMismatch, isInTrial: loaderIsInTrial, currentProductCount } = useLoaderData<typeof loader>();
+  const { productNotes, subscription, settings, stats, shop, tierMismatch, isInTrial: loaderIsInTrial, currentProductCount, recommendedPlan } = useLoaderData<typeof loader>();
 
   const hasActiveSubscription = subscription?.status === "ACTIVE";
   const isInTrial = subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > new Date();
@@ -116,6 +122,12 @@ export default function AppIndex() {
           }}
         >
           <p>Get full access to all features with a 7-day free trial.</p>
+          {recommendedPlan && currentProductCount !== null && (
+            <p>
+              Your store has <strong>{currentProductCount.toLocaleString()} products</strong>.
+              We recommend starting with the <strong>{recommendedPlan.displayName} plan</strong> ({recommendedPlan.price}).
+            </p>
+          )}
         </Banner>
       )}
 

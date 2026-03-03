@@ -22,12 +22,13 @@ export type SubscriptionCheck = {
  *
  * Logic order:
  * 1. No subscription at all → blocked
- * 2. Still in trial → allowed (regardless of tier or cancellation status)
- * 3. Trial ended + not ACTIVE → blocked
- * 4. Subscription not ACTIVE → blocked
- * 5. Current period expired → blocked
- * 6. Plan insufficient for product count → blocked
- * 7. Otherwise → allowed
+ * 2. Still in trial + plan insufficient → blocked (must upgrade even during trial)
+ * 3. Still in trial + plan sufficient → allowed
+ * 4. Trial ended + not ACTIVE → blocked
+ * 5. Subscription not ACTIVE → blocked
+ * 6. Current period expired → blocked
+ * 7. Plan insufficient for product count → blocked
+ * 8. Otherwise → allowed
  */
 export async function checkSubscriptionStatus(shopDomain: string): Promise<SubscriptionCheck> {
   const subscription = await prisma.billingSubscription.findUnique({
@@ -45,9 +46,18 @@ export async function checkSubscriptionStatus(shopDomain: string): Promise<Subsc
 
   // IMPORTANT: Check trial period FIRST, regardless of subscription status
   // If they cancelled during trial, they can still use the app until trial ends
+  // BUT: Tier enforcement still applies during trial — Shopify's recommended approach
   if (subscription.trialEndsAt && new Date() < subscription.trialEndsAt) {
-    // Still within trial period — allow access even if status is CANCELLED
-    // (Tier enforcement is skipped during trial)
+    // Still within trial period — but enforce tier limits
+    if (!isPlanSufficient(subscription.planName, subscription.productCount)) {
+      const mismatchInfo = getTierMismatchInfo(subscription.planName, subscription.productCount);
+      return {
+        hasAccess: false,
+        reason: "plan_insufficient",
+        message: mismatchInfo?.message ||
+          "Your current plan doesn't support your store's product count. Please upgrade your plan.",
+      };
+    }
     return { hasAccess: true };
   }
 

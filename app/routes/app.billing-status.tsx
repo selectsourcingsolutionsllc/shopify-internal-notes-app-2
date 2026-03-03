@@ -26,6 +26,7 @@ import {
   getStatusBadgeTone,
 } from "../utils/billing.server";
 import { syncProductCount } from "../utils/product-count-sync.server";
+import { getTierMismatchInfo, getRequiredPlan } from "../utils/plan-tiers.server";
 
 // Pre-formatted data structure for client
 interface FormattedSubscription {
@@ -63,7 +64,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
 
     // Sync product count in parallel with subscription status
-    const [subscriptionData] = await Promise.all([
+    const [subscriptionData, productCount] = await Promise.all([
       getSubscriptionStatus(admin),
       syncProductCount(admin, session.shop),
     ]);
@@ -161,6 +162,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
         isTest: sub.test,
       }));
 
+    // Calculate tier mismatch using active subscription name and product count
+    const dbSub = await prisma.billingSubscription.findUnique({
+      where: { shopDomain: session.shop },
+    });
+    const currentProductCount = productCount ?? dbSub?.productCount ?? null;
+    const tierMismatch = getTierMismatchInfo(
+      subscriptionData.activeSubscription?.name || null,
+      currentProductCount,
+    );
+
     return json({
       subscription: formattedSubscription,
       history: formattedHistory,
@@ -169,6 +180,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         daysRemaining: subscriptionData.trialStatus.daysRemaining,
         message: subscriptionData.trialStatus.message,
       },
+      tierMismatch,
+      currentProductCount,
       error: null,
     });
   } catch (error: unknown) {
@@ -183,6 +196,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         daysRemaining: 0,
         message: "Unable to fetch subscription status",
       },
+      tierMismatch: null,
+      currentProductCount: null,
       error: "Unable to fetch subscription information. You may not have permission to view billing details.",
     });
   }
@@ -192,7 +207,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 const APP_HANDLE = "product-notes-for-staff";
 
 export default function BillingStatus() {
-  const { subscription, history, trialStatus, error } = useLoaderData<typeof loader>();
+  const { subscription, history, trialStatus, tierMismatch, currentProductCount, error } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
 
   // Shopify's managed pricing page URL (App Bridge navigation format)
@@ -241,6 +256,25 @@ export default function BillingStatus() {
                 {trialStatus.daysRemaining !== 1 ? "s" : ""}. Your subscription
                 will automatically continue after the trial period.
               </p>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Tier Mismatch Banner */}
+        {tierMismatch && (
+          <Layout.Section>
+            <Banner
+              title={trialStatus.inTrial ? "Plan upgrade needed before trial ends" : "Plan upgrade required"}
+              tone={trialStatus.inTrial ? "warning" : "critical"}
+              action={{
+                content: "Upgrade Plan",
+                url: managedPricingUrl,
+              }}
+            >
+              <p>{tierMismatch.message}</p>
+              {trialStatus.inTrial && (
+                <p>Your notes will continue to work during your trial, but you'll need to upgrade before it ends.</p>
+              )}
             </Banner>
           </Layout.Section>
         )}
