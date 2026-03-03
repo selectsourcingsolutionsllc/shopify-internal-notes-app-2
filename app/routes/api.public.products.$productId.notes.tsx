@@ -3,6 +3,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import { getVerifiedShop } from "../utils/shop-validation.server";
 import { checkSubscriptionStatus } from "../utils/subscription-check.server";
+import { debug } from "../utils/logger.server";
 
 // Public endpoint for UI extensions - uses session token for auth
 // Session token contains shop domain in the 'dest' claim
@@ -13,7 +14,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const { shop, verified, error } = await getVerifiedShop(request);
   const { productId } = params;
 
-  console.log("[PUBLIC API] GET notes for product:", productId, "shop:", shop, "verified:", verified);
+  debug("[PUBLIC API] GET notes for product:", productId, "shop:", shop, "verified:", verified);
 
   if (!shop) {
     return json({ error: error || "Authentication required" }, { status: 403 });
@@ -37,7 +38,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       },
     });
 
-    console.log("[PUBLIC API] Found", notes.length, "notes");
+    debug("[PUBLIC API] Found", notes.length, "notes");
     return json({ notes });
   } catch (error) {
     console.error("[PUBLIC API] Error:", error);
@@ -50,7 +51,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const { shop, verified, error } = await getVerifiedShop(request);
   const { productId } = params;
 
-  console.log("[PUBLIC API] Action:", request.method, "product:", productId, "shop:", shop, "verified:", verified);
+  debug("[PUBLIC API] Action:", request.method, "product:", productId, "shop:", shop, "verified:", verified);
 
   if (!shop || !productId) {
     return json({ error: error || "Missing required parameters" }, { status: 400 });
@@ -59,7 +60,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   // Check subscription before allowing note creation/editing
   const subscriptionStatus = await checkSubscriptionStatus(shop);
   if (!subscriptionStatus.hasAccess) {
-    console.log("[PUBLIC API] Subscription check failed for", shop, "- reason:", subscriptionStatus.reason);
+    debug("[PUBLIC API] Subscription check failed for", shop, "- reason:", subscriptionStatus.reason);
     return json({
       error: "subscription_required",
       reason: subscriptionStatus.reason,

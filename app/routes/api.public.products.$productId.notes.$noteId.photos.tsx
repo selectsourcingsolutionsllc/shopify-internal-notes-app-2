@@ -6,6 +6,7 @@ import { uploadFile, deleteFile } from "../utils/storage.server";
 import { getVerifiedShop } from "../utils/shop-validation.server";
 import { addCorsHeaders, createCorsResponse } from "../utils/cors.server";
 import { checkSubscriptionStatus } from "../utils/subscription-check.server";
+import { debug } from "../utils/logger.server";
 
 export async function loader({ request, params }: ActionFunctionArgs) {
   // Handle preflight
@@ -59,7 +60,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Check subscription before allowing photo uploads
     const subscriptionStatus = await checkSubscriptionStatus(shop);
     if (!subscriptionStatus.hasAccess) {
-      console.log("[Photo Upload] Subscription check failed for", shop, "- reason:", subscriptionStatus.reason);
+      debug("[Photo Upload] Subscription check failed for", shop, "- reason:", subscriptionStatus.reason);
       return addCorsHeaders(json({
         error: "subscription_required",
         reason: subscriptionStatus.reason,

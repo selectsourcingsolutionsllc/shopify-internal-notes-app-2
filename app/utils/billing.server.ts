@@ -71,7 +71,9 @@ export function calculateTrialStatus(subscription: AppSubscription | null): Tria
   const remainingMs = trialEndsAt.getTime() - now.getTime();
   const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
 
-  const inTrial = remainingDays > 0 && subscription.status === "ACTIVE";
+  // Don't require ACTIVE — a merchant who cancels mid-trial still has access
+  // until trialEndsAt (matching the logic in subscription-check.server.ts)
+  const inTrial = remainingDays > 0;
 
   return {
     inTrial,
