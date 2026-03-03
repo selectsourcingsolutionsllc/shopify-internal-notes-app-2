@@ -60,7 +60,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       daysRemaining: trialStatus.daysRemaining,
       message: trialStatus.message,
     },
-    appHandle: APP_HANDLE,
     // Database subscription info for cancellation banners
     dbStatus: dbSubscription?.status || null,
     dbTrialEndsAt: dbSubscription?.trialEndsAt?.toISOString() || null,
@@ -73,10 +72,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function Billing() {
-  const { hasSubscription, planName, status, statusTone, priceFormatted, isTest, trialStatus, appHandle, dbStatus, dbTrialEndsAt, tierMismatch, currentProductCount, recommendedPlan } = useLoaderData<typeof loader>();
+  const { hasSubscription, planName, status, statusTone, priceFormatted, isTest, trialStatus, dbStatus, dbTrialEndsAt, tierMismatch, currentProductCount, recommendedPlan } = useLoaderData<typeof loader>();
 
-  // Shopify's managed pricing page URL (App Bridge navigation format)
-  const managedPricingUrl = `shopify:admin/charges/${appHandle}/pricing_plans`;
+  // Shopify's managed pricing page URL (from shared config)
+  const managedPricingUrl = MANAGED_PRICING_URL;
 
   return (
     <Page
