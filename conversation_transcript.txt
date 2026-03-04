@@ -8149,3 +8149,32 @@ Searched the codebase to determine what storage the app uses.
 This was a research/explanation task only — no files were modified.
 
 ================================================================================
+
+================================================================================
+SESSION: March 3, 2026 — Final UI Verbiage Fixes & App Complete
+================================================================================
+
+## Changes Made
+
+### 1. Plan messaging: "recommend" → "requires"
+The billing page and dashboard said "We recommend starting with the Starter plan" which was misleading — merchants MUST use the plan matching their product count, it's not optional. Changed to "Based on your product count, your store requires the Starter plan."
+
+**Files changed:**
+- app/routes/app._index.tsx (line 130)
+- app/routes/app.billing.tsx (lines 202, 205)
+
+### 2. Billing FAQ: correct button names
+The FAQ said "Click Manage Subscription above" but the actual buttons are "Billing Status" or "Manage Subscription". Updated to: "Click 'Billing Status' or 'Manage Subscription' to view all available plans and switch to a different tier."
+
+**File changed:**
+- app/routes/app.billing.tsx (line 242)
+
+## Commits
+- fcf76a2: Fix plan messaging: change "recommend" to "requires" for clarity
+- 404d04e: Fix billing FAQ: correct instructions for changing plans
+- e43bf0a: Fix billing FAQ: use correct button names for changing plans
+
+## APP STATUS: COMPLETE ✓
+As of March 3, 2026, the user has confirmed the app is complete and fully functional.
+
+================================================================================
