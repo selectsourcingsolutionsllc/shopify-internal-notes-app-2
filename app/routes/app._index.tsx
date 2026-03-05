@@ -120,7 +120,7 @@ export default function AppIndex() {
           tone="warning"
           action={{
             content: "Choose a Plan",
-            url: "/app/billing",
+            url: MANAGED_PRICING_URL,
           }}
         >
           <p>Get full access to all features with a 7-day free trial.</p>
