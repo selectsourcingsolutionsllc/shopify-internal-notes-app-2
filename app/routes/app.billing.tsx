@@ -26,53 +26,79 @@ import { getTierMismatchInfo, getRequiredPlan } from "../utils/plan-tiers.server
 import { APP_HANDLE, MANAGED_PRICING_URL } from "../config/app";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { admin, session } = await authenticate.admin(request);
+  try {
+    const { admin, session } = await authenticate.admin(request);
 
-  const [subscriptionData, dbSubscription, productCount] = await Promise.all([
-    getSubscriptionStatus(admin),
-    prisma.billingSubscription.findUnique({
-      where: { shopDomain: session.shop },
-    }),
-    syncProductCount(admin, session.shop),
-  ]);
+    const [subscriptionData, dbSubscription, productCount] = await Promise.all([
+      getSubscriptionStatus(admin),
+      prisma.billingSubscription.findUnique({
+        where: { shopDomain: session.shop },
+      }),
+      syncProductCount(admin, session.shop),
+    ]);
 
-  const activeSubscription = subscriptionData.activeSubscription;
-  const trialStatus = subscriptionData.trialStatus;
+    const activeSubscription = subscriptionData.activeSubscription;
+    const trialStatus = subscriptionData.trialStatus;
 
-  // Use fresh product count or fall back to DB cached value
-  const currentProductCount = productCount ?? dbSubscription?.productCount ?? null;
-  const tierMismatch = getTierMismatchInfo(activeSubscription?.name || null, currentProductCount);
+    // Use fresh product count or fall back to DB cached value
+    const currentProductCount = productCount ?? dbSubscription?.productCount ?? null;
+    const tierMismatch = getTierMismatchInfo(activeSubscription?.name || null, currentProductCount);
 
-  // Calculate recommended plan based on product count (for pre-selection guidance)
-  const recommendedPlan = currentProductCount !== null
-    ? getRequiredPlan(currentProductCount)
-    : null;
+    // Calculate recommended plan based on product count (for pre-selection guidance)
+    const recommendedPlan = currentProductCount !== null
+      ? getRequiredPlan(currentProductCount)
+      : null;
 
-  return json({
-    hasSubscription: !!activeSubscription,
-    planName: activeSubscription?.name || null,
-    status: activeSubscription?.status || null,
-    statusTone: activeSubscription ? getStatusBadgeTone(activeSubscription.status) : null,
-    priceFormatted: formatPrice(activeSubscription),
-    isTest: activeSubscription?.test || false,
-    trialStatus: {
-      inTrial: trialStatus.inTrial,
-      daysRemaining: trialStatus.daysRemaining,
-      message: trialStatus.message,
-    },
-    // Database subscription info for cancellation banners
-    dbStatus: dbSubscription?.status || null,
-    dbTrialEndsAt: dbSubscription?.trialEndsAt?.toISOString() || null,
-    // Tier mismatch info
-    tierMismatch,
-    currentProductCount,
-    // Recommended plan for pre-selection guidance
-    recommendedPlan,
-  });
+    return json({
+      hasSubscription: !!activeSubscription,
+      planName: activeSubscription?.name || null,
+      status: activeSubscription?.status || null,
+      statusTone: activeSubscription ? getStatusBadgeTone(activeSubscription.status) : null,
+      priceFormatted: formatPrice(activeSubscription),
+      isTest: activeSubscription?.test || false,
+      trialStatus: {
+        inTrial: trialStatus.inTrial,
+        daysRemaining: trialStatus.daysRemaining,
+        message: trialStatus.message,
+      },
+      // Database subscription info for cancellation banners
+      dbStatus: dbSubscription?.status || null,
+      dbTrialEndsAt: dbSubscription?.trialEndsAt?.toISOString() || null,
+      // Tier mismatch info
+      tierMismatch,
+      currentProductCount,
+      // Recommended plan for pre-selection guidance
+      recommendedPlan,
+      error: null,
+    });
+  } catch (error: unknown) {
+    console.error("[BILLING] Error:", error);
+    console.error("[BILLING] Error message:", error instanceof Error ? error.message : String(error));
+
+    return json({
+      hasSubscription: false,
+      planName: null,
+      status: null,
+      statusTone: null,
+      priceFormatted: null,
+      isTest: false,
+      trialStatus: {
+        inTrial: false,
+        daysRemaining: 0,
+        message: "Unable to fetch subscription status",
+      },
+      dbStatus: null,
+      dbTrialEndsAt: null,
+      tierMismatch: null,
+      currentProductCount: null,
+      recommendedPlan: null,
+      error: "Unable to load subscription information. Please try again or use Billing Status page.",
+    });
+  }
 }
 
 export default function Billing() {
-  const { hasSubscription, planName, status, statusTone, priceFormatted, isTest, trialStatus, dbStatus, dbTrialEndsAt, tierMismatch, currentProductCount, recommendedPlan } = useLoaderData<typeof loader>();
+  const { hasSubscription, planName, status, statusTone, priceFormatted, isTest, trialStatus, dbStatus, dbTrialEndsAt, tierMismatch, currentProductCount, recommendedPlan, error } = useLoaderData<typeof loader>();
 
   // Shopify's managed pricing page URL (from shared config)
   const managedPricingUrl = MANAGED_PRICING_URL;
@@ -84,6 +110,15 @@ export default function Billing() {
       backAction={{ content: "Dashboard", url: "/app" }}
     >
       <Layout>
+        {/* Error banner */}
+        {error && (
+          <Layout.Section>
+            <Banner tone="critical" title="Error loading subscription">
+              <p>{error}</p>
+            </Banner>
+          </Layout.Section>
+        )}
+
         {/* Trial warning */}
         {trialStatus.inTrial && trialStatus.daysRemaining <= 3 && (
           <Layout.Section>
