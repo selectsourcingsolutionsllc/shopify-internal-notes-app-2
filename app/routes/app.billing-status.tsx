@@ -218,7 +218,6 @@ export default function BillingStatus() {
         { term: "Status", description: subscription.status },
         { term: "Next billing date", description: subscription.nextBillingFormatted },
         { term: "Started", description: subscription.startedFormatted },
-        { term: "Test mode", description: subscription.isTest ? "Yes" : "No" },
       ]
     : [];
 
@@ -359,7 +358,6 @@ export default function BillingStatus() {
                           </Text>
                           <Text variant="bodySm" tone="subdued" as="p">
                             {item.dateFormatted}
-                            {item.isTest && " (Test)"}
                           </Text>
                         </BlockStack>
                         <Badge tone={item.statusTone}>
