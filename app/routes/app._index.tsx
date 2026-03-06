@@ -250,7 +250,7 @@ export default function AppIndex() {
                   />
                 </div>
               </div>
-              <p style={{ fontSize: "17px", fontWeight: "700", color: "#d72c0d", marginBottom: "15px" }}>
+              <p style={{ fontSize: "17px", fontWeight: "700", color: "#d72c0d", marginBottom: "40px" }}>
                 Repeat for the order page to see notes during fulfillment.
               </p>
               <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: "8px" }}>
