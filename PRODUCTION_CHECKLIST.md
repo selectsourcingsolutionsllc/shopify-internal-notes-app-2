@@ -86,9 +86,33 @@ This checklist contains issues found by CodeRabbit that should be fixed before g
 
 ---
 
+## Production Deployment Checks (March 2026)
+
+These issues were discovered when deploying to a real production store (clockspring-experts.myshopify.com).
+
+- [x] **Billing page null safety** - FIXED: Added optional chaining (`?.`) on all `.toLocaleString()` calls. Without this, the billing page crashes for stores that don't have a billing subscription record yet (e.g., new installs).
+  - Files: `app/routes/app.billing.tsx`, `app/routes/app._index.tsx`
+
+- [x] **Billing page error handling** - FIXED: Added try/catch to `app.billing.tsx` loader with fallback error data and error banner in UI (matching the pattern already used in `app.billing-status.tsx`).
+  - File: `app/routes/app.billing.tsx`
+
+- [x] **"Choose a Plan" button routing** - FIXED: Dashboard button was pointing to `/app/billing` (internal route that could crash) instead of `MANAGED_PRICING_URL` (Shopify's managed pricing page). Changed to use `MANAGED_PRICING_URL` directly.
+  - File: `app/routes/app._index.tsx`
+
+- [x] **Setup Guide for block activation** - ADDED: Shopify admin blocks require manual "Add block" + pin by the merchant. Added a Setup Guide card with steps, thumbnail images, and embedded YouTube video so merchants know how to activate the app.
+  - File: `app/routes/app._index.tsx`
+  - Images: `public/images/setup-step2-add-block.jpg`, `public/images/setup-step3-pin-block.jpg`
+
+- [ ] **Configure support email in Partner Dashboard** - The "Get Support" button in Shopify admin shows a message form but doesn't deliver messages unless a support email is configured in Partner Dashboard → App → App Setup → Support section.
+
+- [ ] **Remove dead IS_TEST_BILLING env var** - The `IS_TEST_BILLING=true` environment variable on Railway is not used anywhere in the current codebase (removed during managed pricing migration). Can be safely deleted from Railway environment variables to avoid confusion.
+
+---
+
 ## Notes
 
 - This checklist was generated from CodeRabbit's automated code review on January 9, 2026
+- Production deployment section added March 5, 2026
 - Items are ordered by severity/impact
 - Check off items as you fix them
 - Critical items should be fixed before any production deployment with real customer data
