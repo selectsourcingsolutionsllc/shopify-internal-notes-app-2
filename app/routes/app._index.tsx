@@ -231,9 +231,23 @@ export default function AppIndex() {
                   <Badge tone="info">Step 2</Badge>
                   <span style={{ fontSize: "14px" }}>Click "Add block" and select "Product Notes"</span>
                 </div>
+                <div style={{ marginLeft: "8px", marginTop: "4px", marginBottom: "8px" }}>
+                  <img
+                    src="/images/setup-step2-add-block.jpg"
+                    alt="Click the + Block button in the Blocks section"
+                    style={{ maxWidth: "100%", width: "400px", borderRadius: "8px", border: "1px solid #e1e3e5" }}
+                  />
+                </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <Badge tone="info">Step 3</Badge>
                   <span style={{ fontSize: "14px" }}>Pin the block so it stays visible on all products</span>
+                </div>
+                <div style={{ marginLeft: "8px", marginTop: "4px", marginBottom: "8px" }}>
+                  <img
+                    src="/images/setup-step3-pin-block.jpg"
+                    alt="Click the pin icon to keep the block on all products"
+                    style={{ maxWidth: "100%", width: "400px", borderRadius: "8px", border: "1px solid #e1e3e5" }}
+                  />
                 </div>
               </div>
               <p style={{ fontSize: "14px", color: "#6d7175", marginBottom: "15px" }}>
