@@ -217,6 +217,38 @@ export default function AppIndex() {
         <Layout.Section>
           <Card>
             <div style={{ padding: "20px" }}>
+              <h2 style={{ marginBottom: "10px" }}>Setup Guide</h2>
+              <p style={{ fontSize: "14px", color: "#6d7175", marginBottom: "15px" }}>
+                After installing, you need to activate the app blocks on your product and order pages.
+                This is a one-time setup that takes about 30 seconds.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "15px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Badge tone="info">Step 1</Badge>
+                  <span style={{ fontSize: "14px" }}>Open any product in your admin</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Badge tone="info">Step 2</Badge>
+                  <span style={{ fontSize: "14px" }}>Click "Add block" and select "Product Notes"</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Badge tone="info">Step 3</Badge>
+                  <span style={{ fontSize: "14px" }}>Pin the block so it stays visible on all products</span>
+                </div>
+              </div>
+              <p style={{ fontSize: "14px", color: "#6d7175", marginBottom: "15px" }}>
+                Repeat for the order page to see notes during fulfillment.
+              </p>
+              <Button url="https://youtu.be/ZBHgbN4apW0" external>
+                Watch Setup Video
+              </Button>
+            </div>
+          </Card>
+        </Layout.Section>
+
+        <Layout.Section>
+          <Card>
+            <div style={{ padding: "20px" }}>
               <h2 style={{ marginBottom: "20px" }}>Current Settings</h2>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
