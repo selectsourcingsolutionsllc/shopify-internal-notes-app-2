@@ -124,9 +124,9 @@ export default function AppIndex() {
           }}
         >
           <p>Get full access to all features with a 7-day free trial.</p>
-          {recommendedPlan && currentProductCount !== null && (
+          {recommendedPlan && currentProductCount != null && (
             <p>
-              Your store has <strong>{currentProductCount.toLocaleString()} products</strong>.
+              Your store has <strong>{currentProductCount?.toLocaleString() ?? "unknown"} products</strong>.
               Based on your product count, your store requires the <strong>{recommendedPlan.displayName} plan</strong> ({recommendedPlan.price}).
             </p>
           )}
