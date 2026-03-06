@@ -249,10 +249,18 @@ export default function AppIndex() {
                     style={{ maxWidth: "100%", width: "400px", borderRadius: "8px", border: "1px solid #e1e3e5" }}
                   />
                 </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Badge tone="info">Step 4</Badge>
+                  <span style={{ fontSize: "14px" }}>Repeat for the order page to see notes during fulfillment</span>
+                </div>
+                <div style={{ marginLeft: "8px", marginTop: "4px", marginBottom: "8px" }}>
+                  <img
+                    src="/images/setup-step4-order-page.jpg"
+                    alt="Open any order and click + Block to add the notes block"
+                    style={{ maxWidth: "100%", width: "400px", borderRadius: "8px", border: "1px solid #e1e3e5" }}
+                  />
+                </div>
               </div>
-              <p style={{ fontSize: "17px", fontWeight: "700", color: "#d72c0d", marginBottom: "40px" }}>
-                Repeat for the order page to see notes during fulfillment.
-              </p>
               <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: "8px" }}>
                 <iframe
                   src="https://www.youtube.com/embed/ZBHgbN4apW0"
