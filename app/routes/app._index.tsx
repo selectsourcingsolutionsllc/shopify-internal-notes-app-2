@@ -225,7 +225,7 @@ export default function AppIndex() {
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "15px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <Badge tone="info">Step 1</Badge>
-                  <span style={{ fontSize: "14px" }}>Open any product in your admin</span>
+                  <span style={{ fontSize: "14px" }}>Open any product listing on your store</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <Badge tone="info">Step 2</Badge>
