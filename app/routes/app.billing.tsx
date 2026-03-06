@@ -233,12 +233,12 @@ export default function Billing() {
                 </BlockStack>
               ) : (
                 <BlockStack gap="300">
-                  {recommendedPlan && currentProductCount !== null && (
+                  {recommendedPlan && currentProductCount != null && (
                     <Banner tone="info" title="Required plan for your store">
                       <Text as="p">
-                        Your store has <Text as="span" fontWeight="semibold">{currentProductCount.toLocaleString()} products</Text>.
+                        Your store has <Text as="span" fontWeight="semibold">{currentProductCount?.toLocaleString() ?? "unknown"} products</Text>.
                         Based on your product count, your store requires the <Text as="span" fontWeight="semibold">{recommendedPlan.displayName} plan</Text> ({recommendedPlan.price}),
-                        which supports up to {recommendedPlan.maxProducts === Infinity ? "unlimited" : recommendedPlan.maxProducts.toLocaleString()} products.
+                        which supports up to {recommendedPlan.maxProducts === Infinity ? "unlimited" : recommendedPlan.maxProducts?.toLocaleString() ?? "unlimited"} products.
                       </Text>
                     </Banner>
                   )}
