@@ -218,7 +218,7 @@ export default function AppIndex() {
           <Card>
             <div style={{ padding: "20px" }}>
               <h2 style={{ marginBottom: "10px", fontSize: "26px", fontWeight: "700" }}>Setup Guide</h2>
-              <p style={{ fontSize: "17px", fontWeight: "700", color: "#d72c0d", marginBottom: "25px" }}>
+              <p style={{ marginBottom: "10px" }}>
                 After installing, you need to activate the app blocks on your product and order pages.
                 This is a one-time setup that takes about 30 seconds.
               </p>
