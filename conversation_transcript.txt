@@ -8177,4 +8177,79 @@ The FAQ said "Click Manage Subscription above" but the actual buttons are "Billi
 ## APP STATUS: COMPLETE ✓
 As of March 3, 2026, the user has confirmed the app is complete and fully functional.
 
+---
+
+# Session: March 5, 2026 — Billing Page Crash Fix + Setup Guide with Images
+
+## Issues Found & Fixed
+
+### 1. Billing page crash ("Application Error") for production store
+**Problem:** Clicking "Choose a Plan" from the dashboard or "Subscription" from the sidebar caused an "Application Error" on the clockspring-experts.myshopify.com production store. The test store worked fine.
+
+**Root Cause (two layers):**
+- **Layer 1:** The `app.billing.tsx` loader had NO try/catch error handling (unlike `app.billing-status.tsx` which did). Any error in the loader crashed the entire page with no fallback.
+- **Layer 2 (the ACTUAL crash):** `TypeError: Cannot read properties of null (reading 'toLocaleString')` in the React component render. The `currentProductCount` was `null` for the production store (no billing subscription record in DB yet), and the code called `.toLocaleString()` on it without null checking.
+
+**Why it only affected production:** The test store had a billing subscription record in the database (so `currentProductCount` was never null). The production store (clockspring-experts) had no subscription record yet, so the value was null.
+
+**Fix:**
+1. Added full try/catch to `app.billing.tsx` loader (matching the pattern from `app.billing-status.tsx`)
+2. Added error banner in the billing UI component
+3. Added optional chaining (`?.`) on ALL `.toLocaleString()` calls in both `app.billing.tsx` and `app._index.tsx`
+4. Changed "Choose a Plan" button on dashboard from `url: "/app/billing"` to `url: MANAGED_PRICING_URL` (goes directly to Shopify's managed pricing page instead of routing through the broken billing page)
+
+**Files changed:**
+- app/routes/app.billing.tsx (added try/catch, error banner, optional chaining)
+- app/routes/app._index.tsx (changed Choose a Plan URL, added optional chaining)
+
+**Key lesson:** Try/catch in the loader does NOT catch render errors. If the React component receives null data and tries to call methods on it, the page still crashes. Always add null-safe code (`?.` and `??`) in the component too.
+
+### 2. "Choose a Plan" button routing through broken page
+**Problem:** The "Choose a Plan" button on the dashboard (`app._index.tsx` line 122-123) pointed to `/app/billing` which was crashing. Meanwhile, the same button on the billing-status page pointed to `MANAGED_PRICING_URL` and worked fine.
+
+**Fix:** Changed the dashboard button to use `MANAGED_PRICING_URL` directly (Shopify's managed pricing page: `shopify:admin/charges/product-notes-for-staff/pricing_plans`).
+
+### 3. IS_TEST_BILLING environment variable — dead config
+**Investigation:** User remembered a "test mode" setting. Found `IS_TEST_BILLING=true` on Railway environment variables. However, this env var is NOT used anywhere in the current codebase — it was removed during the managed pricing migration. It's dead config that can be safely ignored or removed. The `BillingSubscription` table still has a `test` Boolean column, but that's populated from Shopify's API response (whether the subscription is a test/dev subscription).
+
+### 4. Why Shopify admin blocks require manual "Add block" activation
+**Research finding:** This is by design from Shopify. Admin UI extension blocks (like our Product Notes block on product pages) must be manually added and pinned by the merchant. Shopify does NOT auto-activate them. This is different from admin actions which appear automatically in the "More actions" menu.
+
+**Solution:** Added a Setup Guide section to the dashboard (see below).
+
+### 5. Setup Guide added to dashboard
+**What was added:**
+- A "Setup Guide" card on the main dashboard (`app._index.tsx`)
+- 3 steps with badges: (1) Open any product, (2) Click "Add block" and select "Product Notes", (3) Pin the block
+- Embedded YouTube video (iframe, 16:9 responsive) showing how to activate: https://www.youtube.com/embed/ZBHgbN4apW0
+- Thumbnail images for Step 2 (showing "+ Block" button) and Step 3 (showing pin icon)
+- Images stored in `public/images/` folder and served as static assets
+
+**Image files:**
+- `public/images/setup-step2-add-block.jpg` — Red "CLICK HERE" arrow pointing to "+ Block" button
+- `public/images/setup-step3-pin-block.jpg` — Red "CLICK PIN" arrow pointing to pin/thumbtack icon
+
+**Styling:**
+- "Setup Guide" heading: 26px, font-weight 700 (bold)
+- Subheading ("After installing..."): 17px, bold, red (#d72c0d)
+- "Repeat for order page" reminder: 17px, bold, red (#d72c0d)
+- 25px bottom margin after subheading for spacing
+
+### 6. "Get Support" button doesn't send messages
+**Problem:** The "Get Support" button in Shopify admin shows a message form but doesn't actually deliver messages.
+
+**Explanation:** This is a Shopify-provided feature (not in our app code). It requires a support email to be configured in the Shopify Partner Dashboard under App Setup → Support section. Without a support email configured, the form has nowhere to send messages.
+
+**Fix:** User needs to add their support email in Partner Dashboard → App → App Setup → Support section.
+
+## Commits
+- f9be70e: Fix billing page crash: add error handling and use managed pricing URL
+- f89e51a: Fix null safety: add optional chaining for toLocaleString calls
+- eb24d35: Add setup guide section with activation steps and YouTube video
+- 18e604d: Embed YouTube video directly in setup guide
+- 170ab99: Add setup guide thumbnail images for Step 2 and Step 3
+- cf54b53: Update setup guide: larger heading, clarify block is at bottom of page
+- c377ff9: Make 'Repeat for order page' text larger, bold, and red
+- 9f83bf9: Style subheading: larger, bold, red + add spacing after it
+
 ================================================================================
