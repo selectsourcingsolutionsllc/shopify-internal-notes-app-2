@@ -211,9 +211,6 @@ export default function Billing() {
                     <BlockStack gap="100">
                       <Text variant="headingLg" as="p">{planName}</Text>
                       <Text as="p" tone="subdued">{priceFormatted}</Text>
-                      {isTest && (
-                        <Badge tone="info">Test Mode</Badge>
-                      )}
                     </BlockStack>
                   </InlineStack>
 
