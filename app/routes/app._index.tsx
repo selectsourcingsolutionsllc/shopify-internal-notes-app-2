@@ -239,9 +239,15 @@ export default function AppIndex() {
               <p style={{ fontSize: "14px", color: "#6d7175", marginBottom: "15px" }}>
                 Repeat for the order page to see notes during fulfillment.
               </p>
-              <Button url="https://youtu.be/ZBHgbN4apW0" external>
-                Watch Setup Video
-              </Button>
+              <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: "8px" }}>
+                <iframe
+                  src="https://www.youtube.com/embed/ZBHgbN4apW0"
+                  title="How to activate Product Notes"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                />
+              </div>
             </div>
           </Card>
         </Layout.Section>
