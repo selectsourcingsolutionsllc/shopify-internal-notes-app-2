@@ -217,7 +217,7 @@ export default function AppIndex() {
         <Layout.Section>
           <Card>
             <div style={{ padding: "20px" }}>
-              <h2 style={{ marginBottom: "10px" }}>Setup Guide</h2>
+              <h2 style={{ marginBottom: "10px", fontSize: "26px", fontWeight: "700" }}>Setup Guide</h2>
               <p style={{ fontSize: "14px", color: "#6d7175", marginBottom: "15px" }}>
                 After installing, you need to activate the app blocks on your product and order pages.
                 This is a one-time setup that takes about 30 seconds.
@@ -229,7 +229,7 @@ export default function AppIndex() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <Badge tone="info">Step 2</Badge>
-                  <span style={{ fontSize: "14px" }}>Click "Add block" and select "Product Notes"</span>
+                  <span style={{ fontSize: "14px" }}>Click "Add block" and select "Product Notes" at the bottom of the page.</span>
                 </div>
                 <div style={{ marginLeft: "8px", marginTop: "4px", marginBottom: "8px" }}>
                   <img
