@@ -121,6 +121,8 @@ cat extensions/*/shopify.extension.toml | grep module
 23. [Billing Button 500 Error and Iframe Redirect - THE TRIAL BUTTON FIX](#23-billing-button-500-error-and-iframe-redirect---the-trial-button-fix-january-21-2026)
 24. [Git Revert Without Extension Deploy - THE INVISIBLE REVERT BUG](#24-git-revert-without-extension-deploy---the-invisible-revert-bug-january-21-2026)
 25. [Hold Warning Note Not Appearing - THE MISSING addHoldNoteToOrder BUG](#25-hold-warning-note-not-appearing---the-missing-addholdnotetoorder-bug-january-21-2026)
+26. [Current Plan Highlighting - THE TIER ID SOLUTION](#26-current-plan-highlighting---the-tier-id-solution-january-22-2026)
+27. [Exposed API Secret on GitHub - THE LEAKED CREDENTIAL & SECRET ROTATION](#27-exposed-api-secret-on-github---the-leaked-credential--secret-rotation-may-20-2026)
 
 ---
 
@@ -3124,6 +3126,122 @@ aec7f5b Implement trial logic: continue during cancel + prevent abuse
 
 ---
 
-*Last Updated: January 25, 2026*
+## 27. Exposed API Secret on GitHub - THE LEAKED CREDENTIAL & SECRET ROTATION (May 20, 2026)
+
+### THE PROBLEM
+
+A security researcher emailed to report that the file `.env.server` was committed to the
+**public** GitHub repo with REAL production credentials in plaintext — specifically the
+Shopify API Key and Shopify API Secret. The credentials were also present in git history
+across multiple past commits, so deleting the file alone would not remove them.
+
+### WHY IT HAPPENED (THE ROOT CAUSE)
+
+The `.gitignore` file was set up to ignore these environment files:
+- `.env`
+- `.env.local`
+- `.env.production`
+- `.env.test`
+
+But it did **NOT** include `.env.server`. So that file was never ignored, and every commit
+happily uploaded it — real Shopify API Secret and all — to the public repo.
+
+**Lesson:** When you create ANY new env file, add it to `.gitignore` BEFORE putting real
+values in it. The safe pattern is: keep a `.env.*.example` template (placeholder values
+only, tracked in git) and a real `.env.*` file (real values, gitignored).
+
+### SECONDARY EXPOSURE
+
+The same Shopify API Secret was ALSO hardcoded in plaintext inside `CLAUDE.md` (a tracked
+file) under a "Current Shopify Credentials" heading. Never put real secrets in CLAUDE.md
+or any tracked documentation file.
+
+### WHAT WAS ACTUALLY LEAKED vs. WHAT LOOKED LEAKED
+
+| Credential | Real or placeholder? |
+|---|---|
+| Shopify API Secret | REAL — the dangerous one |
+| Shopify API Key | REAL — but semi-public anyway (identifies the app) |
+| DATABASE_URL in `.env.server` | PLACEHOLDER (`postgres:password@host:5432/railway`) — the real DB URL only ever lived in Railway env vars, never in a file |
+| AWS keys in `.env.server` | PLACEHOLDERS (`your_aws_access_key` etc.) |
+
+**Important:** the real production DATABASE_URL DOES exist in plaintext in the local `.env`
+file — but `.env` IS gitignored, so it never reached GitHub. Local-only files with real
+secrets are fine; the danger is only tracked files.
+
+### HOW IT WAS FIXED — PART 1: CLEAN THE REPO
+
+1. Added `.env.server` to `.gitignore`.
+2. Sanitized the local `.env.server` — replaced real values with placeholders.
+3. Removed `.env.server` from git tracking: `git rm --cached .env.server`.
+4. Purged the file from ALL git history. `git filter-branch` choked on Windows because an
+   old commit had a path Windows rejects (`invalid path 'empty.'`). Fix:
+   ```bash
+   git config core.protectNTFS false
+   git config core.longpaths true
+   ```
+5. Scrubbed the secret strings out of every file in history (e.g. `CLAUDE.md`) using
+   `git-filter-repo` with a `--replace-text` file. Install it with:
+   ```bash
+   pip install git-filter-repo
+   ```
+   NOTE: `git-filter-repo` REMOVES the `origin` remote as a safety measure — you must
+   re-add it afterward with `git remote add origin <url>`.
+6. Force-pushed all branches and tags: `git push origin --all --force` and
+   `git push origin --tags --force`.
+
+### HOW IT WAS FIXED — PART 2: ROTATE THE SECRET (THE PART THAT ACTUALLY MATTERS)
+
+Cleaning git history does NOT neutralize a leaked secret — anyone who already copied it
+still has a working credential, and GitHub may have cached copies. The ONLY real fix is
+to rotate the secret so the leaked one stops working.
+
+1. Partner Dashboard → your app → Configuration → Client credentials → **Rotate** the
+   Client secret. Shopify shows the new secret ONCE — copy it immediately.
+2. Update `SHOPIFY_API_SECRET` in **Railway → Variables** with the new value.
+3. Wait for Railway to redeploy (30-60s).
+4. Test the app loads inside Shopify admin.
+5. Partner Dashboard → **Revoke** the old secret (see gotcha below — this step is required).
+6. Update the local `.env` file's `SHOPIFY_API_SECRET` too, so `npm run dev` still works.
+
+### CRITICAL GOTCHAS (THESE WASTED THE MOST TIME)
+
+**GOTCHA 1 — The `shpss_` prefix IS part of the secret.**
+Modern Shopify secrets look like `shpss_` followed by 32 hex characters (example format:
+`shpss_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`). The `shpss_` prefix is NOT a label — it is part
+of the value. If you paste only the hex part (dropping `shpss_`), the secret is wrong and
+every request fails. Paste the WHOLE string, prefix included.
+
+**GOTCHA 2 — You MUST revoke the old secret, not just rotate.**
+When you rotate, Shopify keeps BOTH the old and new secret active during a grace period.
+Shopify's own message says: webhooks won't use the new secret until you revoke the old
+one. This app verifies with a SINGLE secret (`process.env.SHOPIFY_API_SECRET`), so during
+the grace period Shopify signs requests with the OLD secret while the app verifies with
+the NEW one → mismatch. Symptoms:
+- Embedded app won't load — logs show `Auth error: Response { status: 401, ... }` with
+  header `X-Shopify-Retry-Invalid-Session-Request: 1`
+- Webhooks fail — logs show `[Webhook] Error authenticating ... status: 401, 'Unauthorized'`
+**Fix:** Revoke the old secret in Partner Dashboard. That forces Shopify to sign
+everything with the new secret, and the 401s stop immediately.
+
+### KEY DIAGNOSTIC
+
+A `401 Unauthorized` on `[shopify-app/INFO] Authenticating admin request` or on incoming
+`/webhooks` requests = the `SHOPIFY_API_SECRET` on the server does NOT match the secret
+Shopify is signing with. Check, in order: (1) is the `shpss_` prefix present and the value
+free of stray whitespace? (2) did Railway redeploy AFTER the variable was saved? (3) has
+the old secret been revoked in Partner Dashboard?
+
+### RELATED CODE (reads the secret — no code change needed on rotation)
+
+- `app/shopify.server.ts` line 23 — `apiSecretKey: process.env.SHOPIFY_API_SECRET`
+- `app/utils/shop-validation.server.ts` line 53 — `jwt.verify(token, process.env.SHOPIFY_API_SECRET, ...)`
+
+Both read from the environment variable, so rotating the Railway variable + restarting is
+all that is needed. No source code changes.
+
+---
+
+*Last Updated: May 20, 2026*
 *Based on 100+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
