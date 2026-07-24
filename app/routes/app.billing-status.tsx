@@ -422,8 +422,10 @@ export default function BillingStatus() {
                   </Text>
                   <Box>
                     <Button
-                      url="mailto:selectsourcingsolutionsllc@outlook.com?subject=Notey%20App%20Support"
-                      external
+                      onClick={() => {
+                        window.location.href =
+                          "mailto:selectsourcingsolutionsllc@outlook.com?subject=Notey%20App%20Support";
+                      }}
                     >
                       Contact Support
                     </Button>
