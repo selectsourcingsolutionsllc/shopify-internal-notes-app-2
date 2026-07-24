@@ -415,6 +415,20 @@ export default function BillingStatus() {
                     them in your Shopify admin under Settings → Billing.
                   </Text>
                 </BlockStack>
+
+                <BlockStack gap="200">
+                  <Text variant="headingSm" as="h3">
+                    Have questions or concerns? Contact us
+                  </Text>
+                  <Box>
+                    <Button
+                      url="mailto:selectsourcingsolutionsllc@outlook.com?subject=Notey%20App%20Support"
+                      external
+                    >
+                      Contact Support
+                    </Button>
+                  </Box>
+                </BlockStack>
               </BlockStack>
             </BlockStack>
           </Card>
