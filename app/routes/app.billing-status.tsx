@@ -420,11 +420,16 @@ export default function BillingStatus() {
                   <Text variant="headingSm" as="h3">
                     Have questions or concerns? Contact us
                   </Text>
+                  <Text tone="subdued" as="p">
+                    Email us at selectsourcingsolutionsllc@outlook.com
+                  </Text>
                   <Box>
                     <Button
                       onClick={() => {
-                        window.location.href =
-                          "mailto:selectsourcingsolutionsllc@outlook.com?subject=Notey%20App%20Support";
+                        window.open(
+                          "mailto:selectsourcingsolutionsllc@outlook.com?subject=Notey%20App%20Support",
+                          "_blank",
+                        );
                       }}
                     >
                       Contact Support
