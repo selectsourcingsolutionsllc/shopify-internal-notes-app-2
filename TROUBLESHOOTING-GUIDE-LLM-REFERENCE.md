@@ -3242,6 +3242,74 @@ all that is needed. No source code changes.
 
 ---
 
-*Last Updated: May 20, 2026*
+## 28. Contact Support Button on Billing Status - MAILTO IN SANDBOXED IFRAME (July 24, 2026)
+
+### WHAT WAS REQUESTED
+
+Add to the "Need Help?" card on `/app/billing-status`
+(`app/routes/app.billing-status.tsx`): a "Have questions or concerns? Contact us"
+heading plus a button that opens the merchant's default email client addressed to
+selectsourcingsolutionsllc@outlook.com with subject "Notey App Support".
+
+### THE BUG: MAILTO LINKS BREAK INSIDE THE EMBEDDED APP
+
+**Attempt 1 (BROKEN):** Polaris `<Button url="mailto:..." external>`. Inside the
+embedded app, link-style buttons are intercepted by the app's link handling and
+treated as in-app routes — the app tried to navigate to a page literally named
+"mailto:..." and showed a broken page.
+
+**Attempt 2 (STILL BROKEN):** `onClick` with `window.location.href = "mailto:..."`.
+The app runs in a SANDBOXED IFRAME inside Shopify admin; navigating the iframe
+itself to a mailto: URL is blocked/mangled by the browser sandbox. Confirmed broken
+in production after Railway deploy (so it was not a caching issue).
+
+**Attempt 3 (WORKING - CURRENT STATE):**
+```tsx
+<Button onClick={() => {
+  window.open(
+    "mailto:selectsourcingsolutionsllc@outlook.com?subject=Notey%20App%20Support",
+    "_blank",
+  );
+}}>
+```
+Popups are the one navigation the admin iframe sandbox explicitly allows to escape
+(`allow-popups`), so `window.open(mailto, "_blank")` launches the mail client
+without touching the page. A blank tab may flash briefly — normal for this
+technique. Also added the support email as plain visible text above the button
+("Email us at selectsourcingsolutionsllc@outlook.com") as a fallback for users with
+no default mail client configured (on such machines the click silently does
+nothing — that is the OS, not a bug).
+
+Commits: `506f59c` (broken url attempt), `e6c0252` (broken location.href attempt),
+`4ab2570` (working window.open + plain-text email).
+
+### THE RULE
+
+**NEVER use `url=`/href or `window.location` for mailto (or any external protocol)
+inside the embedded app. Always `window.open(url, "_blank")`.**
+
+### DEFERRED OPTION: IN-APP CONTACT FORM (USER CHOSE TO WAIT)
+
+Researched July 24, 2026 and presented to the user; user decided to keep the
+mailto button FOR NOW and revisit later. The agreed-on plan when resumed:
+
+- New `/app/support` route with a Polaris form (subject + message), linked from the
+  app nav and from the Billing Status help card (in-app link = no iframe issues).
+- Auto-attach the merchant's shop domain to every submission.
+- Save every submission to Postgres via Prisma (backup) AND email it to
+  selectsourcingsolutionsllc@outlook.com via the Resend API
+  (https://resend.com/docs/send-with-nodejs), reply-to set to the merchant's email.
+- Resend free tier: 3,000 emails/month. KEY DETAIL: if the Resend account is signed
+  up with selectsourcingsolutionsllc@outlook.com, it can send to that same address
+  immediately WITHOUT verifying a domain (domain verification is only needed to
+  send to other addresses).
+- BLOCKED ON: user creating the free Resend account and providing the API key
+  (starts with `re_`) — set it as RESEND_API_KEY in Railway Variables and local .env.
+- Rejected alternatives: DB-only inbox (no notifications), external Google/Tally
+  form (unprofessional, leaves the admin).
+
+---
+
+*Last Updated: July 24, 2026*
 *Based on 100+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*
