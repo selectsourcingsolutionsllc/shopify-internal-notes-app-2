@@ -8253,3 +8253,59 @@ As of March 3, 2026, the user has confirmed the app is complete and fully functi
 - 9f83bf9: Style subheading: larger, bold, red + add spacing after it
 
 ================================================================================
+
+
+================================================================================
+SESSION: July 24, 2026 - Contact Support Button on Billing Status (Mailto Iframe Saga)
+================================================================================
+
+## What was requested
+Add to the "Need Help?" card on the Billing Status page (app/routes/app.billing-status.tsx):
+a "Have questions or concerns? Contact us" heading + a button that opens the merchant's
+default email client addressed to selectsourcingsolutionsllc@outlook.com with subject
+"Notey App Support".
+
+## The bug: mailto broke the page inside the embedded app (3 attempts)
+
+### 1. Polaris Button url="mailto:..." external - BROKE THE PAGE
+The embedded app's link handling intercepted the link and treated "mailto:..." as an
+in-app route -> broken page. User confirmed broken in production.
+
+### 2. onClick with window.location.href = "mailto:..." - STILL BROKE
+The app runs in a sandboxed iframe inside Shopify admin; navigating the iframe itself to
+a mailto: URL is blocked/mangled by the browser sandbox. Confirmed still broken AFTER the
+Railway deploy went Active (ruled out caching).
+
+### 3. onClick with window.open("mailto:...", "_blank") - WORKS (current state)
+Popups are the one navigation the admin iframe sandbox allows to escape (allow-popups).
+Launches the mail client without touching the page; a blank tab may flash briefly.
+Also added the support email as plain visible text above the button as a fallback for
+machines with no default mail client (there the click silently does nothing - that's
+the OS, not a bug).
+
+## KEY LESSON
+NEVER use url=/href or window.location for mailto (or any external protocol) inside the
+embedded app. Always window.open(url, "_blank"). See TROUBLESHOOTING-GUIDE entry #28.
+
+## Contact form option - RESEARCHED, USER CHOSE TO WAIT
+Researched routing the button to a proper contact form instead. Recommended plan
+(deferred by user - "leave it the way it is for now"):
+- New /app/support route: Polaris form (subject + message), linked in app nav and from
+  the billing help card (in-app link = no iframe problems).
+- Auto-attach merchant's shop domain; save submissions to Postgres via Prisma (backup)
+  AND email to selectsourcingsolutionsllc@outlook.com via Resend API, reply-to merchant.
+- Resend free tier 3,000 emails/month. If the Resend account is created WITH
+  selectsourcingsolutionsllc@outlook.com, it can send to that address with NO domain
+  verification needed.
+- BLOCKED ON: user creating free Resend account + providing API key (re_...) ->
+  RESEND_API_KEY in Railway Variables and local .env.
+- Rejected: DB-only inbox (no notifications), external Google/Tally form (leaves admin,
+  looks unprofessional).
+
+## Commits
+- 506f59c: Add contact support button (url= version - broken)
+- e6c0252: location.href fix attempt (still broken)
+- 4ab2570: window.open + plain-text email fallback (WORKING)
+- 6d6fe1f: Troubleshooting guide entry #28 documenting all of the above
+
+================================================================================
