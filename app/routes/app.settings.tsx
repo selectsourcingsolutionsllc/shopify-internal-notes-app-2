@@ -204,9 +204,28 @@ export default function Settings() {
                     Block Fulfillment
                   </h3>
                   <p style={{ color: "#6d7175" }}>
-                    Prevents orders from being marked as fulfilled until all product notes 
+                    Prevents orders from being marked as fulfilled until all product notes
                     have been acknowledged. This ensures important information is never missed.
                   </p>
+                </div>
+
+                <div>
+                  <h3 style={{ marginBottom: "8px", fontSize: "16px", fontWeight: "600" }}>
+                    Have questions or concerns? Contact us
+                  </h3>
+                  <p style={{ color: "#6d7175", marginBottom: "12px" }}>
+                    Email us at selectsourcingsolutionsllc@outlook.com
+                  </p>
+                  <Button
+                    onClick={() => {
+                      window.open(
+                        "mailto:selectsourcingsolutionsllc@outlook.com?subject=Notey%20App%20Support",
+                        "_blank",
+                      );
+                    }}
+                  >
+                    Contact Support
+                  </Button>
                 </div>
               </div>
             </div>
