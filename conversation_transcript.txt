@@ -8309,3 +8309,37 @@ Researched routing the button to a proper contact form instead. Recommended plan
 - 6d6fe1f: Troubleshooting guide entry #28 documenting all of the above
 
 ================================================================================
+
+
+================================================================================
+SESSION: July 24, 2026 - Add Button Wipes In-Progress Note (Product Notes Block)
+================================================================================
+
+## Problem reported by user
+On the product page block: click "Add", type a note, then accidentally click "Add"
+again instead of "Save" -> everything typed is erased. User had done this by mistake
+more than once (Add and Save sit close together).
+
+## Root cause
+extensions/product-notes-ui/src/ProductNotesBlock.tsx line ~277: the Add button's
+onPress ALWAYS ran setNewNote(''), unconditionally clearing the draft even when the
+form was already open with text in it.
+
+## Fix
+Added disabled={newNote.trim().length > 0} to the Add button. Once any non-whitespace
+character is typed, Add greys out; it re-enables after Save or Cancel clears newNote.
+Bonus: editing an existing note also stores text in newNote, so this protects an
+in-progress EDIT from being wiped by the Add button too.
+
+## DEPLOY NOTE - THIS IS AN EXTENSION CHANGE
+Git push / Railway is NOT enough (see troubleshooting entry #24). Requires:
+  npx shopify app deploy --force
+This was attempted automatically but FAILED: the Shopify CLI requires interactive
+device-code login (printed a code + accounts.shopify.com link, then
+"Device authorization failed: expired_token" when nobody completed it). The user must
+run the deploy themselves so they can complete the browser login.
+
+## Commits
+- fa0e238: Disable Add button while a note draft is in progress
+
+================================================================================
