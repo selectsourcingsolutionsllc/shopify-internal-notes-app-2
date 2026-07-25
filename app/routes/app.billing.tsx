@@ -12,6 +12,7 @@ import {
   Banner,
   Button,
   Divider,
+  Box,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -294,6 +295,27 @@ export default function Billing() {
                     After your 7-day trial, you'll be charged the plan price. Cancel anytime
                     before the trial ends to avoid charges.
                   </Text>
+                </BlockStack>
+
+                <BlockStack gap="200">
+                  <Text variant="headingSm" as="h3">
+                    Have questions or concerns? Contact us
+                  </Text>
+                  <Text as="p" tone="subdued">
+                    Email us at selectsourcingsolutionsllc@outlook.com
+                  </Text>
+                  <Box>
+                    <Button
+                      onClick={() => {
+                        window.open(
+                          "mailto:selectsourcingsolutionsllc@outlook.com?subject=Notey%20App%20Support",
+                          "_blank",
+                        );
+                      }}
+                    >
+                      Contact Support
+                    </Button>
+                  </Box>
                 </BlockStack>
               </BlockStack>
             </BlockStack>
