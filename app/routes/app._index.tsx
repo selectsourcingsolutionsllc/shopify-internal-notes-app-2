@@ -218,6 +218,9 @@ export default function AppIndex() {
           <Card>
             <div style={{ padding: "20px" }}>
               <h2 style={{ marginBottom: "10px", fontSize: "26px", fontWeight: "700" }}>Setup Guide</h2>
+              <p style={{ marginBottom: "20px", fontSize: "17px", fontWeight: "700", color: "#d72c0d" }}>
+                IMPORTANT: Your staff members must have app permissions enabled for them to access and see the notes block!
+              </p>
               <p style={{ marginBottom: "20px" }}>
                 After installing, you need to activate the app blocks on your product and order pages.
                 This is a one-time setup that takes about 30 seconds.
