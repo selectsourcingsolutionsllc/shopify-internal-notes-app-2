@@ -276,6 +276,7 @@ function ProductNotesBlock() {
         <Text fontWeight="bold">Product Notes</Text>
         <Button
           variant="primary"
+          disabled={newNote.trim().length > 0}
           onPress={() => {
             setEditingNote(null);
             setNewNote('');
