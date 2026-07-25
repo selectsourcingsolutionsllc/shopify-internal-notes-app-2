@@ -3310,6 +3310,70 @@ mailto button FOR NOW and revisit later. The agreed-on plan when resumed:
 
 ---
 
+## 29. "No app with client ID found" - SECRET SCRUB CLOBBERED shopify.app.toml (July 24, 2026)
+
+### SYMPTOM
+
+`npx shopify app deploy` fails AFTER a successful login:
+```
+✔ Logged in.
+No app with client ID `REDACTED_SHOPIFY_API_KEY` found
+  • Check that your account has permission to develop apps for this organization
+  • Run `shopify auth login` to log into a different account
+  • Pass `--reset` to your command to create a new app
+```
+
+### DO NOT FOLLOW THE CLI'S SUGGESTIONS
+
+The three "next steps" the CLI prints are all WRONG here and two are destructive:
+`--reset` would create a BRAND NEW app (losing the existing app, its installs and its
+billing), and logging in as a different account does nothing. It is not a permissions
+problem at all.
+
+### ROOT CAUSE
+
+Read the client ID in the error message literally: it is the string
+`REDACTED_SHOPIFY_API_KEY`, not an ID. The May 20, 2026 secret cleanup (entry #27) ran
+`git-filter-repo --replace-text` across every file in history, which also replaced the
+`client_id` value in `shopify.app.toml` with the placeholder text. The CLI was then
+searching Shopify for an app whose client ID is the word "REDACTED_SHOPIFY_API_KEY".
+
+The scrub was too broad: the **client ID (a.k.a. SHOPIFY_API_KEY) is NOT a secret.** It is
+a public identifier — `app/routes/app.tsx` sends it to the browser on every page load.
+Only the client SECRET is sensitive, and rotating it (entry #27) was the correct fix.
+
+### THE FIX
+
+Restore the real client ID into `shopify.app.toml` from the local `.env` (gitignored, so
+it kept its real values). Copy file-to-file so the value is never typed on a command line:
+
+```powershell
+$root = "C:\Users\isaac\shopify-internal-notes-app-2"
+$key = (Select-String -Path "$root\.env" -Pattern '^SHOPIFY_API_KEY=(.*)$').Matches[0].Groups[1].Value.Trim('"').Trim()
+$toml = "$root\shopify.app.toml"
+$c = [System.IO.File]::ReadAllText($toml)
+[System.IO.File]::WriteAllText($toml, $c.Replace('REDACTED_SHOPIFY_API_KEY', $key), (New-Object System.Text.UTF8Encoding($false)))
+```
+Write with `UTF8Encoding($false)` (no BOM) — a BOM can break TOML parsing.
+
+Then `npx shopify app deploy --force` works. Verified: released version
+`product-notes-for-staff-233`.
+
+### CHECK THIS TOO
+
+Other files may still hold the placeholder from the same scrub. `CLAUDE.md` still lists
+`API Key: REDACTED_SHOPIFY_API_KEY` / `Client Secret: REDACTED_SHOPIFY_API_SECRET` — that
+is harmless there (documentation), but do not copy those values anywhere expecting them
+to work. Anything FUNCTIONAL that needs the client ID must get the real value.
+
+### KEY DIAGNOSTIC
+
+If any error quotes a config value that reads like `REDACTED_*`, the value was destroyed
+by the history scrub — restore it from `.env`, never from git history (history was
+rewritten, so the real value is gone from every commit).
+
+---
+
 *Last Updated: July 24, 2026*
 *Based on 100+ commits of debugging sessions*
 *This document should be the FIRST reference when debugging this Shopify app.*

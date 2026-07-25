@@ -8343,3 +8343,46 @@ run the deploy themselves so they can complete the browser login.
 - fa0e238: Disable Add button while a note draft is in progress
 
 ================================================================================
+
+
+================================================================================
+SESSION: July 24, 2026 (cont.) - Extension Deploy Blocked by Clobbered client_id
+================================================================================
+
+## Context
+Deploying the Add-button fix (commit fa0e238) required `npx shopify app deploy` because
+it is EXTENSION code (entry #24: git push/Railway only updates the server).
+
+## Blocker 1 - CLI needs interactive login
+`npx shopify app deploy --force` printed a device code + accounts.shopify.com link and
+waited. First attempt expired ("Device authorization failed: expired_token") because
+nobody completed the browser login. Second attempt: opened the auth URL in the user's
+Chrome via browser automation, user logged in -> "Logged in." SUCCESS.
+NOTE: the login is interactive by design. Claude cannot complete it (never enters
+credentials); it can only open the link for the user.
+
+## Blocker 2 - "No app with client ID `REDACTED_SHOPIFY_API_KEY` found"
+After login the deploy still failed. The client_id in shopify.app.toml was the literal
+placeholder string, wiped by the May 20 2026 secret scrub (entry #27) which ran
+git-filter-repo --replace-text over ALL files. The client ID is NOT a secret (it is sent
+to the browser in app.tsx) - the scrub was too broad and had silently broken every
+future CLI deploy since May.
+
+IMPORTANT: the CLI's suggested "next steps" are dangerous here - `--reset` would create
+a whole new app. Ignore them; restore the value instead.
+
+## Fix
+Copied the real 32-char key from local .env (gitignored, still intact) into
+shopify.app.toml file-to-file, written as UTF-8 with NO BOM. Full snippet in
+troubleshooting entry #29.
+
+## Result
+Deploy succeeded. Both extensions rebuilt and released:
+  product-notes-for-staff-233
+Add-button fix is now LIVE in Shopify admin.
+
+## Commits
+- fa0e238: Disable Add button while a note draft is in progress
+- (this commit): restore client_id + troubleshooting entry #29
+
+================================================================================
